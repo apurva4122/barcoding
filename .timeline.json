@@ -1,5 +1,5 @@
 {
-  "timeline_index": 6,
+  "timeline_index": 10,
   "planner": {},
   "gallery_last_file": {},
   "timeline_status": {
@@ -7,7 +7,11 @@
     "3": 1,
     "4": 1,
     "5": 1,
-    "6": 1
+    "6": 1,
+    "7": 1,
+    "8": 1,
+    "9": 1,
+    "10": 1
   },
   "preview_servers": {},
   "preview_server": {
@@ -16,5 +20,5 @@
     "config_path": ".mgx/config.yaml",
     "timeline_index": 1
   },
-  "last_build_failed": false
+  "last_build_failed": true
 }
