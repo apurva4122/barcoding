@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Worker, AttendanceRecord, AttendanceStatus } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
 import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, Settings } from "lucide-react";
@@ -22,7 +24,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
-  const [showWorkerManagement, setShowWorkerManagement] = useState(false);
+  const [showAddWorkerDialog, setShowAddWorkerDialog] = useState(false);
+  const [showManageWorkersDialog, setShowManageWorkersDialog] = useState(false);
   
   const [workerForm, setWorkerForm] = useState({
     name: '',
@@ -114,6 +117,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           position: '',
           isPacker: false
         });
+        setShowAddWorkerDialog(false);
         toast.success('Worker added successfully');
         console.log('Worker added successfully');
       } else {
@@ -234,49 +238,35 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const halfDayCount = dateAttendance.filter(r => r.status === AttendanceStatus.HALF_DAY).length;
   const packers = workers.filter(w => w.isPacker);
 
-  const handleManageWorkersClick = () => {
-    console.log('Manage workers clicked');
-    setShowWorkerManagement(true);
-  };
-
-  const handleBackToAttendance = () => {
-    console.log('Back to attendance clicked');
-    setShowWorkerManagement(false);
-  };
-
-  // Worker Management View
-  if (showWorkerManagement) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleBackToAttendance}
-              className="hover:bg-gray-50 transition-colors duration-200"
-            >
-              ← Back to Attendance
-            </Button>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Manage Workers</h2>
-              <p className="text-sm text-gray-600">Add and manage your workers</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-gray-500" />
-            <span className="text-sm font-medium">{workers.length} Total Workers</span>
-          </div>
+  // Main Attendance View
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Attendance Management</h2>
+          <p className="text-sm text-gray-600">Track daily worker attendance</p>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Add Worker Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Add New Worker</CardTitle>
-              <CardDescription>Add workers to track their attendance</CardDescription>
-            </CardHeader>
-            <CardContent>
+        <div className="flex items-center gap-4">
+          {/* Add Worker Button */}
+          <Dialog open={showAddWorkerDialog} onOpenChange={setShowAddWorkerDialog}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="default" 
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white border-0"
+                onClick={() => {
+                  console.log('Add Worker button clicked');
+                  setShowAddWorkerDialog(true);
+                }}
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Worker
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add New Worker</DialogTitle>
+              </DialogHeader>
               <form onSubmit={handleAddWorker} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -331,93 +321,115 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   </Label>
                 </div>
 
-                <Button type="submit" disabled={formLoading} className="w-full">
-                  {formLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Worker
-                    </>
-                  )}
-                </Button>
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowAddWorkerDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={formLoading}>
+                    {formLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Worker
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
               </form>
-            </CardContent>
-          </Card>
+            </DialogContent>
+          </Dialog>
 
-          {/* Workers List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Workers List ({workers.length})</CardTitle>
-              <CardDescription>Manage existing workers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {workers.length === 0 ? (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Workers Added</h3>
-                  <p className="text-gray-600">Add your first worker to get started</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {workers.map((worker) => (
-                    <div key={worker.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{worker.name}</h3>
-                          {worker.isPacker && (
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                              <Package className="h-3 w-3 mr-1" />
-                              Packer
-                            </Badge>
-                          )}
+          {/* Manage Workers Button */}
+          <Dialog open={showManageWorkersDialog} onOpenChange={setShowManageWorkersDialog}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="border-gray-300 hover:bg-gray-50"
+                onClick={() => {
+                  console.log('Manage Workers button clicked');
+                  setShowManageWorkersDialog(true);
+                }}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Manage Workers
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Manage Workers ({workers.length})</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {workers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Workers Added</h3>
+                    <p className="text-gray-600">Add your first worker to get started</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {workers.map((worker) => (
+                      <div key={worker.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{worker.name}</h3>
+                            {worker.isPacker && (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                <Package className="h-3 w-3 mr-1" />
+                                Packer
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            ID: {worker.employeeId} • {worker.department} • {worker.position}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Added: {new Date(worker.createdAt).toLocaleDateString()}
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600">
-                          ID: {worker.employeeId} • {worker.department} • {worker.position}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Added: {new Date(worker.createdAt).toLocaleDateString()}
-                        </p>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Worker</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {worker.name}? This will also remove all their attendance records. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteWorker(worker.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteWorker(worker.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
-  // Main Attendance View
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Attendance Management</h2>
-          <p className="text-sm text-gray-600">Track daily worker attendance</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            onClick={handleManageWorkersClick}
-            className="hover:bg-gray-50 transition-colors duration-200"
-            style={{ position: 'relative', zIndex: 1 }}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Manage Workers
-          </Button>
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-gray-500" />
             <span className="text-sm font-medium">{workers.length} Workers</span>
@@ -478,7 +490,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Workers Found</h3>
               <p className="text-gray-600 mb-4">Add workers to start tracking attendance</p>
-              <Button onClick={handleManageWorkersClick}>
+              <Button onClick={() => setShowAddWorkerDialog(true)}>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add Workers
               </Button>
