@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Worker, AttendanceRecord, AttendanceStatus } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
@@ -117,7 +117,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           position: '',
           isPacker: false
         });
-        setIsAddWorkerOpen(false);
+        setIsAddWorkerOpen(false); // Close dialog after successful addition
         toast.success('Worker added successfully');
         await loadData(); // Refresh data
       } else {
@@ -244,30 +244,172 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           <p className="text-sm text-gray-600">Track daily worker attendance</p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Add Worker Button */}
-          <Button 
-            onClick={() => {
-              console.log('Add Worker button clicked');
-              setIsAddWorkerOpen(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Worker
-          </Button>
+          {/* Add Worker Dialog */}
+          <Dialog open={isAddWorkerOpen} onOpenChange={setIsAddWorkerOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Worker
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add New Worker</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleAddWorker} className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <Label htmlFor="name">Name *</Label>
+                    <Input
+                      id="name"
+                      value={workerForm.name}
+                      onChange={(e) => setWorkerForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter worker name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="employeeId">Employee ID *</Label>
+                    <Input
+                      id="employeeId"
+                      value={workerForm.employeeId}
+                      onChange={(e) => setWorkerForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                      placeholder="Enter employee ID"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="department">Department</Label>
+                    <Input
+                      id="department"
+                      value={workerForm.department}
+                      onChange={(e) => setWorkerForm(prev => ({ ...prev, department: e.target.value }))}
+                      placeholder="Enter department"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="position">Position</Label>
+                    <Input
+                      id="position"
+                      value={workerForm.position}
+                      onChange={(e) => setWorkerForm(prev => ({ ...prev, position: e.target.value }))}
+                      placeholder="Enter position"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="isPacker"
+                    checked={workerForm.isPacker}
+                    onCheckedChange={(checked) => setWorkerForm(prev => ({ ...prev, isPacker: checked }))}
+                  />
+                  <Label htmlFor="isPacker" className="flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Designate as Packer (for barcode assignment)
+                  </Label>
+                </div>
 
-          {/* Manage Workers Button */}
-          <Button 
-            onClick={() => {
-              console.log('Manage Workers button clicked');
-              setIsManageWorkersOpen(true);
-            }}
-            variant="outline"
-            className="border-gray-300 hover:bg-gray-50"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Manage Workers
-          </Button>
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => setIsAddWorkerOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={formLoading}>
+                    {formLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Worker
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Manage Workers Dialog */}
+          <Dialog open={isManageWorkersOpen} onOpenChange={setIsManageWorkersOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
+                <Settings className="h-4 w-4 mr-2" />
+                Manage Workers
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Manage Workers ({workers.length})</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {workers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Workers Added</h3>
+                    <p className="text-gray-600">Add your first worker to get started</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {workers.map((worker) => (
+                      <div key={worker.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{worker.name}</h3>
+                            {worker.isPacker && (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                <Package className="h-3 w-3 mr-1" />
+                                Packer
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            ID: {worker.employeeId} • {worker.department} • {worker.position}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Added: {new Date(worker.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Worker</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {worker.name}? This will also remove all their attendance records. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteWorker(worker.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-gray-500" />
@@ -277,161 +419,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           </div>
         </div>
       </div>
-
-      {/* Add Worker Dialog - No timeout, stays open until user action */}
-      <Dialog open={isAddWorkerOpen} onOpenChange={setIsAddWorkerOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Worker</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAddWorker} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={workerForm.name}
-                  onChange={(e) => setWorkerForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter worker name"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="employeeId">Employee ID *</Label>
-                <Input
-                  id="employeeId"
-                  value={workerForm.employeeId}
-                  onChange={(e) => setWorkerForm(prev => ({ ...prev, employeeId: e.target.value }))}
-                  placeholder="Enter employee ID"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="department">Department</Label>
-                <Input
-                  id="department"
-                  value={workerForm.department}
-                  onChange={(e) => setWorkerForm(prev => ({ ...prev, department: e.target.value }))}
-                  placeholder="Enter department"
-                />
-              </div>
-              <div>
-                <Label htmlFor="position">Position</Label>
-                <Input
-                  id="position"
-                  value={workerForm.position}
-                  onChange={(e) => setWorkerForm(prev => ({ ...prev, position: e.target.value }))}
-                  placeholder="Enter position"
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isPacker"
-                checked={workerForm.isPacker}
-                onCheckedChange={(checked) => setWorkerForm(prev => ({ ...prev, isPacker: checked }))}
-              />
-              <Label htmlFor="isPacker" className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Designate as Packer (for barcode assignment)
-              </Label>
-            </div>
-
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsAddWorkerOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={formLoading}>
-                {formLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Adding...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Worker
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Manage Workers Dialog - No timeout, stays open until user action */}
-      <Dialog open={isManageWorkersOpen} onOpenChange={setIsManageWorkersOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Manage Workers ({workers.length})</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {workers.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Workers Added</h3>
-                <p className="text-gray-600">Add your first worker to get started</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {workers.map((worker) => (
-                  <div key={worker.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{worker.name}</h3>
-                        {worker.isPacker && (
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                            <Package className="h-3 w-3 mr-1" />
-                            Packer
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        ID: {worker.employeeId} • {worker.department} • {worker.position}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Added: {new Date(worker.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Worker</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete {worker.name}? This will also remove all their attendance records. This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteWorker(worker.id)}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Card>
         <CardHeader>
