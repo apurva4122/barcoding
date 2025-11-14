@@ -1,95 +1,93 @@
-"use client";
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Worker, AttendanceRecord, AttendanceStatus } from "@/types";
-import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
-import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, Settings } from "lucide-react";
+import { getWorkers, getAttendanceRecords, saveWorker, saveAttendanceRecord, toggleOvertimeForWorker, hasOvertimeForDate, togglePackerStatus, getPresentPackersForDate, deleteWorker } from "@/lib/attendance-utils";
+import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 interface AttendanceManagementProps {
-  onAttendanceUpdate?: (attendance: AttendanceRecord[]) => void;
+  onAttendanceUpdate?: () => void;
 }
 
 export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagementProps) {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [loading, setLoading] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
-  const [isAddWorkerOpen, setIsAddWorkerOpen] = useState(false);
-  const [isManageWorkersOpen, setIsManageWorkersOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(true);
   
+  // Worker form
   const [workerForm, setWorkerForm] = useState({
-    name: '',
-    employeeId: '',
-    department: '',
-    position: '',
+    name: "",
+    employeeId: "",
+    department: "",
+    position: "",
     isPacker: false
   });
+  
+  // Attendance form
+  const [attendanceForm, setAttendanceForm] = useState({
+    workerId: "",
+    status: AttendanceStatus.ABSENT, // Only for marking absent/half-day
+    notes: ""
+  });
+  
+  // Delete confirmation
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    worker: Worker | null;
+  }>({
+    isOpen: false,
+    worker: null
+  });
+  
+  // Dialog states
+  const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+  
+  const [error, setError] = useState<string | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
-  // Load workers and attendance data
+  // Load data when component mounts or date changes
+  useEffect(() => {
+    loadData();
+  }, [selectedDate]);
+
   const loadData = async () => {
     try {
-      setLoading(true);
-      
       const [workersData, attendanceData] = await Promise.all([
-        getAllWorkers(),
-        getAllAttendance()
+        getWorkers(),
+        getAttendanceRecords()
       ]);
       
       setWorkers(workersData);
       setAttendanceRecords(attendanceData);
-      
-      if (onAttendanceUpdate) {
-        onAttendanceUpdate(attendanceData);
-      }
     } catch (error) {
-      console.error('Error loading data:', error);
-      toast.error('Failed to load data');
+      console.error('Error loading attendance data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Get attendance for selected date
-  const getAttendanceForDate = (date: string): AttendanceRecord[] => {
-    return attendanceRecords.filter(record => record.date === date);
-  };
-
-  // Get worker attendance status for a specific date
-  const getWorkerAttendance = (workerId: string, date: string): AttendanceRecord | null => {
-    return attendanceRecords.find(record => 
-      record.workerId === workerId && record.date === date
-    ) || null;
-  };
-
-  // Handle adding new worker
-  const handleAddWorker = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    console.log('Add worker form submitted', workerForm);
-    
+  // Add new worker
+  const addWorker = async () => {
     if (!workerForm.name.trim() || !workerForm.employeeId.trim()) {
-      toast.error('Name and Employee ID are required');
+      setError("Name and Employee ID are required");
       return;
     }
 
     // Check for duplicate employee ID
-    const existingWorker = workers.find(w => w.employeeId === workerForm.employeeId.trim());
-    if (existingWorker) {
-      toast.error('Employee ID already exists');
+    if (workers.some(w => w.employeeId === workerForm.employeeId.trim())) {
+      setError("Employee ID already exists");
       return;
     }
 
@@ -99,450 +97,640 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         id: `worker-${Date.now()}`,
         name: workerForm.name.trim(),
         employeeId: workerForm.employeeId.trim(),
-        department: workerForm.department.trim() || '',
-        position: workerForm.position.trim() || '',
+        department: workerForm.department.trim() || undefined,
+        position: workerForm.position.trim() || undefined,
         isPacker: workerForm.isPacker,
         createdAt: new Date().toISOString()
       };
 
-      console.log('Saving worker:', newWorker);
       const success = await saveWorker(newWorker);
       
       if (success) {
-        setWorkers(prev => [...prev, newWorker]);
+        await loadData(); // Refresh data
+        
+        // Reset form
         setWorkerForm({
-          name: '',
-          employeeId: '',
-          department: '',
-          position: '',
+          name: "",
+          employeeId: "",
+          department: "",
+          position: "",
           isPacker: false
         });
-        setIsAddWorkerOpen(false); // Close dialog after successful addition
-        toast.success('Worker added successfully');
-        await loadData(); // Refresh data
+        setWorkerDialogOpen(false);
+        setError(null);
+        
+        toast.success("Worker added successfully");
+        
+        if (onAttendanceUpdate) {
+          onAttendanceUpdate();
+        }
       } else {
-        toast.error('Failed to add worker');
+        setError("Failed to add worker");
       }
     } catch (error) {
-      console.error('Error adding worker:', error);
-      toast.error('Failed to add worker');
+      console.error("Error adding worker:", error);
+      setError("Failed to add worker");
     } finally {
       setFormLoading(false);
     }
   };
 
-  // Handle deleting worker
-  const handleDeleteWorker = async (workerId: string) => {
+  // Delete worker
+  const handleDeleteWorker = async () => {
+    if (!deleteConfirmation.worker) return;
+
+    setFormLoading(true);
     try {
-      const success = await deleteWorker(workerId);
+      const success = await deleteWorker(deleteConfirmation.worker.id);
+      
       if (success) {
-        setWorkers(prev => prev.filter(w => w.id !== workerId));
-        setAttendanceRecords(prev => prev.filter(r => r.workerId !== workerId));
-        toast.success('Worker deleted successfully');
         await loadData(); // Refresh data
+        toast.success(`Worker ${deleteConfirmation.worker.name} deleted successfully`);
+        
+        if (onAttendanceUpdate) {
+          onAttendanceUpdate();
+        }
       } else {
-        toast.error('Failed to delete worker');
+        toast.error("Failed to delete worker");
       }
     } catch (error) {
-      console.error('Error deleting worker:', error);
-      toast.error('Failed to delete worker');
+      console.error("Error deleting worker:", error);
+      toast.error("Failed to delete worker");
+    } finally {
+      setFormLoading(false);
+      setDeleteConfirmation({ isOpen: false, worker: null });
     }
   };
 
-  // Handle attendance status change
-  const handleAttendanceChange = async (workerId: string, status: AttendanceStatus) => {
+  // Mark attendance (only for absent/half-day)
+  const markAttendance = async () => {
+    if (!attendanceForm.workerId) {
+      setError("Please select a worker");
+      return;
+    }
+
+    setFormLoading(true);
     try {
-      const worker = workers.find(w => w.id === workerId);
-      if (!worker) return;
+      // Check if attendance already exists for this worker and date
+      const existingRecord = attendanceRecords.find(
+        r => r.workerId === attendanceForm.workerId && r.date === selectedDate
+      );
 
-      const existingRecord = getWorkerAttendance(workerId, selectedDate);
-      
-      const attendanceRecord: AttendanceRecord = {
-        id: existingRecord?.id || `attendance-${workerId}-${selectedDate}`,
-        workerId,
-        workerName: worker.name,
-        date: selectedDate,
-        status,
-        overtime: existingRecord?.overtime || 'no',
-        notes: existingRecord?.notes || '',
-        createdAt: existingRecord?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const worker = workers.find(w => w.id === attendanceForm.workerId);
+      if (!worker) {
+        setError("Worker not found");
+        return;
+      }
 
-      const success = await saveAttendance(attendanceRecord);
+      let newRecord: AttendanceRecord;
+
+      if (existingRecord) {
+        // Update existing record
+        newRecord = {
+          ...existingRecord,
+          status: attendanceForm.status,
+          notes: attendanceForm.notes.trim() || undefined,
+          updatedAt: new Date().toISOString()
+        };
+        toast.success("Attendance updated successfully");
+      } else {
+        // Create new record
+        newRecord = {
+          id: `attendance-${Date.now()}`,
+          workerId: attendanceForm.workerId,
+          workerName: worker.name,
+          date: selectedDate,
+          status: attendanceForm.status,
+          overtime: 'no', // Default no overtime
+          notes: attendanceForm.notes.trim() || undefined,
+          createdAt: new Date().toISOString()
+        };
+        toast.success("Attendance marked successfully");
+      }
+
+      const success = await saveAttendanceRecord(newRecord);
       
       if (success) {
-        setAttendanceRecords(prev => {
-          const filtered = prev.filter(r => !(r.workerId === workerId && r.date === selectedDate));
-          return [...filtered, attendanceRecord];
+        await loadData(); // Refresh data
+        
+        // Reset form
+        setAttendanceForm({
+          workerId: "",
+          status: AttendanceStatus.ABSENT,
+          notes: ""
         });
-
+        setAttendanceDialogOpen(false);
+        setError(null);
+        
         if (onAttendanceUpdate) {
-          const updatedRecords = attendanceRecords.filter(r => !(r.workerId === workerId && r.date === selectedDate));
-          updatedRecords.push(attendanceRecord);
-          onAttendanceUpdate(updatedRecords);
+          onAttendanceUpdate();
         }
+      } else {
+        setError("Failed to mark attendance");
       }
     } catch (error) {
-      console.error('Error updating attendance:', error);
-      toast.error('Failed to update attendance');
+      console.error("Error marking attendance:", error);
+      setError("Failed to mark attendance");
+    } finally {
+      setFormLoading(false);
     }
   };
 
-  // Handle overtime toggle
+  // Toggle overtime for a worker
   const handleOvertimeToggle = async (workerId: string) => {
     try {
       await toggleOvertimeForWorker(workerId, selectedDate);
-      await loadData(); // Reload data to get updated records
+      await loadData(); // Refresh data
+      toast.success("Overtime status updated");
+      
+      if (onAttendanceUpdate) {
+        onAttendanceUpdate();
+      }
     } catch (error) {
-      console.error('Error updating overtime:', error);
-      toast.error('Failed to update overtime');
+      console.error("Error toggling overtime:", error);
+      toast.error("Failed to update overtime status");
     }
   };
 
-  // Export attendance data
-  const exportAttendance = () => {
-    const dateAttendance = getAttendanceForDate(selectedDate);
+  // Toggle packer status for a worker
+  const handlePackerToggle = async (workerId: string) => {
+    try {
+      await togglePackerStatus(workerId);
+      await loadData(); // Refresh data
+      toast.success("Packer status updated");
+      
+      if (onAttendanceUpdate) {
+        onAttendanceUpdate();
+      }
+    } catch (error) {
+      console.error("Error toggling packer status:", error);
+      toast.error("Failed to update packer status");
+    }
+  };
+
+  // Get attendance for selected date
+  const getDateAttendance = () => {
+    return attendanceRecords.filter(record => record.date === selectedDate);
+  };
+
+  // Get worker status for selected date
+  const getWorkerStatus = (workerId: string) => {
+    const record = attendanceRecords.find(r => r.workerId === workerId && r.date === selectedDate);
+    if (record) {
+      return record.status;
+    }
+    return AttendanceStatus.PRESENT; // Default present
+  };
+
+  // Check if worker has overtime for selected date
+  const checkHasOvertime = (workerId: string) => {
+    const record = attendanceRecords.find(r => r.workerId === workerId && r.date === selectedDate);
+    return record?.overtime === 'yes';
+  };
+
+  // Get attendance summary
+  const getAttendanceSummary = () => {
+    const dateRecords = getDateAttendance();
+    const total = workers.length;
+    const absent = dateRecords.filter(r => r.status === AttendanceStatus.ABSENT).length;
+    const halfDay = dateRecords.filter(r => r.status === AttendanceStatus.HALF_DAY).length;
+    const present = total - absent - halfDay; // Default present unless marked otherwise
+    const overtime = dateRecords.filter(r => r.overtime === 'yes').length;
+    const packers = workers.filter(w => w.isPacker).length;
+    
+    // Calculate present packers
+    const presentPackerIds = workers
+      .filter(w => w.isPacker)
+      .filter(w => {
+        const record = dateRecords.find(r => r.workerId === w.id);
+        return !record || (record.status !== AttendanceStatus.ABSENT && record.status !== AttendanceStatus.HALF_DAY);
+      }).length;
+    
+    return { total, present, absent, halfDay, overtime, packers, presentPackers: presentPackerIds };
+  };
+
+  // Download attendance report
+  const downloadReport = () => {
+    if (workers.length === 0) {
+      toast.error("No workers to export");
+      return;
+    }
+
     const csvContent = [
-      ['Employee ID', 'Name', 'Department', 'Position', 'Status', 'Overtime', 'Notes'].join(','),
-      ...dateAttendance.map(record => {
-        const worker = workers.find(w => w.id === record.workerId);
-        return [
-          worker?.employeeId || '',
-          record.workerName,
-          worker?.department || '',
-          worker?.position || '',
-          record.status,
-          record.overtime || 'no',
-          record.notes || ''
-        ].join(',');
+      "Employee ID,Name,Department,Position,Is Packer,Status,Overtime,Notes",
+      ...workers.map(worker => {
+        const record = attendanceRecords.find(r => r.workerId === worker.id && r.date === selectedDate);
+        const status = getWorkerStatus(worker.id);
+        const overtime = checkHasOvertime(worker.id) ? 'Yes' : 'No';
+        const isPacker = worker.isPacker ? 'Yes' : 'No';
+        return `${worker.employeeId},${worker.name},${worker.department || ''},${worker.position || ''},${isPacker},${status},${overtime},${record?.notes || ''}`;
       })
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `attendance-${selectedDate}.csv`;
     a.click();
-    window.URL.revokeObjectURL(url);
-    toast.success('Attendance exported successfully');
+    URL.revokeObjectURL(url);
+    
+    toast.success("Attendance report downloaded");
   };
 
-  const dateAttendance = getAttendanceForDate(selectedDate);
-  const presentCount = dateAttendance.filter(r => r.status === AttendanceStatus.PRESENT).length;
-  const absentCount = dateAttendance.filter(r => r.status === AttendanceStatus.ABSENT).length;
-  const halfDayCount = dateAttendance.filter(r => r.status === AttendanceStatus.HALF_DAY).length;
-  const packers = workers.filter(w => w.isPacker);
+  const summary = getAttendanceSummary();
 
-  // Main Attendance View
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 p-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Attendance Management</h2>
-          <p className="text-sm text-gray-600">Track daily worker attendance</p>
+          <h2 className="text-2xl font-bold">Attendance Management</h2>
+          <p className="text-muted-foreground">Workers are present by default unless marked absent or half-day. Only packers can be assigned barcodes.</p>
         </div>
-        <div className="flex items-center gap-4">
-          {/* Add Worker Dialog */}
-          <Dialog open={isAddWorkerOpen} onOpenChange={setIsAddWorkerOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Add Worker
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add New Worker</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddWorker} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <Label htmlFor="name">Name *</Label>
-                    <Input
-                      id="name"
-                      value={workerForm.name}
-                      onChange={(e) => setWorkerForm(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Enter worker name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="employeeId">Employee ID *</Label>
-                    <Input
-                      id="employeeId"
-                      value={workerForm.employeeId}
-                      onChange={(e) => setWorkerForm(prev => ({ ...prev, employeeId: e.target.value }))}
-                      placeholder="Enter employee ID"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="department">Department</Label>
-                    <Input
-                      id="department"
-                      value={workerForm.department}
-                      onChange={(e) => setWorkerForm(prev => ({ ...prev, department: e.target.value }))}
-                      placeholder="Enter department"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="position">Position</Label>
-                    <Input
-                      id="position"
-                      value={workerForm.position}
-                      onChange={(e) => setWorkerForm(prev => ({ ...prev, position: e.target.value }))}
-                      placeholder="Enter position"
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="isPacker"
-                    checked={workerForm.isPacker}
-                    onCheckedChange={(checked) => setWorkerForm(prev => ({ ...prev, isPacker: checked }))}
-                  />
-                  <Label htmlFor="isPacker" className="flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Designate as Packer (for barcode assignment)
-                  </Label>
-                </div>
-
-                <DialogFooter>
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => setIsAddWorkerOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={formLoading}>
-                    {formLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Worker
-                      </>
-                    )}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Manage Workers Dialog */}
-          <Dialog open={isManageWorkersOpen} onOpenChange={setIsManageWorkersOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
-                <Settings className="h-4 w-4 mr-2" />
-                Manage Workers
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Manage Workers ({workers.length})</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {workers.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Workers Added</h3>
-                    <p className="text-gray-600">Add your first worker to get started</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {workers.map((worker) => (
-                      <div key={worker.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium">{worker.name}</h3>
-                            {worker.isPacker && (
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                                <Package className="h-3 w-3 mr-1" />
-                                Packer
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            ID: {worker.employeeId} • {worker.department} • {worker.position}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Added: {new Date(worker.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Worker</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete {worker.name}? This will also remove all their attendance records. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteWorker(worker.id)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-gray-500" />
-            <span className="text-sm font-medium">{workers.length} Workers</span>
-            <Package className="h-5 w-5 text-blue-500 ml-4" />
-            <span className="text-sm font-medium">{packers.length} Packers</span>
-          </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={downloadReport} disabled={workers.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Download Report
+          </Button>
         </div>
       </div>
 
+      {/* Date Selection and Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Date Selection
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="attendance-date">Select Date</Label>
+                <Input
+                  id="attendance-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Attendance Summary ({selectedDate})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{summary.total}</div>
+                <div className="text-sm text-muted-foreground">Total Workers</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{summary.present}</div>
+                <div className="text-sm text-muted-foreground">Present</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{summary.presentPackers}</div>
+                <div className="text-sm text-muted-foreground">Present Packers</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{summary.overtime}</div>
+                <div className="text-sm text-muted-foreground">Overtime</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Add Worker */}
+        <Dialog open={workerDialogOpen} onOpenChange={setWorkerDialogOpen}>
+          <DialogTrigger asChild>
+            <Card className="cursor-pointer hover:bg-accent/50 transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Add Worker
+                </CardTitle>
+                <CardDescription>
+                  Register a new worker in the system
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Worker</DialogTitle>
+              <DialogDescription>
+                Register a new worker to track their attendance.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="worker-name">Name *</Label>
+                  <Input
+                    id="worker-name"
+                    value={workerForm.name}
+                    onChange={(e) => setWorkerForm({...workerForm, name: e.target.value})}
+                    placeholder="Worker name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="worker-id">Employee ID *</Label>
+                  <Input
+                    id="worker-id"
+                    value={workerForm.employeeId}
+                    onChange={(e) => setWorkerForm({...workerForm, employeeId: e.target.value})}
+                    placeholder="EMP001"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="worker-department">Department</Label>
+                  <Input
+                    id="worker-department"
+                    value={workerForm.department}
+                    onChange={(e) => setWorkerForm({...workerForm, department: e.target.value})}
+                    placeholder="Department"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="worker-position">Position</Label>
+                  <Input
+                    id="worker-position"
+                    value={workerForm.position}
+                    onChange={(e) => setWorkerForm({...workerForm, position: e.target.value})}
+                    placeholder="Position"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is-packer"
+                  checked={workerForm.isPacker}
+                  onCheckedChange={(checked) => setWorkerForm({...workerForm, isPacker: checked})}
+                />
+                <Label htmlFor="is-packer" className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Designate as Packer (can be assigned barcodes)
+                </Label>
+              </div>
+              
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setWorkerDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={addWorker} disabled={formLoading}>
+                {formLoading ? "Adding..." : "Add Worker"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Mark Absent/Half-Day */}
+        <Dialog open={attendanceDialogOpen} onOpenChange={setAttendanceDialogOpen}>
+          <DialogTrigger asChild>
+            <Card className="cursor-pointer hover:bg-accent/50 transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserX className="h-5 w-5" />
+                  Mark Absent/Half-Day
+                </CardTitle>
+                <CardDescription>
+                  Mark workers as absent or half-day (default is present)
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Mark Absent/Half-Day</DialogTitle>
+              <DialogDescription>
+                Workers are present by default. Only mark if absent or half-day for {selectedDate}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="attendance-worker">Select Worker *</Label>
+                <Select 
+                  value={attendanceForm.workerId} 
+                  onValueChange={(value) => setAttendanceForm({...attendanceForm, workerId: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a worker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workers.map((worker) => (
+                      <SelectItem key={worker.id} value={worker.id}>
+                        {worker.name} ({worker.employeeId}) {worker.isPacker && '📦'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="attendance-status">Status *</Label>
+                <Select 
+                  value={attendanceForm.status} 
+                  onValueChange={(value) => setAttendanceForm({...attendanceForm, status: value as AttendanceStatus})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={AttendanceStatus.ABSENT}>Absent</SelectItem>
+                    <SelectItem value={AttendanceStatus.HALF_DAY}>Half Day</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="attendance-notes">Notes</Label>
+                <Textarea
+                  id="attendance-notes"
+                  value={attendanceForm.notes}
+                  onChange={(e) => setAttendanceForm({...attendanceForm, notes: e.target.value})}
+                  placeholder="Optional notes"
+                  rows={3}
+                />
+              </div>
+              
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAttendanceDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={markAttendance} disabled={formLoading}>
+                {formLoading ? "Saving..." : "Mark Attendance"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmation.isOpen} onOpenChange={(open) => setDeleteConfirmation({ isOpen: open, worker: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Delete Worker
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {deleteConfirmation.worker?.name}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Warning:</strong> This will permanently delete:
+              <ul className="list-disc list-inside mt-2">
+                <li>Worker profile and information</li>
+                <li>All attendance records for this worker</li>
+                <li>Any historical data associated with this worker</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmation({ isOpen: false, worker: null })}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteWorker} disabled={formLoading}>
+              {formLoading ? "Deleting..." : "Delete Worker"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Workers Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Attendance for {selectedDate}</CardTitle>
-              <CardDescription>Track worker attendance and overtime</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-auto"
-              />
-              <Button onClick={exportAttendance} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </div>
-          </div>
+          <CardTitle>Workers Attendance ({selectedDate})</CardTitle>
+          <CardDescription>
+            All workers are present by default. Toggle packer status, overtime, or mark absent/half-day as needed.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-              <UserCheck className="h-8 w-8 text-green-600" />
-              <div>
-                <p className="text-sm font-medium text-green-900">Present</p>
-                <p className="text-2xl font-bold text-green-600">{presentCount}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
-              <UserX className="h-8 w-8 text-red-600" />
-              <div>
-                <p className="text-sm font-medium text-red-900">Absent</p>
-                <p className="text-2xl font-bold text-red-600">{absentCount}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
-              <Clock className="h-8 w-8 text-yellow-600" />
-              <div>
-                <p className="text-sm font-medium text-yellow-900">Half Day</p>
-                <p className="text-2xl font-bold text-yellow-600">{halfDayCount}</p>
-              </div>
-            </div>
-          </div>
-
-          {workers.length === 0 ? (
-            <div className="text-center py-8">
-              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Workers Found</h3>
-              <p className="text-gray-600 mb-4">Add workers to start tracking attendance</p>
-              <Button onClick={() => setIsAddWorkerOpen(true)}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Add Workers
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {workers.map((worker) => {
-                const attendance = getWorkerAttendance(worker.id, selectedDate);
-                const hasOvertime = attendance?.overtime === 'yes';
-                
-                return (
-                  <div key={worker.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div>
+          {workers.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee ID</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>Packer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Overtime</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {workers.map((worker) => {
+                  const status = getWorkerStatus(worker.id);
+                  const hasOvertime = checkHasOvertime(worker.id);
+                  
+                  return (
+                    <TableRow key={worker.id}>
+                      <TableCell className="font-mono">{worker.employeeId}</TableCell>
+                      <TableCell className="font-medium">{worker.name}</TableCell>
+                      <TableCell>{worker.department || '-'}</TableCell>
+                      <TableCell>{worker.position || '-'}</TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{worker.name}</h3>
-                          {worker.isPacker && (
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                              <Package className="h-3 w-3 mr-1" />
-                              Packer
-                            </Badge>
-                          )}
+                          <Switch
+                            checked={worker.isPacker || false}
+                            onCheckedChange={() => handlePackerToggle(worker.id)}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {worker.isPacker ? '📦 Packer' : 'Not Packer'}
+                          </span>
                         </div>
-                        <p className="text-sm text-gray-600">
-                          ID: {worker.employeeId} • {worker.department} • {worker.position}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor={`overtime-${worker.id}`} className="text-sm">
-                          Overtime
-                        </Label>
-                        <Switch
-                          id={`overtime-${worker.id}`}
-                          checked={hasOvertime}
-                          onCheckedChange={() => handleOvertimeToggle(worker.id)}
-                        />
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant={attendance?.status === AttendanceStatus.PRESENT ? "default" : "outline"}
-                          onClick={() => handleAttendanceChange(worker.id, AttendanceStatus.PRESENT)}
-                          className="text-xs"
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={
+                            status === AttendanceStatus.PRESENT ? "default" :
+                            status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
+                          }
                         >
-                          Present
-                        </Button>
+                          {status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={hasOvertime}
+                            onCheckedChange={() => handleOvertimeToggle(worker.id)}
+                            disabled={status === AttendanceStatus.ABSENT}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {hasOvertime ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Button
+                          variant="outline"
                           size="sm"
-                          variant={attendance?.status === AttendanceStatus.HALF_DAY ? "default" : "outline"}
-                          onClick={() => handleAttendanceChange(worker.id, AttendanceStatus.HALF_DAY)}
-                          className="text-xs"
+                          onClick={() => setDeleteConfirmation({ isOpen: true, worker })}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          Half Day
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant={attendance?.status === AttendanceStatus.ABSENT ? "destructive" : "outline"}
-                          onClick={() => handleAttendanceChange(worker.id, AttendanceStatus.ABSENT)}
-                          className="text-xs"
-                        >
-                          Absent
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No workers registered yet.</p>
+              <p className="text-sm">Add workers to start tracking attendance.</p>
             </div>
           )}
         </CardContent>
