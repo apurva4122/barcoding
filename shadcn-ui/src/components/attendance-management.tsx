@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Worker, AttendanceRecord, AttendanceStatus } from "@/types";
-import { getWorkers, getAttendanceRecords, saveWorker, saveAttendanceRecord, toggleOvertimeForWorker, hasOvertimeForDate, togglePackerStatus, getPresentPackersForDate, deleteWorker } from "@/lib/attendance-utils";
+import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
 import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -65,8 +65,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const loadData = async () => {
     try {
       const [workersData, attendanceData] = await Promise.all([
-        getWorkers(),
-        getAttendanceRecords()
+        getAllWorkers(),
+        getAllAttendance()
       ]);
       
       setWorkers(workersData);
@@ -208,7 +208,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         toast.success("Attendance marked successfully");
       }
 
-      const success = await saveAttendanceRecord(newRecord);
+      const success = await saveAttendance(newRecord);
       
       if (success) {
         await loadData(); // Refresh data
@@ -252,15 +252,27 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     }
   };
 
-  // Toggle packer status for a worker
+  // Toggle packer status for a worker (implemented locally since not in utils)
   const handlePackerToggle = async (workerId: string) => {
     try {
-      await togglePackerStatus(workerId);
-      await loadData(); // Refresh data
-      toast.success("Packer status updated");
-      
-      if (onAttendanceUpdate) {
-        onAttendanceUpdate();
+      const worker = workers.find(w => w.id === workerId);
+      if (!worker) return;
+
+      const updatedWorker = {
+        ...worker,
+        isPacker: !worker.isPacker
+      };
+
+      const success = await saveWorker(updatedWorker);
+      if (success) {
+        await loadData(); // Refresh data
+        toast.success("Packer status updated");
+        
+        if (onAttendanceUpdate) {
+          onAttendanceUpdate();
+        }
+      } else {
+        toast.error("Failed to update packer status");
       }
     } catch (error) {
       console.error("Error toggling packer status:", error);
