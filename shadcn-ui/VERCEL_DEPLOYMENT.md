@@ -41,9 +41,15 @@ Add these in Vercel's Environment Variables settings:
 
 #### Build Settings
 - **Root Directory:** `.` (leave as default or set to `.`)
-- **Build Command:** `pnpm run build` (or `npm run build` if not using pnpm)
+- **Build Command:** `pnpm run build` 
 - **Output Directory:** `dist`
-- **Install Command:** `pnpm install` (or `npm install`)
+- **Install Command:** `pnpm install`
+- **Node.js Version:** 18.x or 20.x (Vercel will auto-detect from package.json)
+
+**IMPORTANT:** Make sure Vercel detects pnpm. The `package.json` has `"packageManager": "pnpm@8.10.0"` which should auto-detect, but if it doesn't:
+1. Go to Project Settings → General
+2. Under "Package Manager", select "pnpm"
+3. Save and redeploy
 
 #### Environment Variables
 Click **"Environment Variables"** and add:
