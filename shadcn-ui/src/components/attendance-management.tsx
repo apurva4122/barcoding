@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Worker, AttendanceRecord, AttendanceStatus } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
-import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface AttendanceManagementProps {
@@ -37,7 +37,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   // Attendance form
   const [attendanceForm, setAttendanceForm] = useState({
     workerId: "",
-    status: AttendanceStatus.ABSENT, // Only for marking absent/half-day
+    status: AttendanceStatus.ABSENT, // Can be present, absent, or half-day
     notes: ""
   });
   
@@ -162,7 +162,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     }
   };
 
-  // Mark attendance (only for absent/half-day)
+  // Mark attendance (can be present, absent, or half-day)
   const markAttendance = async () => {
     if (!attendanceForm.workerId) {
       setError("Please select a worker");
@@ -192,7 +192,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           notes: attendanceForm.notes.trim() || undefined,
           updatedAt: new Date().toISOString()
         };
-        toast.success("Attendance updated successfully");
+        
+        // If changing to present, reset overtime if it was set (can be toggled separately)
+        if (attendanceForm.status === AttendanceStatus.PRESENT && existingRecord.status === AttendanceStatus.ABSENT) {
+          // Keep existing overtime status when changing from absent to present
+        }
+        
+        toast.success(`Attendance updated to ${attendanceForm.status}`);
       } else {
         // Create new record
         newRecord = {
@@ -201,11 +207,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           workerName: worker.name,
           date: selectedDate,
           status: attendanceForm.status,
-          overtime: 'no', // Default no overtime
+          overtime: attendanceForm.status === AttendanceStatus.ABSENT ? 'no' : 'no', // Default no overtime
           notes: attendanceForm.notes.trim() || undefined,
           createdAt: new Date().toISOString()
         };
-        toast.success("Attendance marked successfully");
+        toast.success(`Attendance marked as ${attendanceForm.status}`);
       }
 
       const success = await saveAttendance(newRecord);
@@ -216,7 +222,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         // Reset form
         setAttendanceForm({
           workerId: "",
-          status: AttendanceStatus.ABSENT,
+          status: AttendanceStatus.PRESENT, // Default to present for next time
           notes: ""
         });
         setAttendanceDialogOpen(false);
@@ -530,26 +536,26 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           </DialogContent>
         </Dialog>
 
-        {/* Mark Absent/Half-Day */}
+        {/* Mark Attendance / Change Status */}
         <Dialog open={attendanceDialogOpen} onOpenChange={setAttendanceDialogOpen}>
           <DialogTrigger asChild>
             <Card className="cursor-pointer hover:bg-accent/50 transition-colors">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <UserX className="h-5 w-5" />
-                  Mark Absent/Half-Day
+                  <UserCheck className="h-5 w-5" />
+                  Mark/Change Attendance
                 </CardTitle>
                 <CardDescription>
-                  Mark workers as absent or half-day (default is present)
+                  Mark attendance status or change existing status for {selectedDate}
                 </CardDescription>
               </CardHeader>
             </Card>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Mark Absent/Half-Day</DialogTitle>
+              <DialogTitle>Mark/Change Attendance</DialogTitle>
               <DialogDescription>
-                Workers are present by default. Only mark if absent or half-day for {selectedDate}
+                Set or change attendance status for {selectedDate}. Workers are present by default unless marked otherwise.
               </DialogDescription>
             </DialogHeader>
             
@@ -558,17 +564,34 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 <Label htmlFor="attendance-worker">Select Worker *</Label>
                 <Select 
                   value={attendanceForm.workerId} 
-                  onValueChange={(value) => setAttendanceForm({...attendanceForm, workerId: value})}
+                  onValueChange={(value) => {
+                    const worker = workers.find(w => w.id === value);
+                    const existingRecord = attendanceRecords.find(
+                      r => r.workerId === value && r.date === selectedDate
+                    );
+                    setAttendanceForm({
+                      ...attendanceForm, 
+                      workerId: value,
+                      status: existingRecord?.status || AttendanceStatus.PRESENT
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a worker" />
                   </SelectTrigger>
                   <SelectContent>
-                    {workers.map((worker) => (
-                      <SelectItem key={worker.id} value={worker.id}>
-                        {worker.name} ({worker.employeeId}) {worker.isPacker && '📦'}
-                      </SelectItem>
-                    ))}
+                    {workers.map((worker) => {
+                      const record = attendanceRecords.find(
+                        r => r.workerId === worker.id && r.date === selectedDate
+                      );
+                      const currentStatus = record?.status || AttendanceStatus.PRESENT;
+                      return (
+                        <SelectItem key={worker.id} value={worker.id}>
+                          {worker.name} ({worker.employeeId}) {worker.isPacker && '📦'} 
+                          {record && ` - Currently: ${currentStatus}`}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -583,10 +606,14 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={AttendanceStatus.PRESENT}>Present</SelectItem>
                     <SelectItem value={AttendanceStatus.ABSENT}>Absent</SelectItem>
                     <SelectItem value={AttendanceStatus.HALF_DAY}>Half Day</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Select Present to mark someone as present (e.g., if marked absent by mistake)
+                </p>
               </div>
               
               <div className="space-y-2">
@@ -613,7 +640,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 Cancel
               </Button>
               <Button onClick={markAttendance} disabled={formLoading}>
-                {formLoading ? "Saving..." : "Mark Attendance"}
+                {formLoading ? "Saving..." : "Save Attendance"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -702,14 +729,61 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={
-                            status === AttendanceStatus.PRESENT ? "default" :
-                            status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
-                          }
-                        >
-                          {status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={
+                              status === AttendanceStatus.PRESENT ? "default" :
+                              status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
+                            }
+                          >
+                            {status}
+                          </Badge>
+                          {(status === AttendanceStatus.ABSENT || status === AttendanceStatus.HALF_DAY) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const existingRecord = attendanceRecords.find(
+                                    r => r.workerId === worker.id && r.date === selectedDate
+                                  );
+                                  
+                                  const updatedRecord: AttendanceRecord = {
+                                    ...(existingRecord || {
+                                      id: `attendance-${Date.now()}`,
+                                      workerId: worker.id,
+                                      workerName: worker.name,
+                                      date: selectedDate,
+                                      createdAt: new Date().toISOString()
+                                    }),
+                                    status: AttendanceStatus.PRESENT,
+                                    overtime: existingRecord?.overtime || 'no',
+                                    updatedAt: new Date().toISOString()
+                                  };
+                                  
+                                  const success = await saveAttendance(updatedRecord);
+                                  if (success) {
+                                    await loadData();
+                                    toast.success(`${worker.name} marked as present`);
+                                    if (onAttendanceUpdate) {
+                                      onAttendanceUpdate();
+                                    }
+                                  } else {
+                                    toast.error("Failed to update attendance");
+                                  }
+                                } catch (error) {
+                                  console.error("Error marking as present:", error);
+                                  toast.error("Failed to update attendance");
+                                }
+                              }}
+                              className="h-6 text-xs text-green-600 hover:text-green-700"
+                              title="Mark as present"
+                            >
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Present
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

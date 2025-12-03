@@ -121,7 +121,7 @@ export async function deleteWorkerFromSupabase(workerId: string): Promise<boolea
   try {
     // Check if workerId is a valid UUID
     const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
-    
+
     if (!isValidUUID) {
       // If not a UUID, try to find worker by employee_id
       const { data: worker } = await supabase
@@ -129,12 +129,12 @@ export async function deleteWorkerFromSupabase(workerId: string): Promise<boolea
         .select('id')
         .eq('employee_id', workerId)
         .maybeSingle();
-      
+
       if (!worker) {
         console.error('❌ Worker not found:', workerId);
         return false;
       }
-      
+
       workerId = worker.id; // Use the actual UUID
     }
 
@@ -162,16 +162,16 @@ export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worke
   try {
     // Check if workerId is a valid UUID
     const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
-    
+
     let query = supabase.from('workers').select('*');
-    
+
     if (isValidUUID) {
       query = query.eq('id', workerId);
     } else {
       // If not a UUID, try to find by employee_id
       query = query.eq('employee_id', workerId);
     }
-    
+
     const { data, error } = await query.maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
@@ -501,16 +501,38 @@ export async function updateAttendanceInSupabase(attendance: AttendanceRecord): 
  */
 export async function toggleOvertimeInSupabase(workerId: string, date: string): Promise<boolean> {
   try {
-    // Get existing record
+    console.log('🔄 Toggling overtime for worker:', workerId, 'date:', date);
+    
+    // First, resolve the actual worker UUID if workerId is not a UUID
+    let actualWorkerId = workerId;
+    const isWorkerIdUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
+    
+    if (!isWorkerIdUUID) {
+      // Try to find worker by employee_id
+      const { data: workerData } = await supabase
+        .from('workers')
+        .select('id')
+        .eq('employee_id', workerId)
+        .maybeSingle();
+      
+      if (workerData) {
+        actualWorkerId = workerData.id;
+      } else {
+        console.error('❌ Cannot find worker UUID for:', workerId);
+        return false;
+      }
+    }
+
+    // Get existing record using actual UUID
     const { data: existingRecord, error: fetchError } = await supabase
       .from('attendance_records')
       .select('*')
-      .eq('worker_id', workerId)
+      .eq('worker_id', actualWorkerId)
       .eq('date', date)
-      .single();
+      .maybeSingle();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error fetching attendance record:', fetchError);
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('❌ Error fetching attendance record:', fetchError);
       return false;
     }
 
@@ -523,26 +545,28 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
         .eq('id', existingRecord.id);
 
       if (error) {
-        console.error('Error toggling overtime:', error);
+        console.error('❌ Error toggling overtime:', error);
         return false;
       }
+      console.log('✅ Overtime toggled successfully:', newOvertimeStatus);
+      return true;
     } else {
       // Create new record with overtime
       const { data: worker, error: workerError } = await supabase
         .from('workers')
         .select('name')
-        .eq('id', workerId)
-        .single();
+        .eq('id', actualWorkerId)
+        .maybeSingle();
 
       if (workerError || !worker) {
-        console.error('Error fetching worker for overtime record:', workerError);
+        console.error('❌ Error fetching worker for overtime record:', workerError);
         return false;
       }
 
       const { error } = await supabase
         .from('attendance_records')
         .insert([{
-          worker_id: workerId,
+          worker_id: actualWorkerId,
           worker_name: worker.name,
           date: date,
           status: 'present',
@@ -550,14 +574,14 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
         }]);
 
       if (error) {
-        console.error('Error creating overtime record:', error);
+        console.error('❌ Error creating overtime record:', error);
         return false;
       }
+      console.log('✅ Overtime record created successfully');
+      return true;
     }
-
-    return true;
   } catch (error) {
-    console.error('Error in toggleOvertimeInSupabase:', error);
+    console.error('❌ UNEXPECTED ERROR in toggleOvertimeInSupabase:', error);
     return false;
   }
 }
