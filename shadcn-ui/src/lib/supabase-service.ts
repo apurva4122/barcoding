@@ -42,11 +42,17 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
     console.log('🔄 Attempting to save worker to Supabase:', worker);
 
     // Check if worker exists by employee_id (more reliable than ID)
-    const { data: existingWorker } = await supabase
+    // Use maybeSingle() instead of single() to avoid errors when no record exists
+    const { data: existingWorker, error: checkError } = await supabase
       .from('workers')
       .select('id')
       .eq('employee_id', worker.employeeId)
-      .single();
+      .maybeSingle();
+
+    // If there's an error checking (not just "no rows"), log it but continue
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.warn('⚠️ Error checking for existing worker:', checkError);
+    }
 
     const workerData: any = {
       employee_id: worker.employeeId,
@@ -56,61 +62,54 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
       is_packer: worker.isPacker || false,
     };
 
-    // Check if ID is a valid UUID
-    const isValidUUID = worker.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(worker.id);
-    
-    if (existingWorker && isValidUUID) {
-      // Update existing worker (only if ID is valid UUID)
-      workerData.id = worker.id;
-      const { error } = await supabase
-        .from('workers')
-        .update(workerData)
-        .eq('id', worker.id);
-
-      if (error) {
-        console.error('❌ Error updating worker in Supabase:', error);
-        return false;
-      }
-      console.log('✅ Worker updated in Supabase successfully');
-      return true;
-    } else if (existingWorker && !isValidUUID) {
-      // Worker exists but has invalid UUID - update by employee_id
-      const { error } = await supabase
+    // If worker exists, update it
+    if (existingWorker) {
+      // Update existing worker by employee_id (don't use ID since it might be invalid)
+      const { error: updateError } = await supabase
         .from('workers')
         .update(workerData)
         .eq('employee_id', worker.employeeId);
 
-      if (error) {
-        console.error('❌ Error updating worker in Supabase:', error);
+      if (updateError) {
+        console.error('❌ Error updating worker in Supabase:', updateError);
+        console.error('Error details:', {
+          code: updateError.code,
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint
+        });
         return false;
       }
-      console.log('✅ Worker updated in Supabase successfully (by employee_id)');
+      console.log('✅ Worker updated in Supabase successfully');
       return true;
     } else {
       // Insert new worker - let database generate UUID
       // Don't pass id field, let Supabase generate it
-      const { data: insertedData, error } = await supabase
+      const { data: insertedData, error: insertError } = await supabase
         .from('workers')
         .insert([workerData])
         .select()
         .single();
 
-      if (error) {
-        console.error('❌ Error inserting worker in Supabase:', error);
+      if (insertError) {
+        console.error('❌ Error inserting worker in Supabase:', insertError);
         console.error('Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint
         });
         return false;
       }
-      
+
       console.log('✅ Worker inserted in Supabase successfully:', insertedData);
       return true;
     }
   } catch (error) {
     console.error('❌ UNEXPECTED ERROR saving worker:', error);
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 }
@@ -120,6 +119,25 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
  */
 export async function deleteWorkerFromSupabase(workerId: string): Promise<boolean> {
   try {
+    // Check if workerId is a valid UUID
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
+    
+    if (!isValidUUID) {
+      // If not a UUID, try to find worker by employee_id
+      const { data: worker } = await supabase
+        .from('workers')
+        .select('id')
+        .eq('employee_id', workerId)
+        .maybeSingle();
+      
+      if (!worker) {
+        console.error('❌ Worker not found:', workerId);
+        return false;
+      }
+      
+      workerId = worker.id; // Use the actual UUID
+    }
+
     const { error } = await supabase
       .from('workers')
       .delete()
@@ -142,14 +160,26 @@ export async function deleteWorkerFromSupabase(workerId: string): Promise<boolea
  */
 export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worker | null> {
   try {
-    const { data, error } = await supabase
-      .from('workers')
-      .select('*')
-      .eq('id', workerId)
-      .single();
+    // Check if workerId is a valid UUID
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
+    
+    let query = supabase.from('workers').select('*');
+    
+    if (isValidUUID) {
+      query = query.eq('id', workerId);
+    } else {
+      // If not a UUID, try to find by employee_id
+      query = query.eq('employee_id', workerId);
+    }
+    
+    const { data, error } = await query.maybeSingle();
 
-    if (error || !data) {
-      console.error('Error fetching worker by ID from Supabase:', error);
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching worker from Supabase:', error);
+      return null;
+    }
+
+    if (!data) {
       return null;
     }
 
@@ -214,10 +244,10 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
     // First, get the actual UUID for the worker_id
     // workerId might be a string like "worker-123", so we need to find the real UUID
     let actualWorkerId = attendance.workerId;
-    
+
     // If workerId is not a UUID, look it up by employee_id or name
     const isWorkerIdUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attendance.workerId);
-    
+
     if (!isWorkerIdUUID) {
       // Try to find worker by employee_id (if workerId is actually employee_id)
       const { data: workerData } = await supabase
@@ -225,7 +255,7 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
         .select('id')
         .eq('employee_id', attendance.workerId)
         .single();
-      
+
       if (workerData) {
         actualWorkerId = workerData.id;
       } else {
@@ -236,7 +266,7 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
           .eq('name', attendance.workerName)
           .limit(1)
           .single();
-        
+
         if (workerByName) {
           actualWorkerId = workerByName.id;
         } else {
@@ -248,7 +278,7 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
 
     // Build attendance data - don't include id if it's not a valid UUID
     const isValidAttendanceUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attendance.id || '');
-    
+
     const attendanceData: any = {
       worker_id: actualWorkerId, // Use the actual UUID
       worker_name: attendance.workerName,
@@ -302,7 +332,7 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
         // Update existing record - don't include id in update
         const updateData = { ...attendanceData };
         delete updateData.id; // Remove id from update
-        
+
         const { error: updateError } = await supabase
           .from('attendance_records')
           .update(updateData)
@@ -319,7 +349,7 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
         // Insert new record - don't include id, let DB generate UUID
         const insertData = { ...attendanceData };
         delete insertData.id; // Remove id from insert
-        
+
         const { error: insertError } = await supabase
           .from('attendance_records')
           .insert([insertData]);
