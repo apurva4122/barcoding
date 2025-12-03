@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -301,9 +301,27 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     return AttendanceStatus.PRESENT; // Default present
   };
 
-  // Check if worker has overtime for selected date
+  // Check if worker has overtime for selected date (synchronous version for display)
   const checkHasOvertime = (workerId: string) => {
-    const record = attendanceRecords.find(r => r.workerId === workerId && r.date === selectedDate);
+    const record = attendanceRecords.find(r => {
+      // Match by workerId (could be UUID or string ID)
+      const workerMatch = r.workerId === workerId;
+      // Also try matching by finding the worker's UUID if workerId is a string
+      if (!workerMatch) {
+        const worker = workers.find(w => w.id === workerId);
+        if (worker) {
+          // Try to match by employee_id if workerId doesn't match
+          const workerRecord = attendanceRecords.find(ar => {
+            // Check if attendance record's workerId matches worker's UUID
+            return ar.workerId === worker.id && ar.date === selectedDate;
+          });
+          if (workerRecord) {
+            return workerRecord.overtime === 'yes';
+          }
+        }
+      }
+      return workerMatch && r.date === selectedDate;
+    });
     return record?.overtime === 'yes';
   };
 
