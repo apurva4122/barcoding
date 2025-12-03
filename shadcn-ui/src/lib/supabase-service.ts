@@ -39,15 +39,16 @@ export async function getAllWorkersFromSupabase(): Promise<Worker[]> {
  */
 export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
   try {
-    // Check if worker exists
+    console.log('🔄 Attempting to save worker to Supabase:', worker);
+
+    // Check if worker exists by employee_id (more reliable than ID)
     const { data: existingWorker } = await supabase
       .from('workers')
       .select('id')
-      .eq('id', worker.id)
+      .eq('employee_id', worker.employeeId)
       .single();
 
-    const workerData = {
-      id: worker.id,
+    const workerData: any = {
       employee_id: worker.employeeId,
       name: worker.name,
       department: worker.department || null,
@@ -55,32 +56,61 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
       is_packer: worker.isPacker || false,
     };
 
-    if (existingWorker) {
-      // Update existing worker
+    // Check if ID is a valid UUID
+    const isValidUUID = worker.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(worker.id);
+    
+    if (existingWorker && isValidUUID) {
+      // Update existing worker (only if ID is valid UUID)
+      workerData.id = worker.id;
       const { error } = await supabase
         .from('workers')
         .update(workerData)
         .eq('id', worker.id);
 
       if (error) {
-        console.error('Error updating worker in Supabase:', error);
+        console.error('❌ Error updating worker in Supabase:', error);
         return false;
       }
-    } else {
-      // Insert new worker
+      console.log('✅ Worker updated in Supabase successfully');
+      return true;
+    } else if (existingWorker && !isValidUUID) {
+      // Worker exists but has invalid UUID - update by employee_id
       const { error } = await supabase
         .from('workers')
-        .insert([workerData]);
+        .update(workerData)
+        .eq('employee_id', worker.employeeId);
 
       if (error) {
-        console.error('Error inserting worker in Supabase:', error);
+        console.error('❌ Error updating worker in Supabase:', error);
         return false;
       }
-    }
+      console.log('✅ Worker updated in Supabase successfully (by employee_id)');
+      return true;
+    } else {
+      // Insert new worker - let database generate UUID
+      // Don't pass id field, let Supabase generate it
+      const { data: insertedData, error } = await supabase
+        .from('workers')
+        .insert([workerData])
+        .select()
+        .single();
 
-    return true;
+      if (error) {
+        console.error('❌ Error inserting worker in Supabase:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        return false;
+      }
+      
+      console.log('✅ Worker inserted in Supabase successfully:', insertedData);
+      return true;
+    }
   } catch (error) {
-    console.error('Error in saveWorkerToSupabase:', error);
+    console.error('❌ UNEXPECTED ERROR saving worker:', error);
     return false;
   }
 }
@@ -181,15 +211,58 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
     console.log('🔄 Attempting to save attendance to Supabase:', attendance);
     console.log('🔍 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://orsdqaeqqobltrmpvtmj.supabase.co');
 
-    const attendanceData = {
-      id: attendance.id,
-      worker_id: attendance.workerId,
+    // First, get the actual UUID for the worker_id
+    // workerId might be a string like "worker-123", so we need to find the real UUID
+    let actualWorkerId = attendance.workerId;
+    
+    // If workerId is not a UUID, look it up by employee_id or name
+    const isWorkerIdUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attendance.workerId);
+    
+    if (!isWorkerIdUUID) {
+      // Try to find worker by employee_id (if workerId is actually employee_id)
+      const { data: workerData } = await supabase
+        .from('workers')
+        .select('id')
+        .eq('employee_id', attendance.workerId)
+        .single();
+      
+      if (workerData) {
+        actualWorkerId = workerData.id;
+      } else {
+        // If not found, try to find by name
+        const { data: workerByName } = await supabase
+          .from('workers')
+          .select('id')
+          .eq('name', attendance.workerName)
+          .limit(1)
+          .single();
+        
+        if (workerByName) {
+          actualWorkerId = workerByName.id;
+        } else {
+          console.error('❌ Cannot find worker UUID for:', attendance.workerId);
+          return false;
+        }
+      }
+    }
+
+    // Build attendance data - don't include id if it's not a valid UUID
+    const isValidAttendanceUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attendance.id || '');
+    
+    const attendanceData: any = {
+      worker_id: actualWorkerId, // Use the actual UUID
       worker_name: attendance.workerName,
       date: attendance.date,
       status: attendance.status,
       overtime: attendance.overtime || 'no',
       notes: attendance.notes || null,
     };
+
+    // Only include ID if it's a valid UUID
+    if (isValidAttendanceUUID) {
+      attendanceData.id = attendance.id;
+    }
+    // Otherwise, let database generate UUID
 
     console.log('📝 Converted attendance data for Supabase:', attendanceData);
 
@@ -217,20 +290,23 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
       });
       console.warn('⚠️ Upsert failed, falling back to check-then-insert/update:', upsertError.message);
 
-      // Check if attendance record exists for this worker and date
+      // Check if attendance record exists for this worker and date (use actual UUID)
       const { data: existingRecord } = await supabase
         .from('attendance_records')
         .select('id')
-        .eq('worker_id', attendance.workerId)
+        .eq('worker_id', actualWorkerId)
         .eq('date', attendance.date)
         .single();
 
       if (existingRecord) {
-        // Update existing record
+        // Update existing record - don't include id in update
+        const updateData = { ...attendanceData };
+        delete updateData.id; // Remove id from update
+        
         const { error: updateError } = await supabase
           .from('attendance_records')
-          .update(attendanceData)
-          .eq('worker_id', attendance.workerId)
+          .update(updateData)
+          .eq('worker_id', actualWorkerId)
           .eq('date', attendance.date);
 
         if (updateError) {
@@ -240,10 +316,13 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
         console.log('✅ Attendance updated in Supabase successfully');
         return true;
       } else {
-        // Insert new record
+        // Insert new record - don't include id, let DB generate UUID
+        const insertData = { ...attendanceData };
+        delete insertData.id; // Remove id from insert
+        
         const { error: insertError } = await supabase
           .from('attendance_records')
-          .insert([attendanceData]);
+          .insert([insertData]);
 
         if (insertError) {
           console.error('❌ Error inserting attendance in Supabase:', insertError);
@@ -253,13 +332,13 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
             details: insertError.details,
             hint: insertError.hint
           });
-          
+
           // Check if table doesn't exist
           if (insertError.code === '42P01' || insertError.message?.includes('does not exist')) {
             console.error('❌ TABLE DOES NOT EXIST! Please create the attendance_records table in Supabase.');
             console.error('📋 Run the SQL from supabase-tables.sql in your Supabase SQL editor.');
           }
-          
+
           return false;
         }
         console.log('✅ Attendance inserted in Supabase successfully');
