@@ -282,7 +282,7 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
       worker_name: attendance.workerName,
       date: attendance.date,
       status: attendance.status,
-      overtime: attendance.overtime || 'no',
+      overtime: attendance.overtime || 'yes', // Default to 'yes' (overtime on by default)
       notes: attendance.notes || null,
     };
 
@@ -521,7 +521,7 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
       }
     }
 
-    // Get existing record using actual UUID
+    // Get existing record for the selected date
     const { data: existingRecord, error: fetchError } = await supabase
       .from('attendance_records')
       .select('*')
@@ -534,50 +534,87 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
       return false;
     }
 
+    // Determine new overtime status
+    // Default is 'yes', so if no record exists or current is 'yes', toggle to 'no'
+    // If current is 'no', toggle to 'yes'
+    const currentOvertime = existingRecord?.overtime || 'yes'; // Default to 'yes'
+    const newOvertimeStatus = currentOvertime === 'yes' ? 'no' : 'yes';
+
+    // Get worker name for creating new records
+    const { data: worker, error: workerError } = await supabase
+      .from('workers')
+      .select('name')
+      .eq('id', actualWorkerId)
+      .maybeSingle();
+
+    if (workerError || !worker) {
+      console.error('❌ Error fetching worker:', workerError);
+      return false;
+    }
+
+    // Update or create record for the selected date
     if (existingRecord) {
-      // Toggle existing record
-      const newOvertimeStatus = existingRecord.overtime === 'yes' ? 'no' : 'yes';
       const { error } = await supabase
         .from('attendance_records')
         .update({ overtime: newOvertimeStatus })
         .eq('id', existingRecord.id);
 
       if (error) {
-        console.error('❌ Error toggling overtime:', error);
+        console.error('❌ Error updating overtime:', error);
         return false;
       }
-      console.log('✅ Overtime toggled successfully:', newOvertimeStatus);
-      return true;
     } else {
-      // Create new record with overtime
-      const { data: worker, error: workerError } = await supabase
-        .from('workers')
-        .select('name')
-        .eq('id', actualWorkerId)
-        .maybeSingle();
-
-      if (workerError || !worker) {
-        console.error('❌ Error fetching worker for overtime record:', workerError);
-        return false;
-      }
-
+      // Create new record with the new overtime status
       const { error } = await supabase
         .from('attendance_records')
         .insert([{
           worker_id: actualWorkerId,
           worker_name: worker.name,
           date: date,
-          status: 'present',
-          overtime: 'yes'
+          status: 'present', // Default to present when creating overtime record
+          overtime: newOvertimeStatus
         }]);
 
       if (error) {
         console.error('❌ Error creating overtime record:', error);
         return false;
       }
-      console.log('✅ Overtime record created successfully');
-      return true;
     }
+
+    // Now update all future dates with the same overtime status
+    // Get all future attendance records for this worker
+    const { data: futureRecords, error: futureError } = await supabase
+      .from('attendance_records')
+      .select('id, date')
+      .eq('worker_id', actualWorkerId)
+      .gte('date', date)
+      .neq('date', date); // Exclude the current date (already updated)
+
+    if (futureError && futureError.code !== 'PGRST116') {
+      console.warn('⚠️ Error fetching future records (continuing anyway):', futureError);
+    }
+
+    if (futureRecords && futureRecords.length > 0) {
+      // Update all future records to match the new overtime status
+      const futureIds = futureRecords.map(r => r.id);
+      
+      // Update in batches if needed (Supabase has limits)
+      for (const recordId of futureIds) {
+        const { error: updateError } = await supabase
+          .from('attendance_records')
+          .update({ overtime: newOvertimeStatus })
+          .eq('id', recordId);
+
+        if (updateError) {
+          console.warn('⚠️ Error updating future record:', updateError);
+        }
+      }
+      
+      console.log(`✅ Updated ${futureIds.length} future records with overtime status: ${newOvertimeStatus}`);
+    }
+
+    console.log('✅ Overtime toggled successfully:', newOvertimeStatus, 'for date and future dates');
+    return true;
   } catch (error) {
     console.error('❌ UNEXPECTED ERROR in toggleOvertimeInSupabase:', error);
     return false;
@@ -592,7 +629,7 @@ export async function hasOvertimeForDateInSupabase(workerId: string, date: strin
     // First, resolve the actual worker UUID if workerId is not a UUID
     let actualWorkerId = workerId;
     const isWorkerIdUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
-    
+
     if (!isWorkerIdUUID) {
       // Try to find worker by employee_id
       const { data: workerData } = await supabase
@@ -604,27 +641,37 @@ export async function hasOvertimeForDateInSupabase(workerId: string, date: strin
       if (workerData) {
         actualWorkerId = workerData.id;
       } else {
-        // If not found, try to find by matching the workerId as-is (might be stored differently)
-        console.warn('⚠️ Cannot find worker UUID for overtime check:', workerId);
-        return false;
+        // If not found, default to 'yes' (overtime on by default)
+        console.warn('⚠️ Cannot find worker UUID for overtime check:', workerId, '- defaulting to yes');
+        return true; // Default to 'yes'
       }
     }
 
+    // Check for the most recent overtime record on or before this date
+    // This handles forward-looking logic - if toggled off on a date, it stays off for future dates
     const { data, error } = await supabase
       .from('attendance_records')
-      .select('overtime')
+      .select('overtime, date')
       .eq('worker_id', actualWorkerId)
-      .eq('date', date)
-      .maybeSingle();
+      .lte('date', date) // Get records on or before this date
+      .order('date', { ascending: false })
+      .limit(1);
 
     if (error && error.code !== 'PGRST116') {
       console.error('Error checking overtime:', error);
-      return false;
+      return true; // Default to 'yes' on error
     }
 
-    return data?.overtime === 'yes';
+    // If we have a record, use its overtime status
+    // Otherwise default to 'yes' (overtime on by default)
+    if (data && data.length > 0) {
+      return data[0].overtime === 'yes';
+    }
+
+    // Default to 'yes' if no record exists
+    return true;
   } catch (error) {
     console.error('Error in hasOvertimeForDateInSupabase:', error);
-    return false;
+    return true; // Default to 'yes' on error
   }
 }

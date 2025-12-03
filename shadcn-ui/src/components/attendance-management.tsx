@@ -24,7 +24,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
-  
+
   // Worker form
   const [workerForm, setWorkerForm] = useState({
     name: "",
@@ -33,14 +33,14 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     position: "",
     isPacker: false
   });
-  
+
   // Attendance form
   const [attendanceForm, setAttendanceForm] = useState({
     workerId: "",
     status: AttendanceStatus.ABSENT, // Can be present, absent, or half-day
     notes: ""
   });
-  
+
   // Delete confirmation
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
@@ -49,11 +49,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     isOpen: false,
     worker: null
   });
-  
+
   // Dialog states
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
-  
+
   const [error, setError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -68,7 +68,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         getAllWorkers(),
         getAllAttendance()
       ]);
-      
+
       setWorkers(workersData);
       setAttendanceRecords(attendanceData);
     } catch (error) {
@@ -104,10 +104,10 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       };
 
       const success = await saveWorker(newWorker);
-      
+
       if (success) {
         await loadData(); // Refresh data
-        
+
         // Reset form
         setWorkerForm({
           name: "",
@@ -118,9 +118,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         });
         setWorkerDialogOpen(false);
         setError(null);
-        
+
         toast.success("Worker added successfully");
-        
+
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
@@ -142,11 +142,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     setFormLoading(true);
     try {
       const success = await deleteWorker(deleteConfirmation.worker.id);
-      
+
       if (success) {
         await loadData(); // Refresh data
         toast.success(`Worker ${deleteConfirmation.worker.name} deleted successfully`);
-        
+
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
@@ -192,12 +192,12 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           notes: attendanceForm.notes.trim() || undefined,
           updatedAt: new Date().toISOString()
         };
-        
+
         // If changing to present, reset overtime if it was set (can be toggled separately)
         if (attendanceForm.status === AttendanceStatus.PRESENT && existingRecord.status === AttendanceStatus.ABSENT) {
           // Keep existing overtime status when changing from absent to present
         }
-        
+
         toast.success(`Attendance updated to ${attendanceForm.status}`);
       } else {
         // Create new record
@@ -207,7 +207,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           workerName: worker.name,
           date: selectedDate,
           status: attendanceForm.status,
-          overtime: attendanceForm.status === AttendanceStatus.ABSENT ? 'no' : 'no', // Default no overtime
+          overtime: 'yes', // Default to 'yes' (overtime on by default)
           notes: attendanceForm.notes.trim() || undefined,
           createdAt: new Date().toISOString()
         };
@@ -215,10 +215,10 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       }
 
       const success = await saveAttendance(newRecord);
-      
+
       if (success) {
         await loadData(); // Refresh data
-        
+
         // Reset form
         setAttendanceForm({
           workerId: "",
@@ -227,7 +227,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         });
         setAttendanceDialogOpen(false);
         setError(null);
-        
+
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
@@ -246,15 +246,30 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const handleOvertimeToggle = async (workerId: string) => {
     try {
       console.log('🔄 Toggling overtime for worker:', workerId, 'date:', selectedDate);
+      const currentStatus = checkHasOvertime(workerId);
+      const newStatus = !currentStatus;
+      
+      // Optimistically update UI
+      setOvertimeStatus(prev => ({ ...prev, [workerId]: newStatus }));
+      
       await toggleOvertimeForWorker(workerId, selectedDate);
-      await loadData(); // Refresh data
-      toast.success("Overtime status updated");
+      await loadData(); // Refresh data from Supabase
+      
+      // Reload overtime status after data refresh
+      const { hasOvertimeForDate } = await import('@/lib/attendance-utils');
+      const updatedStatus = await hasOvertimeForDate(workerId, selectedDate);
+      setOvertimeStatus(prev => ({ ...prev, [workerId]: updatedStatus }));
+      
+      toast.success(`Overtime ${newStatus ? 'enabled' : 'disabled'} for this date and future dates`);
       
       if (onAttendanceUpdate) {
         onAttendanceUpdate();
       }
     } catch (error) {
       console.error("❌ Error toggling overtime:", error);
+      // Revert optimistic update on error
+      const currentStatus = checkHasOvertime(workerId);
+      setOvertimeStatus(prev => ({ ...prev, [workerId]: currentStatus }));
       toast.error("Failed to update overtime status");
     }
   };
@@ -274,7 +289,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       if (success) {
         await loadData(); // Refresh data
         toast.success("Packer status updated");
-        
+
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
@@ -301,28 +316,54 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     return AttendanceStatus.PRESENT; // Default present
   };
 
-  // Check if worker has overtime for selected date (synchronous version for display)
+  // State to track overtime status for each worker
+  const [overtimeStatus, setOvertimeStatus] = useState<Record<string, boolean>>({});
+
+  // Load overtime status from Supabase for all workers
+  useEffect(() => {
+    const loadOvertimeStatus = async () => {
+      const statusMap: Record<string, boolean> = {};
+      const { hasOvertimeForDate } = await import('@/lib/attendance-utils');
+      
+      for (const worker of workers) {
+        try {
+          const hasOvertime = await hasOvertimeForDate(worker.id, selectedDate);
+          statusMap[worker.id] = hasOvertime;
+        } catch (error) {
+          console.error(`Error loading overtime for worker ${worker.id}:`, error);
+          statusMap[worker.id] = true; // Default to 'yes'
+        }
+      }
+      setOvertimeStatus(statusMap);
+    };
+
+    if (workers.length > 0 && selectedDate) {
+      loadOvertimeStatus();
+    }
+  }, [workers, selectedDate, attendanceRecords]);
+
+  // Check if worker has overtime for selected date
   const checkHasOvertime = (workerId: string) => {
+    // First check the state map (from Supabase)
+    if (overtimeStatus[workerId] !== undefined) {
+      return overtimeStatus[workerId];
+    }
+    
+    // Fallback to checking local records
     const record = attendanceRecords.find(r => {
       // Match by workerId (could be UUID or string ID)
       const workerMatch = r.workerId === workerId;
-      // Also try matching by finding the worker's UUID if workerId is a string
       if (!workerMatch) {
         const worker = workers.find(w => w.id === workerId);
         if (worker) {
-          // Try to match by employee_id if workerId doesn't match
-          const workerRecord = attendanceRecords.find(ar => {
-            // Check if attendance record's workerId matches worker's UUID
-            return ar.workerId === worker.id && ar.date === selectedDate;
-          });
-          if (workerRecord) {
-            return workerRecord.overtime === 'yes';
-          }
+          return attendanceRecords.some(ar => ar.workerId === worker.id && ar.date === selectedDate);
         }
       }
       return workerMatch && r.date === selectedDate;
     });
-    return record?.overtime === 'yes';
+    
+    // Default to 'yes' if no record found (overtime on by default)
+    return record ? record.overtime === 'yes' : true;
   };
 
   // Get attendance summary
@@ -334,7 +375,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     const present = total - absent - halfDay; // Default present unless marked otherwise
     const overtime = dateRecords.filter(r => r.overtime === 'yes').length;
     const packers = workers.filter(w => w.isPacker).length;
-    
+
     // Calculate present packers
     const presentPackerIds = workers
       .filter(w => w.isPacker)
@@ -342,7 +383,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         const record = dateRecords.find(r => r.workerId === w.id);
         return !record || (record.status !== AttendanceStatus.ABSENT && record.status !== AttendanceStatus.HALF_DAY);
       }).length;
-    
+
     return { total, present, absent, halfDay, overtime, packers, presentPackers: presentPackerIds };
   };
 
@@ -371,7 +412,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     a.download = `attendance-${selectedDate}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     toast.success("Attendance report downloaded");
   };
 
@@ -480,7 +521,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 Register a new worker to track their attendance.
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -488,7 +529,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   <Input
                     id="worker-name"
                     value={workerForm.name}
-                    onChange={(e) => setWorkerForm({...workerForm, name: e.target.value})}
+                    onChange={(e) => setWorkerForm({ ...workerForm, name: e.target.value })}
                     placeholder="Worker name"
                   />
                 </div>
@@ -497,19 +538,19 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   <Input
                     id="worker-id"
                     value={workerForm.employeeId}
-                    onChange={(e) => setWorkerForm({...workerForm, employeeId: e.target.value})}
+                    onChange={(e) => setWorkerForm({ ...workerForm, employeeId: e.target.value })}
                     placeholder="EMP001"
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="worker-department">Department</Label>
                   <Input
                     id="worker-department"
                     value={workerForm.department}
-                    onChange={(e) => setWorkerForm({...workerForm, department: e.target.value})}
+                    onChange={(e) => setWorkerForm({ ...workerForm, department: e.target.value })}
                     placeholder="Department"
                   />
                 </div>
@@ -518,7 +559,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   <Input
                     id="worker-position"
                     value={workerForm.position}
-                    onChange={(e) => setWorkerForm({...workerForm, position: e.target.value})}
+                    onChange={(e) => setWorkerForm({ ...workerForm, position: e.target.value })}
                     placeholder="Position"
                   />
                 </div>
@@ -528,14 +569,14 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 <Switch
                   id="is-packer"
                   checked={workerForm.isPacker}
-                  onCheckedChange={(checked) => setWorkerForm({...workerForm, isPacker: checked})}
+                  onCheckedChange={(checked) => setWorkerForm({ ...workerForm, isPacker: checked })}
                 />
                 <Label htmlFor="is-packer" className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
                   Designate as Packer (can be assigned barcodes)
                 </Label>
               </div>
-              
+
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -543,7 +584,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 </Alert>
               )}
             </div>
-            
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setWorkerDialogOpen(false)}>
                 Cancel
@@ -577,19 +618,19 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 Set or change attendance status for {selectedDate}. Workers are present by default unless marked otherwise.
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="attendance-worker">Select Worker *</Label>
-                <Select 
-                  value={attendanceForm.workerId} 
+                <Select
+                  value={attendanceForm.workerId}
                   onValueChange={(value) => {
                     const worker = workers.find(w => w.id === value);
                     const existingRecord = attendanceRecords.find(
                       r => r.workerId === value && r.date === selectedDate
                     );
                     setAttendanceForm({
-                      ...attendanceForm, 
+                      ...attendanceForm,
                       workerId: value,
                       status: existingRecord?.status || AttendanceStatus.PRESENT
                     });
@@ -606,7 +647,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       const currentStatus = record?.status || AttendanceStatus.PRESENT;
                       return (
                         <SelectItem key={worker.id} value={worker.id}>
-                          {worker.name} ({worker.employeeId}) {worker.isPacker && '📦'} 
+                          {worker.name} ({worker.employeeId}) {worker.isPacker && '📦'}
                           {record && ` - Currently: ${currentStatus}`}
                         </SelectItem>
                       );
@@ -614,12 +655,12 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="attendance-status">Status *</Label>
-                <Select 
-                  value={attendanceForm.status} 
-                  onValueChange={(value) => setAttendanceForm({...attendanceForm, status: value as AttendanceStatus})}
+                <Select
+                  value={attendanceForm.status}
+                  onValueChange={(value) => setAttendanceForm({ ...attendanceForm, status: value as AttendanceStatus })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -634,18 +675,18 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   Select Present to mark someone as present (e.g., if marked absent by mistake)
                 </p>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="attendance-notes">Notes</Label>
                 <Textarea
                   id="attendance-notes"
                   value={attendanceForm.notes}
-                  onChange={(e) => setAttendanceForm({...attendanceForm, notes: e.target.value})}
+                  onChange={(e) => setAttendanceForm({ ...attendanceForm, notes: e.target.value })}
                   placeholder="Optional notes"
                   rows={3}
                 />
               </div>
-              
+
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -653,7 +694,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 </Alert>
               )}
             </div>
-            
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setAttendanceDialogOpen(false)}>
                 Cancel
@@ -678,7 +719,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               Are you sure you want to delete {deleteConfirmation.worker?.name}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          
+
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
@@ -690,7 +731,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               </ul>
             </AlertDescription>
           </Alert>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmation({ isOpen: false, worker: null })}>
               Cancel
@@ -729,7 +770,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 {workers.map((worker) => {
                   const status = getWorkerStatus(worker.id);
                   const hasOvertime = checkHasOvertime(worker.id);
-                  
+
                   return (
                     <TableRow key={worker.id}>
                       <TableCell className="font-mono">{worker.employeeId}</TableCell>
@@ -749,10 +790,10 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Badge 
+                          <Badge
                             variant={
                               status === AttendanceStatus.PRESENT ? "default" :
-                              status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
+                                status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
                             }
                           >
                             {status}
@@ -766,7 +807,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                   const existingRecord = attendanceRecords.find(
                                     r => r.workerId === worker.id && r.date === selectedDate
                                   );
-                                  
+
                                   const updatedRecord: AttendanceRecord = {
                                     ...(existingRecord || {
                                       id: `attendance-${Date.now()}`,
@@ -779,7 +820,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                     overtime: existingRecord?.overtime || 'no',
                                     updatedAt: new Date().toISOString()
                                   };
-                                  
+
                                   const success = await saveAttendance(updatedRecord);
                                   if (success) {
                                     await loadData();

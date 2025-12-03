@@ -93,12 +93,12 @@ export async function saveWorker(worker: Worker): Promise<boolean> {
   try {
     // Try to save to Supabase first
     const supabaseSuccess = await saveWorkerToSupabase(worker);
-    
+
     if (supabaseSuccess) {
       // Also update localStorage
       const workers = await getAllWorkers();
       const existingIndex = workers.findIndex(w => w.id === worker.id);
-      
+
       if (existingIndex >= 0) {
         workers[existingIndex] = { ...worker, updatedAt: new Date().toISOString() };
       } else {
@@ -110,7 +110,7 @@ export async function saveWorker(worker: Worker): Promise<boolean> {
         };
         workers.push(newWorker);
       }
-      
+
       localStorage.setItem(WORKERS_STORAGE_KEY, JSON.stringify(workers));
       return true;
     }
@@ -120,10 +120,10 @@ export async function saveWorker(worker: Worker): Promise<boolean> {
 
   // Fallback to localStorage only
   const workers = await getAllWorkers();
-  
+
   // Check if worker already exists
   const existingIndex = workers.findIndex(w => w.id === worker.id || w.employeeId === worker.employeeId);
-  
+
   if (existingIndex >= 0) {
     // Update existing worker
     workers[existingIndex] = { ...worker, updatedAt: new Date().toISOString() };
@@ -137,7 +137,7 @@ export async function saveWorker(worker: Worker): Promise<boolean> {
     };
     workers.push(newWorker);
   }
-  
+
   try {
     localStorage.setItem(WORKERS_STORAGE_KEY, JSON.stringify(workers));
     return true;
@@ -154,14 +154,14 @@ export async function saveAttendance(attendance: AttendanceRecord): Promise<bool
   try {
     // Try to save to Supabase first
     const supabaseSuccess = await saveAttendanceToSupabase(attendance);
-    
+
     if (supabaseSuccess) {
       // Also update localStorage
       const attendanceRecords = await getAllAttendance();
       const existingIndex = attendanceRecords.findIndex(
         a => a.workerId === attendance.workerId && a.date === attendance.date
       );
-      
+
       if (existingIndex >= 0) {
         attendanceRecords[existingIndex] = { ...attendance, updatedAt: new Date().toISOString() };
       } else {
@@ -173,7 +173,7 @@ export async function saveAttendance(attendance: AttendanceRecord): Promise<bool
         };
         attendanceRecords.push(newAttendance);
       }
-      
+
       localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(attendanceRecords));
       return true;
     }
@@ -183,12 +183,12 @@ export async function saveAttendance(attendance: AttendanceRecord): Promise<bool
 
   // Fallback to localStorage only
   const attendanceRecords = await getAllAttendance();
-  
+
   // Check if attendance already exists for this worker and date
   const existingIndex = attendanceRecords.findIndex(
     a => a.workerId === attendance.workerId && a.date === attendance.date
   );
-  
+
   if (existingIndex >= 0) {
     // Update existing attendance
     attendanceRecords[existingIndex] = { ...attendance, updatedAt: new Date().toISOString() };
@@ -202,7 +202,7 @@ export async function saveAttendance(attendance: AttendanceRecord): Promise<bool
     };
     attendanceRecords.push(newAttendance);
   }
-  
+
   try {
     localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(attendanceRecords));
     return true;
@@ -224,12 +224,12 @@ export async function deleteWorker(workerId: string): Promise<boolean> {
       const workers = await getAllWorkers();
       const newWorkers = workers.filter(w => w.id !== workerId);
       localStorage.setItem(WORKERS_STORAGE_KEY, JSON.stringify(newWorkers));
-      
+
       // Also remove related attendance records
       const attendance = await getAllAttendance();
       const newAttendance = attendance.filter(a => a.workerId !== workerId);
       localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(newAttendance));
-      
+
       return true;
     }
   } catch (error) {
@@ -239,19 +239,19 @@ export async function deleteWorker(workerId: string): Promise<boolean> {
   // Fallback to localStorage
   const workers = await getAllWorkers();
   const newWorkers = workers.filter(w => w.id !== workerId);
-  
+
   if (newWorkers.length === workers.length) {
     return false; // No worker was found to delete
   }
-  
+
   try {
     localStorage.setItem(WORKERS_STORAGE_KEY, JSON.stringify(newWorkers));
-    
+
     // Also remove related attendance records
     const attendance = await getAllAttendance();
     const newAttendance = attendance.filter(a => a.workerId !== workerId);
     localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(newAttendance));
-    
+
     return true;
   } catch (error) {
     console.error('Error deleting worker from localStorage:', error);
@@ -303,7 +303,7 @@ export async function getPresentPackersForDate(date: string): Promise<Worker[]> 
     // Filter workers who are packers and present on the given date
     const presentPackers = workers.filter(worker => {
       if (!worker.isPacker) return false;
-      
+
       const workerAttendance = attendance.find(a => a.workerId === worker.id);
       // Present if no record (default) or status is present
       return !workerAttendance || workerAttendance.status === AttendanceStatus.PRESENT;
@@ -322,10 +322,10 @@ export async function getPresentPackersForDate(date: string): Promise<Worker[]> 
 export async function toggleOvertimeForWorker(workerId: string, date: string): Promise<void> {
   try {
     console.log('🔄 toggleOvertimeForWorker called with workerId:', workerId, 'date:', date);
-    
+
     // Try to toggle in Supabase first
     const supabaseSuccess = await toggleOvertimeInSupabase(workerId, date);
-    
+
     if (supabaseSuccess) {
       console.log('✅ Overtime toggled successfully in Supabase');
       // Refresh data to get updated records from Supabase
@@ -342,7 +342,7 @@ export async function toggleOvertimeForWorker(workerId: string, date: string): P
   try {
     const records = await getAllAttendance();
     const existingRecord = records.find(r => r.workerId === workerId && r.date === date);
-    
+
     if (existingRecord) {
       // Toggle overtime status
       const updatedRecord = {
@@ -350,7 +350,7 @@ export async function toggleOvertimeForWorker(workerId: string, date: string): P
         overtime: existingRecord.overtime === 'yes' ? 'no' : 'yes',
         updatedAt: new Date().toISOString()
       };
-      
+
       await saveAttendance(updatedRecord);
       console.log('✅ Overtime toggled in localStorage');
     } else {
@@ -358,16 +358,16 @@ export async function toggleOvertimeForWorker(workerId: string, date: string): P
       const workers = await getAllWorkers();
       const worker = workers.find(w => w.id === workerId);
       if (worker) {
-        const newRecord: AttendanceRecord = {
-          id: `attendance-${Date.now()}-${workerId}`,
-          workerId: workerId,
-          workerName: worker.name,
-          date: date,
-          status: AttendanceStatus.PRESENT,
-          overtime: 'yes',
-          createdAt: new Date().toISOString()
-        };
-        
+      const newRecord: AttendanceRecord = {
+        id: `attendance-${Date.now()}-${workerId}`,
+        workerId: workerId,
+        workerName: worker.name,
+        date: date,
+        status: AttendanceStatus.PRESENT,
+        overtime: 'yes', // Default to 'yes' (overtime on by default)
+        createdAt: new Date().toISOString()
+      };
+
         await saveAttendance(newRecord);
         console.log('✅ New overtime record created in localStorage');
       } else {
@@ -389,7 +389,7 @@ export async function hasOvertimeForDate(workerId: string, date: string): Promis
     return await hasOvertimeForDateInSupabase(workerId, date);
   } catch (error) {
     console.error('Error checking overtime in Supabase, falling back to localStorage:', error);
-    
+
     // Fallback to localStorage
     const attendanceRecords = await getAllAttendance();
     const record = attendanceRecords.find(r => r.workerId === workerId && r.date === date);
