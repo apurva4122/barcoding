@@ -1,8 +1,7 @@
 {
-  "buildCommand": "pnpm install && pnpm run build",
+  "buildCommand": "pnpm run vercel-build",
   "outputDirectory": "dist",
   "installCommand": "pnpm install",
-  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",
