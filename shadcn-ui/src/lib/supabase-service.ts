@@ -179,6 +179,7 @@ export async function getAllAttendanceFromSupabase(): Promise<AttendanceRecord[]
 export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Promise<boolean> {
   try {
     console.log('🔄 Attempting to save attendance to Supabase:', attendance);
+    console.log('🔍 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://orsdqaeqqobltrmpvtmj.supabase.co');
 
     const attendanceData = {
       id: attendance.id,
@@ -208,6 +209,12 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
 
     // If upsert fails (e.g., constraint not set up), fall back to check-then-insert/update
     if (upsertError) {
+      console.error('❌ Upsert error details:', {
+        message: upsertError.message,
+        code: upsertError.code,
+        details: upsertError.details,
+        hint: upsertError.hint
+      });
       console.warn('⚠️ Upsert failed, falling back to check-then-insert/update:', upsertError.message);
 
       // Check if attendance record exists for this worker and date
@@ -246,6 +253,13 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
             details: insertError.details,
             hint: insertError.hint
           });
+          
+          // Check if table doesn't exist
+          if (insertError.code === '42P01' || insertError.message?.includes('does not exist')) {
+            console.error('❌ TABLE DOES NOT EXIST! Please create the attendance_records table in Supabase.');
+            console.error('📋 Run the SQL from supabase-tables.sql in your Supabase SQL editor.');
+          }
+          
           return false;
         }
         console.log('✅ Attendance inserted in Supabase successfully');
@@ -256,6 +270,9 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
     return false;
   } catch (error) {
     console.error('❌ UNEXPECTED ERROR saving attendance:', error);
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 }
