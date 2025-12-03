@@ -190,8 +190,7 @@ export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worke
       department: data.department || undefined,
       position: data.position || undefined,
       isPacker: data.is_packer,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at || undefined
+      createdAt: data.created_at
     };
   } catch (error) {
     console.error('Error in getWorkerByIdFromSupabase:', error);
@@ -239,7 +238,6 @@ export async function getAllAttendanceFromSupabase(): Promise<AttendanceRecord[]
 export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Promise<boolean> {
   try {
     console.log('🔄 Attempting to save attendance to Supabase:', attendance);
-    console.log('🔍 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://orsdqaeqqobltrmpvtmj.supabase.co');
 
     // First, get the actual UUID for the worker_id
     // workerId might be a string like "worker-123", so we need to find the real UUID
@@ -502,11 +500,11 @@ export async function updateAttendanceInSupabase(attendance: AttendanceRecord): 
 export async function toggleOvertimeInSupabase(workerId: string, date: string): Promise<boolean> {
   try {
     console.log('🔄 Toggling overtime for worker:', workerId, 'date:', date);
-    
+
     // First, resolve the actual worker UUID if workerId is not a UUID
     let actualWorkerId = workerId;
     const isWorkerIdUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
-    
+
     if (!isWorkerIdUUID) {
       // Try to find worker by employee_id
       const { data: workerData } = await supabase
@@ -514,7 +512,7 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
         .select('id')
         .eq('employee_id', workerId)
         .maybeSingle();
-      
+
       if (workerData) {
         actualWorkerId = workerData.id;
       } else {
