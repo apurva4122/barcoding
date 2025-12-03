@@ -245,6 +245,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   // Toggle overtime for a worker
   const handleOvertimeToggle = async (workerId: string) => {
     try {
+      console.log('🔄 Toggling overtime for worker:', workerId, 'date:', selectedDate);
       await toggleOvertimeForWorker(workerId, selectedDate);
       await loadData(); // Refresh data
       toast.success("Overtime status updated");
@@ -253,7 +254,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         onAttendanceUpdate();
       }
     } catch (error) {
-      console.error("Error toggling overtime:", error);
+      console.error("❌ Error toggling overtime:", error);
       toast.error("Failed to update overtime status");
     }
   };

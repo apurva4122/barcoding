@@ -321,55 +321,62 @@ export async function getPresentPackersForDate(date: string): Promise<Worker[]> 
  */
 export async function toggleOvertimeForWorker(workerId: string, date: string): Promise<void> {
   try {
+    console.log('🔄 toggleOvertimeForWorker called with workerId:', workerId, 'date:', date);
+    
     // Try to toggle in Supabase first
     const supabaseSuccess = await toggleOvertimeInSupabase(workerId, date);
     
     if (supabaseSuccess) {
-      // Also update localStorage
-      const records = await getAllAttendance();
-      const existingRecord = records.find(r => r.workerId === workerId && r.date === date);
-      
-      if (existingRecord) {
-        existingRecord.overtime = existingRecord.overtime === 'yes' ? 'no' : 'yes';
-        existingRecord.updatedAt = new Date().toISOString();
-        await saveAttendance(existingRecord);
-      }
+      console.log('✅ Overtime toggled successfully in Supabase');
+      // Refresh data to get updated records from Supabase
+      // The loadData() call in the component will handle this
       return;
+    } else {
+      console.warn('⚠️ Supabase toggle failed, trying localStorage fallback');
     }
   } catch (error) {
-    console.error('Error updating in Supabase, falling back to localStorage:', error);
+    console.error('❌ Error updating in Supabase, falling back to localStorage:', error);
   }
 
   // Fallback to localStorage
-  const records = await getAllAttendance();
-  const existingRecord = records.find(r => r.workerId === workerId && r.date === date);
-  
-  if (existingRecord) {
-    // Toggle overtime status
-    const updatedRecord = {
-      ...existingRecord,
-      overtime: existingRecord.overtime === 'yes' ? 'no' : 'yes',
-      updatedAt: new Date().toISOString()
-    };
+  try {
+    const records = await getAllAttendance();
+    const existingRecord = records.find(r => r.workerId === workerId && r.date === date);
     
-    await saveAttendance(updatedRecord);
-  } else {
-    // Create new record with overtime
-    const workers = await getAllWorkers();
-    const worker = workers.find(w => w.id === workerId);
-    if (worker) {
-      const newRecord: AttendanceRecord = {
-        id: `attendance-${Date.now()}-${workerId}`,
-        workerId: workerId,
-        workerName: worker.name,
-        date: date,
-        status: AttendanceStatus.PRESENT,
-        overtime: 'yes',
-        createdAt: new Date().toISOString()
+    if (existingRecord) {
+      // Toggle overtime status
+      const updatedRecord = {
+        ...existingRecord,
+        overtime: existingRecord.overtime === 'yes' ? 'no' : 'yes',
+        updatedAt: new Date().toISOString()
       };
       
-      await saveAttendance(newRecord);
+      await saveAttendance(updatedRecord);
+      console.log('✅ Overtime toggled in localStorage');
+    } else {
+      // Create new record with overtime
+      const workers = await getAllWorkers();
+      const worker = workers.find(w => w.id === workerId);
+      if (worker) {
+        const newRecord: AttendanceRecord = {
+          id: `attendance-${Date.now()}-${workerId}`,
+          workerId: workerId,
+          workerName: worker.name,
+          date: date,
+          status: AttendanceStatus.PRESENT,
+          overtime: 'yes',
+          createdAt: new Date().toISOString()
+        };
+        
+        await saveAttendance(newRecord);
+        console.log('✅ New overtime record created in localStorage');
+      } else {
+        console.error('❌ Worker not found for overtime toggle:', workerId);
+      }
     }
+  } catch (error) {
+    console.error('❌ Error in localStorage fallback:', error);
+    throw error;
   }
 }
 

@@ -589,14 +589,35 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
  */
 export async function hasOvertimeForDateInSupabase(workerId: string, date: string): Promise<boolean> {
   try {
+    // First, resolve the actual worker UUID if workerId is not a UUID
+    let actualWorkerId = workerId;
+    const isWorkerIdUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
+    
+    if (!isWorkerIdUUID) {
+      // Try to find worker by employee_id
+      const { data: workerData } = await supabase
+        .from('workers')
+        .select('id')
+        .eq('employee_id', workerId)
+        .maybeSingle();
+      
+      if (workerData) {
+        actualWorkerId = workerData.id;
+      } else {
+        // If not found, try to find by matching the workerId as-is (might be stored differently)
+        console.warn('⚠️ Cannot find worker UUID for overtime check:', workerId);
+        return false;
+      }
+    }
+
     const { data, error } = await supabase
       .from('attendance_records')
       .select('overtime')
-      .eq('worker_id', workerId)
+      .eq('worker_id', actualWorkerId)
       .eq('date', date)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (error && error.code !== 'PGRST116') {
       console.error('Error checking overtime:', error);
       return false;
     }
