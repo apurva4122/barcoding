@@ -67,7 +67,7 @@ export async function saveQRCodeToSupabase(barcode: Barcode): Promise<boolean> {
     // Try upsert instead of insert to handle potential conflicts
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .upsert([rowData], { 
+      .upsert([rowData], {
         onConflict: 'code',
         ignoreDuplicates: false
       })
@@ -118,7 +118,7 @@ export async function getAllQRCodesFromSupabase(): Promise<Barcode[]> {
     }
 
     console.log(`Retrieved ${data?.length || 0} QR codes from last 10 days`);
-    
+
     return data ? data.map(convertToBarcode) : []
   } catch (error: any) {
     // Catch CORS and network errors
@@ -134,7 +134,7 @@ export async function getAllQRCodesFromSupabase(): Promise<Barcode[]> {
 export async function findQRCodeByCodeInSupabase(code: string): Promise<Barcode | null> {
   try {
     const tenDaysAgo = getTenDaysAgo();
-    
+
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('*')
@@ -148,7 +148,7 @@ export async function findQRCodeByCodeInSupabase(code: string): Promise<Barcode 
         console.warn('⚠️ CORS/Network error accessing Supabase QR codes table');
         return null
       }
-      
+
       if (error.code === 'PGRST116') {
         // No rows found - try without date filter for backward compatibility
         console.log('QR code not found in last 10 days, searching all records...');
@@ -157,7 +157,7 @@ export async function findQRCodeByCodeInSupabase(code: string): Promise<Barcode 
           .select('*')
           .eq('code', code)
           .single()
-          
+
         if (allError) {
           if (allError.code === 'PGRST116') {
             return null
@@ -170,16 +170,16 @@ export async function findQRCodeByCodeInSupabase(code: string): Promise<Barcode 
           console.log('Error finding QR code in all records:', allError)
           return null
         }
-        
+
         return allData ? convertToBarcode(allData) : null
       }
       console.log('Error finding QR code in Supabase:', error)
       return null
     }
-    
 
-    return data ? convertToBarcode(data): null
-    
+
+    return data ? convertToBarcode(data) : null
+
 
   } catch (error: any) {
     // Catch CORS and network errors
@@ -193,8 +193,8 @@ export async function findQRCodeByCodeInSupabase(code: string): Promise<Barcode 
 }
 
 export async function updateQRCodeStatusInSupabase(
-  code: string, 
-  status: PackingStatus, 
+  code: string,
+  status: PackingStatus,
   updateData?: { weight?: string; packerName?: string; shippingLocation?: string }
 ): Promise<Barcode | null> {
   try {
@@ -202,7 +202,7 @@ export async function updateQRCodeStatusInSupabase(
     const tenDaysAgo = getTenDaysAgo();
     let existingData;
     let checkError;
-    
+
     // First try with date filter
     const { data: recentData, error: recentError } = await supabase
       .from(TABLE_NAME)
@@ -210,14 +210,14 @@ export async function updateQRCodeStatusInSupabase(
       .eq('code', code)
       .gte('created_at', tenDaysAgo)
       .single();
-      
+
     if (recentError) {
       // Check for CORS errors first
       if (recentError.message?.includes('Failed to fetch') || recentError.message?.includes('CORS')) {
         console.warn('⚠️ CORS/Network error accessing Supabase QR codes table');
         return null
       }
-      
+
       if (recentError.code === 'PGRST116') {
         // Not found in recent records, try all records
         const { data: allData, error: allError } = await supabase
@@ -225,7 +225,7 @@ export async function updateQRCodeStatusInSupabase(
           .select('*')
           .eq('code', code)
           .single();
-          
+
         if (allError) {
           // Check for CORS errors
           if (allError.message?.includes('Failed to fetch') || allError.message?.includes('CORS')) {
@@ -233,7 +233,7 @@ export async function updateQRCodeStatusInSupabase(
             return null
           }
         }
-        
+
         existingData = allData;
         checkError = allError;
       } else {
@@ -244,11 +244,11 @@ export async function updateQRCodeStatusInSupabase(
       existingData = recentData;
       checkError = recentError;
     }
-   
-    
+
+
     if (checkError) {
       console.error('Record not found, attempting to create it first');
-      
+
       // Create a new record with minimal data if it doesn't exist
       const newRecord = {
         code: code,
@@ -257,35 +257,39 @@ export async function updateQRCodeStatusInSupabase(
         updated_at: new Date().toISOString(),
         ...(updateData?.weight && { weight: updateData.weight }),
         ...(updateData?.packerName && { packer_name: updateData.packerName }),
-        ...(updateData?.shippingLocation && { shipping_location: updateData.shippingLocation })
+        ...(updateData?.shippingLocation && { shipping_location: updateData.shippingLocation }),
+        // Set shipped_at when status is DISPATCHED
+        ...(status === PackingStatus.DISPATCHED && { shipped_at: new Date().toISOString() })
       };
-      
+
       const { data: insertData, error: insertError } = await supabase
         .from(TABLE_NAME)
         .insert([newRecord])
         .select()
         .single();
-      
+
       if (insertError) {
         console.error('❌ ERROR CREATING QR CODE:', insertError);
         console.error('Error details:', JSON.stringify(insertError, null, 2));
         return null;
       }
-      
-      
+
+
       return insertData ? convertToBarcode(insertData) : null;
     }
-    
+
     // If record exists, update it
     const updatePayload: Partial<SupabaseBarcode> = {
       status,
       updated_at: new Date().toISOString(),
       ...(updateData?.weight && { weight: updateData.weight }),
       ...(updateData?.packerName && { packer_name: updateData.packerName }),
-      ...(updateData?.shippingLocation && { shipping_location: updateData.shippingLocation })
+      ...(updateData?.shippingLocation && { shipping_location: updateData.shippingLocation }),
+      // Set shipped_at when status is DISPATCHED
+      ...(status === PackingStatus.DISPATCHED && { shipped_at: new Date().toISOString() })
     };
-    
-    
+
+
 
     const { data, error } = await supabase
       .from(TABLE_NAME)
@@ -300,7 +304,7 @@ export async function updateQRCodeStatusInSupabase(
       return null;
     }
 
-  
+
     return data ? convertToBarcode(data) : null;
   } catch (error) {
     console.error('❌ UNEXPECTED ERROR:', error);
@@ -339,7 +343,7 @@ export async function deleteQRCodeFromSupabase(code: string): Promise<boolean> {
 
 // New function to get QR codes by date range for better performance
 export async function getQRCodesByDateRange(
-  startDate: string, 
+  startDate: string,
   endDate?: string
 ): Promise<Barcode[]> {
   try {
@@ -366,7 +370,7 @@ export async function getQRCodesByDateRange(
     }
 
     console.log(`Retrieved ${data?.length || 0} QR codes for date range: ${startDate} to ${endDate || 'now'}`);
-    
+
     return data ? data.map(convertToBarcode) : [];
   } catch (error: any) {
     // Catch CORS and network errors
