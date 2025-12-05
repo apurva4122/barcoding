@@ -260,6 +260,8 @@ export async function updateBarcodeStatus(
       weight: updateData?.weight || '',
       packerName: updateData?.packerName || '',
       shippingLocation: updateData?.shippingLocation || '',
+      shippedAt: status === PackingStatus.DISPATCHED ? new Date().toISOString() : undefined,
+      updatedAt: new Date().toISOString(),
       qrCodeImage: ''
     };
     
@@ -281,7 +283,10 @@ export async function updateBarcodeStatus(
     status,
     weight: updateData?.weight || barcode.weight || '',
     packerName: updateData?.packerName || barcode.packerName || '',
-    shippingLocation: updateData?.shippingLocation || barcode.shippingLocation || ''
+    shippingLocation: updateData?.shippingLocation || barcode.shippingLocation || '',
+    // Set shippedAt when status is DISPATCHED
+    shippedAt: status === PackingStatus.DISPATCHED ? new Date().toISOString() : barcode.shippedAt,
+    updatedAt: new Date().toISOString()
   };
   
   try {
