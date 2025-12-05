@@ -39,12 +39,10 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   // Salary edit state
   const [salaryEditState, setSalaryEditState] = useState<{
     workerId: string | null;
-    password: string;
     newSalary: string;
     showDialog: boolean;
   }>({
     workerId: null,
-    password: "",
     newSalary: "",
     showDialog: false
   });
@@ -52,22 +50,17 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   // Advance payment edit state
   const [advanceEditState, setAdvanceEditState] = useState<{
     workerId: string | null;
-    password: string;
     advanceCurrentMonth: string;
     advanceLastMonth: string;
     advanceDeduction: string;
     showDialog: boolean;
   }>({
     workerId: null,
-    password: "",
     advanceCurrentMonth: "",
     advanceLastMonth: "",
     advanceDeduction: "",
     showDialog: false
   });
-
-  // Password for editing salary (in production, this should be stored securely)
-  const SALARY_EDIT_PASSWORD = "admin123"; // Change this to your desired password
 
   // Attendance form
   const [attendanceForm, setAttendanceForm] = useState({
@@ -819,7 +812,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         if (!open) {
           setSalaryEditState({
             workerId: null,
-            password: "",
             newSalary: "",
             showDialog: false
           });
@@ -832,21 +824,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               Edit Base Salary
             </DialogTitle>
             <DialogDescription>
-              Enter password to edit base salary. This action is protected.
+              Update the base salary for this worker.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="salary-password">Password *</Label>
-              <Input
-                id="salary-password"
-                type="password"
-                value={salaryEditState.password}
-                onChange={(e) => setSalaryEditState({ ...salaryEditState, password: e.target.value })}
-                placeholder="Enter password"
-              />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="new-salary">
                 New Base Salary ({workers.find(w => w.id === salaryEditState.workerId)?.gender === Gender.MALE ? 'Monthly' : 'Daily'}) *
@@ -881,10 +863,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               Cancel
             </Button>
             <Button onClick={async () => {
-              if (salaryEditState.password !== SALARY_EDIT_PASSWORD) {
-                setError("Incorrect password");
-                return;
-              }
               if (!salaryEditState.workerId || !salaryEditState.newSalary) {
                 setError("Please enter a valid salary amount");
                 return;
@@ -909,7 +887,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   await loadData();
                   setSalaryEditState({
                     workerId: null,
-                    password: "",
                     newSalary: "",
                     showDialog: false
                   });
@@ -935,7 +912,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         if (!open) {
           setAdvanceEditState({
             workerId: null,
-            password: "",
             advanceCurrentMonth: "",
             advanceLastMonth: "",
             advanceDeduction: "",
@@ -950,21 +926,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               Edit Advance Payments
             </DialogTitle>
             <DialogDescription>
-              Enter password to edit advance payments. This action is protected.
+              Update advance payments for this worker.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="advance-password">Password *</Label>
-              <Input
-                id="advance-password"
-                type="password"
-                value={advanceEditState.password}
-                onChange={(e) => setAdvanceEditState({ ...advanceEditState, password: e.target.value })}
-                placeholder="Enter password"
-              />
-            </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="advance-current">Adv. This Mo *</Label>
@@ -1025,10 +991,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               Cancel
             </Button>
             <Button onClick={async () => {
-              if (advanceEditState.password !== SALARY_EDIT_PASSWORD) {
-                setError("Incorrect password");
-                return;
-              }
               if (!advanceEditState.workerId) {
                 setError("Worker not found");
                 return;
@@ -1055,7 +1017,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   await loadData();
                   setAdvanceEditState({
                     workerId: null,
-                    password: "",
                     advanceCurrentMonth: "",
                     advanceLastMonth: "",
                     advanceDeduction: "",
@@ -1136,7 +1097,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                             onClick={() => {
                               setSalaryEditState({
                                 workerId: worker.id,
-                                password: "",
                                 newSalary: worker.baseSalary?.toString() || "",
                                 showDialog: true
                               });
@@ -1159,7 +1119,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                             onClick={() => {
                               setAdvanceEditState({
                                 workerId: worker.id,
-                                password: "",
                                 advanceCurrentMonth: worker.advanceCurrentMonth?.toString() || "",
                                 advanceLastMonth: worker.advanceLastMonth?.toString() || "",
                                 advanceDeduction: worker.advanceDeduction?.toString() || "",

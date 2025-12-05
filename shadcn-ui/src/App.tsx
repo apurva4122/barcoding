@@ -32,7 +32,7 @@ function App() {
             Generate QR codes, track packages, manage attendance, and monitor analytics
           </p>
         </div>
-        
+
         <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
@@ -56,56 +56,56 @@ function App() {
               Attendance
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="dashboard">
             <PasswordProtection sectionName="dashboard">
               <Dashboard key={refreshTrigger} />
             </PasswordProtection>
           </TabsContent>
-          
+
           <TabsContent value="generator">
             <PasswordProtection sectionName="generator">
-              <BarcodeGenerator 
+              <BarcodeGenerator
                 key={refreshTrigger}
-                onBarcodesGenerated={handleBarcodesUpdated} 
+                onBarcodesGenerated={handleBarcodesUpdated}
               />
             </PasswordProtection>
           </TabsContent>
-          
+
           <TabsContent value="list">
             <PasswordProtection sectionName="list">
               <div className="space-y-6">
                 <ListsDashboard key={refreshTrigger} />
-                <BarcodeList 
+                <BarcodeList
                   key={refreshTrigger}
-                  onBarcodeUpdated={handleBarcodesUpdated} 
+                  onBarcodeUpdated={handleBarcodesUpdated}
                 />
               </div>
             </PasswordProtection>
           </TabsContent>
-          
+
           <TabsContent value="scanner">
             {/* Scanner section is NOT password protected */}
             <div className="space-y-6">
-              <DualStatusScanner 
+              <DualStatusScanner
                 key={refreshTrigger}
-                onBarcodesUpdated={handleBarcodesUpdated} 
+                onBarcodesUpdated={handleBarcodesUpdated}
               />
               <ScanOnlyDashboard key={refreshTrigger} />
             </div>
           </TabsContent>
-          
+
           <TabsContent value="attendance">
             <PasswordProtection sectionName="attendance">
-              <AttendanceManagement 
+              <AttendanceManagement
                 key={refreshTrigger}
-                onAttendanceUpdate={handleAttendanceUpdated} 
+                onAttendanceUpdate={handleAttendanceUpdated}
               />
             </PasswordProtection>
           </TabsContent>
         </Tabs>
       </div>
-      
+
       <Toaster />
     </div>
   )

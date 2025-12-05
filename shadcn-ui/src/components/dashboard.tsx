@@ -71,26 +71,60 @@ export function Dashboard() {
     return { startDate, endDate };
   };
 
-  // Calculate total salary for last month
-  const calculateLastMonthTotalSalary = (): number => {
+  // Calculate last month salaries for all workers
+  const calculateLastMonthSalaries = (): WorkerAbsenteeStats[] => {
     const { month, year } = getCurrentMonthYear();
     const lastMonth = month === 0 ? 11 : month - 1;
     const lastMonthYear = month === 0 ? year - 1 : year;
+    const { startDate, endDate } = getLastMonthRange();
     
-    let totalSalary = 0;
+    // Filter attendance records for last month
+    const lastMonthRecords = attendanceRecords.filter(record => {
+      return record.date >= startDate && record.date <= endDate;
+    });
+
+    // Calculate stats for each worker
+    const statsMap = new Map<string, WorkerAbsenteeStats>();
+
+    // Initialize all workers with last month salary
     workers.forEach(worker => {
       const salary = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear);
-      totalSalary += salary;
+      
+      statsMap.set(worker.id, {
+        workerId: worker.id,
+        workerName: worker.name,
+        employeeId: worker.employeeId,
+        absentCount: 0,
+        presentCount: 0,
+        halfDayCount: 0,
+        totalDays: 0,
+        salary: salary
+      });
     });
-    
-    return totalSalary;
+
+    // Count attendance for each worker in last month
+    lastMonthRecords.forEach(record => {
+      const stats = statsMap.get(record.workerId);
+      if (stats) {
+        stats.totalDays++;
+        if (record.status === AttendanceStatus.ABSENT) {
+          stats.absentCount++;
+        } else if (record.status === AttendanceStatus.PRESENT) {
+          stats.presentCount++;
+        } else if (record.status === AttendanceStatus.HALF_DAY) {
+          stats.halfDayCount++;
+        }
+      }
+    });
+
+    return Array.from(statsMap.values()).sort((a, b) => b.salary - a.salary);
   };
 
   // Calculate absentee stats for each worker for current month
   const calculateAbsenteeStats = (): WorkerAbsenteeStats[] => {
     const { startDate, endDate } = getCurrentMonthRange();
     const { month, year } = getCurrentMonthYear();
-    
+
     // Filter attendance records for current month
     const monthRecords = attendanceRecords.filter(record => {
       return record.date >= startDate && record.date <= endDate;
@@ -103,7 +137,7 @@ export function Dashboard() {
     workers.forEach(worker => {
       // Calculate salary for this worker
       const salary = calculateMonthlySalary(worker, attendanceRecords, month, year);
-      
+
       statsMap.set(worker.id, {
         workerId: worker.id,
         workerName: worker.name,
@@ -306,7 +340,7 @@ export function Dashboard() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Workers</CardTitle>
@@ -335,20 +369,47 @@ export function Dashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Last Month Total Salary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-500">
-              ₹{calculateLastMonthTotalSalary().toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Last Month Salaries by Worker */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Last Month Salaries (Labour-wise)
+          </CardTitle>
+          <CardDescription>
+            Individual worker salaries for the previous month
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {workers.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No workers found
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {calculateLastMonthSalaries().map((stat) => {
+                const worker = workers.find(w => w.id === stat.workerId);
+                return (
+                  <div key={stat.workerId} className="flex items-center justify-between py-2 border-b">
+                    <div className="flex-1">
+                      <div className="font-medium">{stat.workerName}</div>
+                      <div className="text-sm text-muted-foreground">{stat.employeeId}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-lg">₹{stat.salary.toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {stat.presentCount} present, {stat.absentCount} absent
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
