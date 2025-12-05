@@ -62,10 +62,7 @@ function getTenDaysAgo(): string {
 
 export async function saveQRCodeToSupabase(barcode: Barcode): Promise<boolean> {
   try {
-   
-    
     const rowData = convertToSupabaseRow(barcode);
- 
 
     // Try upsert instead of insert to handle potential conflicts
     const { data, error } = await supabase
@@ -76,15 +73,23 @@ export async function saveQRCodeToSupabase(barcode: Barcode): Promise<boolean> {
       })
       .select();
 
- 
     if (error) {
+      // Check if it's a CORS or network error
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS')) {
+        console.warn('⚠️ CORS/Network error saving QR code to Supabase, will save to localStorage only');
+        return false;
+      }
       console.error('❌ SUPABASE INSERT FAILED:', JSON.stringify(error, null, 2));
       return false;
     }
 
- 
     return true;
-  } catch (error) {
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      console.warn('⚠️ CORS/Network error saving QR code to Supabase, will save to localStorage only');
+      return false;
+    }
     console.error('❌ UNEXPECTED ERROR:', error);
     return false;
   }
@@ -102,6 +107,11 @@ export async function getAllQRCodesFromSupabase(): Promise<Barcode[]> {
       .order('created_at', { ascending: false })
 
     if (error) {
+      // Check if it's a CORS or network error
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS')) {
+        console.warn('⚠️ CORS/Network error accessing Supabase QR codes table, will fallback to localStorage');
+        return []
+      }
       console.error('Supabase select error:', error)
       console.error('Error details:', JSON.stringify(error, null, 2))
       return []
@@ -110,7 +120,12 @@ export async function getAllQRCodesFromSupabase(): Promise<Barcode[]> {
     console.log(`Retrieved ${data?.length || 0} QR codes from last 10 days`);
     
     return data ? data.map(convertToBarcode) : []
-  } catch (error) {
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      console.warn('⚠️ CORS/Network error accessing Supabase QR codes table, will fallback to localStorage');
+      return []
+    }
     console.error('Unexpected error fetching QR codes from Supabase:', error)
     return []
   }

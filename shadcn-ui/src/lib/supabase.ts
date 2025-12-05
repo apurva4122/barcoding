@@ -22,18 +22,36 @@ export interface BarcodeAssignment {
 }
 
 // Worker management functions
+// NOTE: This file uses old table names for barcode assignments compatibility
+// For worker management, use getAllWorkers() from attendance-utils instead
 export const getWorkers = async (): Promise<Worker[]> => {
   // Use a fixed user_id since we're not using Supabase auth
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
-  const { data, error } = await supabase
-    .from('app_070c516bb6_workers')
-    .select('*')
-    .eq('user_id', FIXED_USER_ID)
-    .order('name')
+  try {
+    const { data, error } = await supabase
+      .from('app_070c516bb6_workers')
+      .select('*')
+      .eq('user_id', FIXED_USER_ID)
+      .order('name')
 
-  if (error) throw error
-  return data || []
+    if (error) {
+      // If table doesn't exist or CORS error, return empty array
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS') || error.code === '42P01') {
+        console.warn('⚠️ Old workers table not accessible, returning empty array');
+        return []
+      }
+      throw error
+    }
+    return data || []
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      console.warn('⚠️ CORS/Network error accessing old workers table, returning empty array');
+      return []
+    }
+    throw error
+  }
 }
 
 export const addWorker = async (name: string): Promise<Worker> => {
@@ -71,52 +89,98 @@ export const saveBarcodeAssignments = async (assignments: { barcode_code: string
   // Use a fixed user_id since we're not using Supabase auth
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
-  // Delete existing assignments for these barcodes
-  const barcodeCodes = assignments.map(a => a.barcode_code)
-  await supabase
-    .from('app_070c516bb6_barcode_assignments')
-    .delete()
-    .in('barcode_code', barcodeCodes)
-    .eq('user_id', FIXED_USER_ID)
+  try {
+    // Delete existing assignments for these barcodes
+    const barcodeCodes = assignments.map(a => a.barcode_code)
+    await supabase
+      .from('app_070c516bb6_barcode_assignments')
+      .delete()
+      .in('barcode_code', barcodeCodes)
+      .eq('user_id', FIXED_USER_ID)
 
-  // Insert new assignments
-  const assignmentsToInsert = assignments.map(assignment => ({
-    user_id: FIXED_USER_ID,
-    barcode_code: assignment.barcode_code,
-    worker_name: assignment.worker_name
-  }))
+    // Insert new assignments
+    const assignmentsToInsert = assignments.map(assignment => ({
+      user_id: FIXED_USER_ID,
+      barcode_code: assignment.barcode_code,
+      worker_name: assignment.worker_name
+    }))
 
-  const { error } = await supabase
-    .from('app_070c516bb6_barcode_assignments')
-    .insert(assignmentsToInsert)
+    const { error } = await supabase
+      .from('app_070c516bb6_barcode_assignments')
+      .insert(assignmentsToInsert)
 
-  if (error) throw error
+    if (error) {
+      // If table doesn't exist or CORS error, silently fail (assignments stored in barcode records)
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS') || error.code === '42P01') {
+        console.warn('⚠️ Barcode assignments table not accessible, assignments will be stored in barcode records');
+        return
+      }
+      throw error
+    }
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      console.warn('⚠️ CORS/Network error saving barcode assignments, assignments will be stored in barcode records');
+      return
+    }
+    throw error
+  }
 }
 
 export const getBarcodeAssignments = async (): Promise<BarcodeAssignment[]> => {
   // Use a fixed user_id since we're not using Supabase auth
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
-  const { data, error } = await supabase
-    .from('app_070c516bb6_barcode_assignments')
-    .select('*')
-    .eq('user_id', FIXED_USER_ID)
+  try {
+    const { data, error } = await supabase
+      .from('app_070c516bb6_barcode_assignments')
+      .select('*')
+      .eq('user_id', FIXED_USER_ID)
 
-  if (error) throw error
-  return data || []
+    if (error) {
+      // If table doesn't exist or CORS error, return empty array
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS') || error.code === '42P01') {
+        console.warn('⚠️ Barcode assignments table not accessible, returning empty array');
+        return []
+      }
+      throw error
+    }
+    return data || []
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      console.warn('⚠️ CORS/Network error accessing barcode assignments table, returning empty array');
+      return []
+    }
+    throw error
+  }
 }
 
 export const getWorkerForBarcode = async (barcodeCode: string): Promise<string | null> => {
   // Use a fixed user_id since we're not using Supabase auth
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
-  const { data, error } = await supabase
-    .from('app_070c516bb6_barcode_assignments')
-    .select('worker_name')
-    .eq('barcode_code', barcodeCode)
-    .eq('user_id', FIXED_USER_ID)
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('app_070c516bb6_barcode_assignments')
+      .select('worker_name')
+      .eq('barcode_code', barcodeCode)
+      .eq('user_id', FIXED_USER_ID)
+      .single()
 
-  if (error) return null
-  return data?.worker_name || null
+    if (error) {
+      // If table doesn't exist or CORS error, return null
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS') || error.code === '42P01' || error.code === 'PGRST116') {
+        return null
+      }
+      return null
+    }
+    return data?.worker_name || null
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      return null
+    }
+    return null
+  }
 }
