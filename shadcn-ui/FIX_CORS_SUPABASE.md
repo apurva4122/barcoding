@@ -1,5 +1,28 @@
 # How to Fix CORS Issues in Supabase
 
+## 🚀 QUICK FIX - Run Complete Setup Script
+
+**The fastest way to fix all CORS issues is to run the complete setup script:**
+
+1. Go to **Supabase Dashboard** → **SQL Editor**
+2. Open the file `COMPLETE_SUPABASE_SETUP_ALL_TABLES.sql` from your repository
+3. Copy and paste the entire SQL script
+4. Click **Run**
+5. Wait for all queries to complete
+6. Refresh your application
+
+This script will:
+- ✅ Create all tables (workers, attendance_records, QR codes, barcode assignments)
+- ✅ Set up RLS policies for ALL tables
+- ✅ Create indexes for performance
+- ✅ Configure updated_at triggers
+
+**After running this script, all CORS errors should be resolved!**
+
+---
+
+# How to Fix CORS Issues in Supabase
+
 ## Understanding the CORS Error
 
 CORS (Cross-Origin Resource Sharing) errors occur when:
