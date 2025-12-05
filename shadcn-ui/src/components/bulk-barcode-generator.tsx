@@ -9,7 +9,9 @@ import { generateBarcodeCode } from "@/lib/barcode-generator";
 import { generateQRCodeDataURL } from "@/lib/qr-generator";
 import { Barcode, PackingStatus } from "@/types";
 import { saveBarcodes, getAllBarcodes } from "@/lib/storage";
-import { getWorkers, addWorker, deleteWorker, saveBarcodeAssignments, getWorkerForBarcode, Worker } from "@/lib/supabase";
+import { getAllWorkers, saveWorker, deleteWorker as deleteWorkerUtil } from "@/lib/attendance-utils";
+import { Worker } from "@/types";
+import { getWorkerForBarcode, saveBarcodeAssignments } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
 import { Download, Plus, Trash2, Users } from "lucide-react";
 
@@ -54,7 +56,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   const loadWorkers = async () => {
     setIsLoadingWorkers(true);
     try {
-      const workersList = await getWorkers();
+      const workersList = await getAllWorkers();
       setWorkers(workersList);
     } catch (error) {
       console.error('Error loading workers:', error);
@@ -68,9 +70,21 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
     if (!newWorkerName.trim()) return;
     
     try {
-      const worker = await addWorker(newWorkerName);
-      setWorkers(prev => [...prev, worker]);
-      setNewWorkerName("");
+      const newWorker: Worker = {
+        id: `worker-${Date.now()}`,
+        name: newWorkerName.trim(),
+        employeeId: `EMP${Date.now()}`,
+        gender: 'male' as any, // Default gender
+        isPacker: false,
+        createdAt: new Date().toISOString()
+      };
+      const success = await saveWorker(newWorker);
+      if (success) {
+        await loadWorkers();
+        setNewWorkerName("");
+      } else {
+        setError('Failed to add worker');
+      }
     } catch (error) {
       console.error('Error adding worker:', error);
       setError('Failed to add worker');
@@ -79,10 +93,14 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   
   const handleDeleteWorker = async (workerId: string) => {
     try {
-      await deleteWorker(workerId);
-      setWorkers(prev => prev.filter(w => w.id !== workerId));
-      // Remove from assignments
-      setWorkerAssignments(prev => prev.filter(wa => wa.worker !== workers.find(w => w.id === workerId)?.name));
+      const success = await deleteWorkerUtil(workerId);
+      if (success) {
+        await loadWorkers();
+        // Remove from assignments
+        setWorkerAssignments(prev => prev.filter(wa => wa.worker !== workers.find(w => w.id === workerId)?.name));
+      } else {
+        setError('Failed to delete worker');
+      }
     } catch (error) {
       console.error('Error deleting worker:', error);
       setError('Failed to delete worker');

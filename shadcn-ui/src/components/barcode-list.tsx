@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Barcode, PackingStatus } from "@/types";
 import { getAllBarcodes, deleteBarcode, deleteMultipleBarcodes } from "@/lib/storage";
-import { getWorkers, getWorkerForBarcode, Worker } from "@/lib/supabase";
+import { getAllWorkers } from "@/lib/attendance-utils";
+import { Worker } from "@/types";
+import { getWorkerForBarcode } from "@/lib/supabase";
 import { Search, Trash2, Printer, QrCode, CheckSquare, Trash, Users } from "lucide-react";
 
 export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
@@ -37,7 +39,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
         setBarcodes(barcodesData);
 
         // Load workers
-        const workersData = await getWorkers();
+        const workersData = await getAllWorkers();
         setWorkers(workersData);
 
         // Load barcode assignments using getWorkerForBarcode for each barcode
