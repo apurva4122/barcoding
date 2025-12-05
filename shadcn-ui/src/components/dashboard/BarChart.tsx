@@ -5,6 +5,8 @@ interface BarChartData {
   label: string;
   value: number;
   color?: string;
+  employeeId?: string;
+  salary?: number;
 }
 
 interface BarChartProps {
