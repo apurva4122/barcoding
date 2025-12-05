@@ -292,7 +292,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       const updatedStatus = await hasOvertimeForDate(workerId, selectedDate);
       setOvertimeStatus(prev => ({ ...prev, [workerId]: updatedStatus }));
 
-      toast.success(`Overtime ${newStatus ? 'enabled' : 'disabled'} for this date and future dates`);
+      const isPastDate = new Date(selectedDate) < new Date(new Date().toISOString().split('T')[0]);
+      const dateContext = isPastDate ? `for ${selectedDate} (past date)` : 'for this date and future dates';
+      toast.success(`Overtime ${newStatus ? 'enabled' : 'disabled'} ${dateContext}`);
 
       if (onAttendanceUpdate) {
         onAttendanceUpdate();
@@ -493,7 +495,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="w-full"
-                  // Allow past dates - no max restriction
+                // Allow past dates - no max restriction
                 />
               </div>
             </div>
@@ -1046,6 +1048,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           <CardTitle>Workers Attendance ({selectedDate})</CardTitle>
           <CardDescription>
             All workers are present by default. Toggle packer status, overtime, or mark absent/half-day as needed.
+            {new Date(selectedDate) < new Date(new Date().toISOString().split('T')[0]) && (
+              <span className="block mt-1 text-blue-600">📅 Past date selected - you can modify attendance and overtime for this date.</span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1217,8 +1222,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                             checked={hasOvertime}
                             onCheckedChange={() => handleOvertimeToggle(worker.id)}
                             disabled={status === AttendanceStatus.ABSENT}
+                            title={status === AttendanceStatus.ABSENT 
+                              ? "Cannot set overtime for absent workers" 
+                              : `Toggle overtime for ${selectedDate} (works for past dates too)`}
                           />
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-sm text-muted-foreground" title={`Overtime status for ${selectedDate}`}>
                             {hasOvertime ? 'Yes' : 'No'}
                           </span>
                         </div>
