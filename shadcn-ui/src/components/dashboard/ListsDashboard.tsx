@@ -58,6 +58,34 @@ export function ListsDashboard() {
       console.log(`  - Code: ${b.code}, Status: ${b.status}, shippedAt: ${b.shippedAt}, updatedAt: ${b.updatedAt}, createdAt: ${b.createdAt}, location: ${b.shippingLocation}`);
     });
 
+    // Check for specific barcode
+    const specificBarcode = barcodes.find(b => b.code === '25120300059');
+    if (specificBarcode) {
+      console.log('🔍 SPECIFIC BARCODE 25120300059:', {
+        code: specificBarcode.code,
+        status: specificBarcode.status,
+        shippedAt: specificBarcode.shippedAt,
+        updatedAt: specificBarcode.updatedAt,
+        createdAt: specificBarcode.createdAt,
+        shippingLocation: specificBarcode.shippingLocation,
+        isDispatched: specificBarcode.status === PackingStatus.DISPATCHED,
+        hasShippedAt: !!specificBarcode.shippedAt
+      });
+      
+      if (specificBarcode.shippedAt) {
+        const shippedDate = getDateString(new Date(specificBarcode.shippedAt));
+        console.log(`  📅 Shipped date: ${shippedDate}`);
+        console.log(`  📅 In last 10 days? ${last10Days.includes(shippedDate)}`);
+      }
+      if (specificBarcode.updatedAt && specificBarcode.status === PackingStatus.DISPATCHED) {
+        const updatedDate = getDateString(new Date(specificBarcode.updatedAt));
+        console.log(`  📅 Updated date: ${updatedDate}`);
+        console.log(`  📅 In last 10 days? ${last10Days.includes(updatedDate)}`);
+      }
+    } else {
+      console.log('❌ BARCODE 25120300059 NOT FOUND in barcodes array');
+    }
+
     const chartData = last10Days.map(date => {
       // Get all shipped barcodes (DISPATCHED status OR have shippedAt field) for this specific date
       const dayBarcodes = barcodes.filter(barcode => {
@@ -82,6 +110,19 @@ export function ListsDashboard() {
         // Debug logging for matching barcodes
         if (matches) {
           console.log(`✅ Match for ${date}: Code ${barcode.code}, Location: ${barcode.shippingLocation || 'Unknown'}`);
+        }
+        
+        // Special debug for the specific barcode
+        if (barcode.code === '25120300059') {
+          console.log(`🔍 Checking barcode 25120300059 for date ${date}:`, {
+            isShipped,
+            barcodeDate,
+            matches,
+            relevantDate: relevantDate.toISOString(),
+            shippedAt: barcode.shippedAt,
+            updatedAt: barcode.updatedAt,
+            createdAt: barcode.createdAt
+          });
         }
         
         return matches;
@@ -114,7 +155,7 @@ export function ListsDashboard() {
     console.log('📦 Shipped barcodes (with shippedAt):', barcodes.filter(b => b.shippedAt).length);
     console.log('📦 Shipped barcodes (DISPATCHED or shippedAt):', barcodes.filter(b => b.status === PackingStatus.DISPATCHED || b.shippedAt).length);
     console.log('📅 Last 10 days:', last10Days);
-    
+
     // Log date breakdown
     chartData.forEach(item => {
       if (item.total > 0) {
