@@ -25,8 +25,9 @@ export async function getAllWorkersFromSupabase(): Promise<Worker[]> {
       department: worker.department || undefined,
       position: worker.position || undefined,
       isPacker: worker.is_packer,
-      createdAt: worker.created_at,
-      updatedAt: worker.updated_at || undefined
+      gender: worker.gender || 'male', // Default to male for backward compatibility
+      baseSalary: worker.base_salary || undefined,
+      createdAt: worker.created_at
     }));
   } catch (error) {
     console.error('Error in getAllWorkersFromSupabase:', error);
@@ -60,6 +61,8 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
       department: worker.department || null,
       position: worker.position || null,
       is_packer: worker.isPacker || false,
+      gender: worker.gender || 'male',
+      base_salary: worker.baseSalary || null,
     };
 
     // If worker exists, update it
@@ -190,6 +193,8 @@ export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worke
       department: data.department || undefined,
       position: data.position || undefined,
       isPacker: data.is_packer,
+      gender: data.gender || 'male',
+      baseSalary: data.base_salary || undefined,
       createdAt: data.created_at
     };
   } catch (error) {
@@ -597,7 +602,7 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
     if (futureRecords && futureRecords.length > 0) {
       // Update all future records to match the new overtime status
       const futureIds = futureRecords.map(r => r.id);
-      
+
       // Update in batches if needed (Supabase has limits)
       for (const recordId of futureIds) {
         const { error: updateError } = await supabase
@@ -609,7 +614,7 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
           console.warn('⚠️ Error updating future record:', updateError);
         }
       }
-      
+
       console.log(`✅ Updated ${futureIds.length} future records with overtime status: ${newOvertimeStatus}`);
     }
 
@@ -637,7 +642,7 @@ export async function hasOvertimeForDateInSupabase(workerId: string, date: strin
         .select('id')
         .eq('employee_id', workerId)
         .maybeSingle();
-      
+
       if (workerData) {
         actualWorkerId = workerData.id;
       } else {

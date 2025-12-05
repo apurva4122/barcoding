@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS workers (
     department VARCHAR(255),
     position VARCHAR(255),
     is_packer BOOLEAN DEFAULT FALSE,
+    gender VARCHAR(10) DEFAULT 'male' CHECK (gender IN ('male', 'female')),
+    base_salary DECIMAL(10, 2),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );

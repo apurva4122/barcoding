@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BarChart } from "./dashboard/BarChart";
 import { getAllWorkers, getAllAttendance } from "@/lib/attendance-utils";
 import { Worker, AttendanceRecord, AttendanceStatus } from "@/types";
+import { calculateMonthlySalary, getCurrentMonthYear } from "@/lib/salary-calculator";
 import { TrendingDown, TrendingUp, DollarSign, Calendar } from "lucide-react";
 
 interface WorkerAbsenteeStats {
@@ -15,7 +16,7 @@ interface WorkerAbsenteeStats {
   presentCount: number;
   halfDayCount: number;
   totalDays: number;
-  salary?: number; // Will be calculated in next prompt
+  salary: number; // Calculated monthly salary
 }
 
 export function Dashboard() {
@@ -61,6 +62,7 @@ export function Dashboard() {
   // Calculate absentee stats for each worker for current month
   const calculateAbsenteeStats = (): WorkerAbsenteeStats[] => {
     const { startDate, endDate } = getCurrentMonthRange();
+    const { month, year } = getCurrentMonthYear();
     
     // Filter attendance records for current month
     const monthRecords = attendanceRecords.filter(record => {
@@ -72,6 +74,9 @@ export function Dashboard() {
 
     // Initialize all workers
     workers.forEach(worker => {
+      // Calculate salary for this worker
+      const salary = calculateMonthlySalary(worker, attendanceRecords, month, year);
+      
       statsMap.set(worker.id, {
         workerId: worker.id,
         workerName: worker.name,
@@ -80,7 +85,7 @@ export function Dashboard() {
         presentCount: 0,
         halfDayCount: 0,
         totalDays: 0,
-        salary: undefined // Will be calculated later
+        salary: salary
       });
     });
 
@@ -132,7 +137,7 @@ export function Dashboard() {
       value: showAbsent ? stat.absentCount : stat.presentCount,
       color: showAbsent ? 'bg-red-500' : 'bg-green-500',
       employeeId: stat.employeeId,
-      salary: stat.salary
+      salary: stat.salary || 0
     }));
   };
 
@@ -199,14 +204,17 @@ export function Dashboard() {
                     Salaries
                   </h4>
                   <div className="space-y-1">
-                    {highestChartData.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
-                        <span className="font-medium">{item.label}</span>
-                        <span className="text-muted-foreground">
-                          {item.salary ? `₹${item.salary.toLocaleString()}` : 'Not set'}
-                        </span>
-                      </div>
-                    ))}
+                    {highestChartData.map((item, index) => {
+                      const worker = workers.find(w => w.name === item.label);
+                      return (
+                        <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
+                          <span className="font-medium">{item.label}</span>
+                          <span className="text-muted-foreground">
+                            ₹{item.salary?.toLocaleString() || '0'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </>
@@ -251,14 +259,17 @@ export function Dashboard() {
                     Salaries
                   </h4>
                   <div className="space-y-1">
-                    {minimumChartData.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
-                        <span className="font-medium">{item.label}</span>
-                        <span className="text-muted-foreground">
-                          {item.salary ? `₹${item.salary.toLocaleString()}` : 'Not set'}
-                        </span>
-                      </div>
-                    ))}
+                    {minimumChartData.map((item, index) => {
+                      const worker = workers.find(w => w.name === item.label);
+                      return (
+                        <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
+                          <span className="font-medium">{item.label}</span>
+                          <span className="text-muted-foreground">
+                            ₹{item.salary?.toLocaleString() || '0'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </>

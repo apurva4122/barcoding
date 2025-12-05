@@ -10,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Worker, AttendanceRecord, AttendanceStatus } from "@/types";
+import { Worker, AttendanceRecord, AttendanceStatus, Gender } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
-import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 
 interface AttendanceManagementProps {
@@ -31,8 +31,26 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     employeeId: "",
     department: "",
     position: "",
-    isPacker: false
+    isPacker: false,
+    gender: Gender.MALE,
+    baseSalary: ""
   });
+
+  // Salary edit state
+  const [salaryEditState, setSalaryEditState] = useState<{
+    workerId: string | null;
+    password: string;
+    newSalary: string;
+    showDialog: boolean;
+  }>({
+    workerId: null,
+    password: "",
+    newSalary: "",
+    showDialog: false
+  });
+
+  // Password for editing salary (in production, this should be stored securely)
+  const SALARY_EDIT_PASSWORD = "admin123"; // Change this to your desired password
 
   // Attendance form
   const [attendanceForm, setAttendanceForm] = useState({
@@ -100,6 +118,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         department: workerForm.department.trim() || undefined,
         position: workerForm.position.trim() || undefined,
         isPacker: workerForm.isPacker,
+        gender: workerForm.gender,
+        baseSalary: workerForm.baseSalary ? parseFloat(workerForm.baseSalary) : undefined,
         createdAt: new Date().toISOString()
       };
 
@@ -114,7 +134,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           employeeId: "",
           department: "",
           position: "",
-          isPacker: false
+          isPacker: false,
+          gender: Gender.MALE,
+          baseSalary: ""
         });
         setWorkerDialogOpen(false);
         setError(null);
@@ -248,20 +270,20 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       console.log('🔄 Toggling overtime for worker:', workerId, 'date:', selectedDate);
       const currentStatus = checkHasOvertime(workerId);
       const newStatus = !currentStatus;
-      
+
       // Optimistically update UI
       setOvertimeStatus(prev => ({ ...prev, [workerId]: newStatus }));
-      
+
       await toggleOvertimeForWorker(workerId, selectedDate);
       await loadData(); // Refresh data from Supabase
-      
+
       // Reload overtime status after data refresh
       const { hasOvertimeForDate } = await import('@/lib/attendance-utils');
       const updatedStatus = await hasOvertimeForDate(workerId, selectedDate);
       setOvertimeStatus(prev => ({ ...prev, [workerId]: updatedStatus }));
-      
+
       toast.success(`Overtime ${newStatus ? 'enabled' : 'disabled'} for this date and future dates`);
-      
+
       if (onAttendanceUpdate) {
         onAttendanceUpdate();
       }
@@ -324,7 +346,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     const loadOvertimeStatus = async () => {
       const statusMap: Record<string, boolean> = {};
       const { hasOvertimeForDate } = await import('@/lib/attendance-utils');
-      
+
       for (const worker of workers) {
         try {
           const hasOvertime = await hasOvertimeForDate(worker.id, selectedDate);
@@ -348,7 +370,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     if (overtimeStatus[workerId] !== undefined) {
       return overtimeStatus[workerId];
     }
-    
+
     // Fallback to checking local records
     const record = attendanceRecords.find(r => {
       // Match by workerId (could be UUID or string ID)
@@ -361,7 +383,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       }
       return workerMatch && r.date === selectedDate;
     });
-    
+
     // Default to 'yes' if no record found (overtime on by default)
     return record ? record.overtime === 'yes' : true;
   };
@@ -565,6 +587,38 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="worker-gender">Gender *</Label>
+                  <Select
+                    value={workerForm.gender}
+                    onValueChange={(value) => setWorkerForm({ ...workerForm, gender: value as Gender })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={Gender.MALE}>Male</SelectItem>
+                      <SelectItem value={Gender.FEMALE}>Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="worker-salary">
+                    Base Salary * ({workerForm.gender === Gender.MALE ? 'Monthly' : 'Daily'})
+                  </Label>
+                  <Input
+                    id="worker-salary"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={workerForm.baseSalary}
+                    onChange={(e) => setWorkerForm({ ...workerForm, baseSalary: e.target.value })}
+                    placeholder={workerForm.gender === Gender.MALE ? "Monthly salary" : "Daily wage"}
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="is-packer"
@@ -743,6 +797,122 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         </DialogContent>
       </Dialog>
 
+      {/* Salary Edit Dialog */}
+      <Dialog open={salaryEditState.showDialog} onOpenChange={(open) => {
+        if (!open) {
+          setSalaryEditState({
+            workerId: null,
+            password: "",
+            newSalary: "",
+            showDialog: false
+          });
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Edit Base Salary
+            </DialogTitle>
+            <DialogDescription>
+              Enter password to edit base salary. This action is protected.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="salary-password">Password *</Label>
+              <Input
+                id="salary-password"
+                type="password"
+                value={salaryEditState.password}
+                onChange={(e) => setSalaryEditState({ ...salaryEditState, password: e.target.value })}
+                placeholder="Enter password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-salary">
+                New Base Salary ({workers.find(w => w.id === salaryEditState.workerId)?.gender === Gender.MALE ? 'Monthly' : 'Daily'}) *
+              </Label>
+              <Input
+                id="new-salary"
+                type="number"
+                step="0.01"
+                min="0"
+                value={salaryEditState.newSalary}
+                onChange={(e) => setSalaryEditState({ ...salaryEditState, newSalary: e.target.value })}
+                placeholder="Enter new salary"
+              />
+            </div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setSalaryEditState({
+                workerId: null,
+                password: "",
+                newSalary: "",
+                showDialog: false
+              });
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={async () => {
+              if (salaryEditState.password !== SALARY_EDIT_PASSWORD) {
+                setError("Incorrect password");
+                return;
+              }
+              if (!salaryEditState.workerId || !salaryEditState.newSalary) {
+                setError("Please enter a valid salary amount");
+                return;
+              }
+
+              setFormLoading(true);
+              setError(null);
+              try {
+                const worker = workers.find(w => w.id === salaryEditState.workerId);
+                if (!worker) {
+                  setError("Worker not found");
+                  return;
+                }
+
+                const updatedWorker: Worker = {
+                  ...worker,
+                  baseSalary: parseFloat(salaryEditState.newSalary)
+                };
+
+                const success = await saveWorker(updatedWorker);
+                if (success) {
+                  await loadData();
+                  setSalaryEditState({
+                    workerId: null,
+                    password: "",
+                    newSalary: "",
+                    showDialog: false
+                  });
+                  toast.success("Base salary updated successfully");
+                } else {
+                  setError("Failed to update salary");
+                }
+              } catch (error) {
+                console.error("Error updating salary:", error);
+                setError("Failed to update salary");
+              } finally {
+                setFormLoading(false);
+              }
+            }} disabled={formLoading}>
+              {formLoading ? "Saving..." : "Save Salary"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Workers Table */}
       <Card>
         <CardHeader>
@@ -758,8 +928,10 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 <TableRow>
                   <TableHead>Employee ID</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Gender</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Position</TableHead>
+                  <TableHead>Base Salary</TableHead>
                   <TableHead>Packer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Overtime</TableHead>
@@ -775,8 +947,39 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     <TableRow key={worker.id}>
                       <TableCell className="font-mono">{worker.employeeId}</TableCell>
                       <TableCell className="font-medium">{worker.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={worker.gender === Gender.MALE ? "default" : "secondary"}>
+                          {worker.gender === Gender.MALE ? "Male" : "Female"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{worker.department || '-'}</TableCell>
                       <TableCell>{worker.position || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {worker.baseSalary 
+                              ? `₹${worker.baseSalary.toLocaleString()}${worker.gender === Gender.MALE ? '/month' : '/day'}`
+                              : 'Not set'
+                            }
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSalaryEditState({
+                                workerId: worker.id,
+                                password: "",
+                                newSalary: worker.baseSalary?.toString() || "",
+                                showDialog: true
+                              });
+                            }}
+                            className="h-6 w-6 p-0"
+                            title="Edit salary"
+                          >
+                            <Lock className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Switch
