@@ -97,13 +97,21 @@ export async function saveQRCodeToSupabase(barcode: Barcode): Promise<boolean> {
 
 export async function getAllQRCodesFromSupabase(): Promise<Barcode[]> {
   try {
-    const tenDaysAgo = getTenDaysAgo();
-    console.log('Fetching QR codes from last 10 days since:', tenDaysAgo);
+    // For chart purposes, we need ALL barcodes that might be shipped
+    // So we'll get a larger set - last 30 days created OR any with shipped_at
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+    
+    console.log('Fetching QR codes: created in last 30 days OR have shipped_at field');
 
+    // Get barcodes that were either:
+    // 1. Created in the last 30 days, OR
+    // 2. Have shipped_at field (regardless of when created)
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('*')
-      .gte('created_at', tenDaysAgo) // Only get records from last 10 days
+      .or(`created_at.gte.${thirtyDaysAgoISO},shipped_at.not.is.null`)
       .order('created_at', { ascending: false })
 
     if (error) {
