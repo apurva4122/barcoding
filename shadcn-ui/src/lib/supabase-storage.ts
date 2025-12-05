@@ -143,6 +143,12 @@ export async function findQRCodeByCodeInSupabase(code: string): Promise<Barcode 
       .single()
 
     if (error) {
+      // Check if it's a CORS or network error
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS')) {
+        console.warn('⚠️ CORS/Network error accessing Supabase QR codes table');
+        return null
+      }
+      
       if (error.code === 'PGRST116') {
         // No rows found - try without date filter for backward compatibility
         console.log('QR code not found in last 10 days, searching all records...');
@@ -154,6 +160,11 @@ export async function findQRCodeByCodeInSupabase(code: string): Promise<Barcode 
           
         if (allError) {
           if (allError.code === 'PGRST116') {
+            return null
+          }
+          // Check for CORS errors
+          if (allError.message?.includes('Failed to fetch') || allError.message?.includes('CORS')) {
+            console.warn('⚠️ CORS/Network error accessing Supabase QR codes table');
             return null
           }
           console.log('Error finding QR code in all records:', allError)
@@ -170,7 +181,12 @@ export async function findQRCodeByCodeInSupabase(code: string): Promise<Barcode 
     return data ? convertToBarcode(data): null
     
 
-  } catch (error) {
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      console.warn('⚠️ CORS/Network error finding QR code in Supabase');
+      return null
+    }
     console.error('Error finding QR code in Supabase:', error)
     return null
   }
@@ -182,8 +198,6 @@ export async function updateQRCodeStatusInSupabase(
   updateData?: { weight?: string; packerName?: string; shippingLocation?: string }
 ): Promise<Barcode | null> {
   try {
-    
-    
     // Check if the record exists first (with date filter for performance)
     const tenDaysAgo = getTenDaysAgo();
     let existingData;
@@ -197,16 +211,35 @@ export async function updateQRCodeStatusInSupabase(
       .gte('created_at', tenDaysAgo)
       .single();
       
-    if (recentError && recentError.code === 'PGRST116') {
-      // Not found in recent records, try all records
-      const { data: allData, error: allError } = await supabase
-        .from(TABLE_NAME)
-        .select('*')
-        .eq('code', code)
-        .single();
+    if (recentError) {
+      // Check for CORS errors first
+      if (recentError.message?.includes('Failed to fetch') || recentError.message?.includes('CORS')) {
+        console.warn('⚠️ CORS/Network error accessing Supabase QR codes table');
+        return null
+      }
+      
+      if (recentError.code === 'PGRST116') {
+        // Not found in recent records, try all records
+        const { data: allData, error: allError } = await supabase
+          .from(TABLE_NAME)
+          .select('*')
+          .eq('code', code)
+          .single();
+          
+        if (allError) {
+          // Check for CORS errors
+          if (allError.message?.includes('Failed to fetch') || allError.message?.includes('CORS')) {
+            console.warn('⚠️ CORS/Network error accessing Supabase QR codes table');
+            return null
+          }
+        }
         
-      existingData = allData;
-      checkError = allError;
+        existingData = allData;
+        checkError = allError;
+      } else {
+        existingData = recentData;
+        checkError = recentError;
+      }
     } else {
       existingData = recentData;
       checkError = recentError;
@@ -283,12 +316,22 @@ export async function deleteQRCodeFromSupabase(code: string): Promise<boolean> {
       .eq('code', code)
 
     if (error) {
+      // Check for CORS errors
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS')) {
+        console.warn('⚠️ CORS/Network error deleting QR code from Supabase');
+        return false
+      }
       console.error('Error deleting QR code from Supabase:', error)
       return false
     }
 
     return true
-  } catch (error) {
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      console.warn('⚠️ CORS/Network error deleting QR code from Supabase');
+      return false
+    }
     console.error('Error deleting QR code from Supabase:', error)
     return false
   }
@@ -313,6 +356,11 @@ export async function getQRCodesByDateRange(
     const { data, error } = await query;
 
     if (error) {
+      // Check for CORS errors
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS')) {
+        console.warn('⚠️ CORS/Network error accessing Supabase QR codes table, will fallback to localStorage');
+        return [];
+      }
       console.error('Supabase date range query error:', error);
       return [];
     }
@@ -320,7 +368,12 @@ export async function getQRCodesByDateRange(
     console.log(`Retrieved ${data?.length || 0} QR codes for date range: ${startDate} to ${endDate || 'now'}`);
     
     return data ? data.map(convertToBarcode) : [];
-  } catch (error) {
+  } catch (error: any) {
+    // Catch CORS and network errors
+    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
+      console.warn('⚠️ CORS/Network error fetching QR codes by date range, will fallback to localStorage');
+      return [];
+    }
     console.error('Unexpected error fetching QR codes by date range:', error);
     return [];
   }
