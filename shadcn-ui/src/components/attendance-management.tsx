@@ -49,6 +49,23 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     showDialog: false
   });
 
+  // Advance payment edit state
+  const [advanceEditState, setAdvanceEditState] = useState<{
+    workerId: string | null;
+    password: string;
+    advanceCurrentMonth: string;
+    advanceLastMonth: string;
+    advanceDeduction: string;
+    showDialog: boolean;
+  }>({
+    workerId: null,
+    password: "",
+    advanceCurrentMonth: "",
+    advanceLastMonth: "",
+    advanceDeduction: "",
+    showDialog: false
+  });
+
   // Password for editing salary (in production, this should be stored securely)
   const SALARY_EDIT_PASSWORD = "admin123"; // Change this to your desired password
 
@@ -913,6 +930,154 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         </DialogContent>
       </Dialog>
 
+      {/* Advance Payment Edit Dialog */}
+      <Dialog open={advanceEditState.showDialog} onOpenChange={(open) => {
+        if (!open) {
+          setAdvanceEditState({
+            workerId: null,
+            password: "",
+            advanceCurrentMonth: "",
+            advanceLastMonth: "",
+            advanceDeduction: "",
+            showDialog: false
+          });
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Edit Advance Payments
+            </DialogTitle>
+            <DialogDescription>
+              Enter password to edit advance payments. This action is protected.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="advance-password">Password *</Label>
+              <Input
+                id="advance-password"
+                type="password"
+                value={advanceEditState.password}
+                onChange={(e) => setAdvanceEditState({ ...advanceEditState, password: e.target.value })}
+                placeholder="Enter password"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="advance-current">Adv. This Mo *</Label>
+                <Input
+                  id="advance-current"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={advanceEditState.advanceCurrentMonth}
+                  onChange={(e) => setAdvanceEditState({ ...advanceEditState, advanceCurrentMonth: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="advance-last">Adv. Last Mo *</Label>
+                <Input
+                  id="advance-last"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={advanceEditState.advanceLastMonth}
+                  onChange={(e) => setAdvanceEditState({ ...advanceEditState, advanceLastMonth: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="advance-deduct">Adv. Deduct *</Label>
+                <Input
+                  id="advance-deduct"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={advanceEditState.advanceDeduction}
+                  onChange={(e) => setAdvanceEditState({ ...advanceEditState, advanceDeduction: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setAdvanceEditState({
+                workerId: null,
+                password: "",
+                advanceCurrentMonth: "",
+                advanceLastMonth: "",
+                advanceDeduction: "",
+                showDialog: false
+              });
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={async () => {
+              if (advanceEditState.password !== SALARY_EDIT_PASSWORD) {
+                setError("Incorrect password");
+                return;
+              }
+              if (!advanceEditState.workerId) {
+                setError("Worker not found");
+                return;
+              }
+
+              setFormLoading(true);
+              setError(null);
+              try {
+                const worker = workers.find(w => w.id === advanceEditState.workerId);
+                if (!worker) {
+                  setError("Worker not found");
+                  return;
+                }
+
+                const updatedWorker: Worker = {
+                  ...worker,
+                  advanceCurrentMonth: advanceEditState.advanceCurrentMonth ? parseFloat(advanceEditState.advanceCurrentMonth) : 0,
+                  advanceLastMonth: advanceEditState.advanceLastMonth ? parseFloat(advanceEditState.advanceLastMonth) : 0,
+                  advanceDeduction: advanceEditState.advanceDeduction ? parseFloat(advanceEditState.advanceDeduction) : 0
+                };
+
+                const success = await saveWorker(updatedWorker);
+                if (success) {
+                  await loadData();
+                  setAdvanceEditState({
+                    workerId: null,
+                    password: "",
+                    advanceCurrentMonth: "",
+                    advanceLastMonth: "",
+                    advanceDeduction: "",
+                    showDialog: false
+                  });
+                  toast.success("Advance payments updated successfully");
+                } else {
+                  setError("Failed to update advance payments");
+                }
+              } catch (error) {
+                console.error("Error updating advance payments:", error);
+                setError("Failed to update advance payments");
+              } finally {
+                setFormLoading(false);
+              }
+            }} disabled={formLoading}>
+              {formLoading ? "Saving..." : "Save Advance Payments"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Workers Table */}
       <Card>
         <CardHeader>
@@ -932,6 +1097,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   <TableHead>Department</TableHead>
                   <TableHead>Position</TableHead>
                   <TableHead>Base Salary</TableHead>
+                  <TableHead>Adv. This Mo</TableHead>
+                  <TableHead>Adv. Last Mo</TableHead>
+                  <TableHead>Adv. Deduct</TableHead>
                   <TableHead>Packer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Overtime</TableHead>
@@ -979,6 +1147,41 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                             <Lock className="h-3 w-3" />
                           </Button>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">
+                            {worker.advanceCurrentMonth ? `₹${worker.advanceCurrentMonth.toLocaleString()}` : '₹0'}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setAdvanceEditState({
+                                workerId: worker.id,
+                                password: "",
+                                advanceCurrentMonth: worker.advanceCurrentMonth?.toString() || "",
+                                advanceLastMonth: worker.advanceLastMonth?.toString() || "",
+                                advanceDeduction: worker.advanceDeduction?.toString() || "",
+                                showDialog: true
+                              });
+                            }}
+                            className="h-6 w-6 p-0"
+                            title="Edit advance payments"
+                          >
+                            <Lock className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium text-sm">
+                          {worker.advanceLastMonth ? `₹${worker.advanceLastMonth.toLocaleString()}` : '₹0'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium text-sm text-red-600">
+                          {worker.advanceDeduction ? `₹${worker.advanceDeduction.toLocaleString()}` : '₹0'}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

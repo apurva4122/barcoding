@@ -49,7 +49,7 @@ export function ListsDashboard() {
   const getShippedByDateAndLocation = (): DateBarChartData[] => {
     const last10Days = getLastNDays(10);
     
-    return last10Days.map(date => {
+    const chartData = last10Days.map(date => {
       // Get all dispatched barcodes for this specific date
       const dayBarcodes = barcodes.filter(barcode => {
         if (barcode.status !== PackingStatus.DISPATCHED) return false;
@@ -87,6 +87,13 @@ export function ListsDashboard() {
         total: dayBarcodes.length
       };
     });
+
+    // Debug logging
+    console.log('📊 Chart data:', chartData);
+    console.log('📦 Total barcodes:', barcodes.length);
+    console.log('📦 Dispatched barcodes:', barcodes.filter(b => b.status === PackingStatus.DISPATCHED).length);
+    
+    return chartData;
   };
 
   if (loading) {
@@ -97,13 +104,22 @@ export function ListsDashboard() {
     );
   }
 
+  const chartData = getShippedByDateAndLocation();
+  const hasData = chartData.some(item => item.total > 0);
+
   return (
     <div className="mb-6">
       <DateAxisBarChart
         title="QR Codes Shipped by Date and Location - Last 10 Days"
-        data={getShippedByDateAndLocation()}
+        data={chartData}
         height={350}
       />
+      {!hasData && barcodes.length > 0 && (
+        <div className="mt-4 text-sm text-muted-foreground text-center">
+          <p>No dispatched QR codes found in the last 10 days.</p>
+          <p className="text-xs mt-1">Total barcodes: {barcodes.length} | Dispatched: {barcodes.filter(b => b.status === PackingStatus.DISPATCHED).length}</p>
+        </div>
+      )}
     </div>
   );
 }

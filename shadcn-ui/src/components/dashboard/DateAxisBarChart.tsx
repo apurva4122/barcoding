@@ -55,39 +55,47 @@ export function DateAxisBarChart({ title, data, height = 300 }: DateAxisBarChart
               </div>
               
               {/* Chart */}
-              <div className="flex items-end justify-between gap-2 h-48">
+              <div className="flex items-end justify-between gap-2 h-48 overflow-x-auto pb-2">
                 {data.map((item, dateIndex) => (
-                  <div key={dateIndex} className="flex flex-col items-center flex-1">
+                  <div key={dateIndex} className="flex flex-col items-center flex-1 min-w-[60px]">
                     {/* Stacked bars */}
-                    <div className="relative flex flex-col justify-end w-full h-32 mb-2">
-                      <div className="w-full bg-muted rounded-sm overflow-hidden" style={{ height: '100%' }}>
-                        {allLocations.map((location, locationIndex) => {
-                          const count = item.locations[location] || 0;
-                          const percentage = item.total > 0 ? (count / item.total) * 100 : 0;
-                          
-                          if (count === 0) return null;
-                          
-                          return (
-                            <div
-                              key={location}
-                              className={`w-full ${generateColor(locationIndex)} transition-all duration-300`}
-                              style={{ height: `${percentage}%` }}
-                              title={`${location}: ${count}`}
-                            />
-                          );
-                        })}
-                      </div>
+                    <div className="relative w-full h-32 mb-2">
+                      {item.total > 0 ? (
+                        <div className="w-full h-full flex flex-col justify-end gap-0.5">
+                          {allLocations.map((location, locationIndex) => {
+                            const count = item.locations[location] || 0;
+                            if (count === 0) return null;
+                            
+                            const percentage = maxValue > 0 ? (count / maxValue) * 100 : 0;
+                            
+                            return (
+                              <div
+                                key={location}
+                                className={`w-full ${generateColor(locationIndex)} transition-all duration-300 rounded-sm`}
+                                style={{ height: `${percentage}%`, minHeight: count > 0 ? '4px' : '0' }}
+                                title={`${location}: ${count}`}
+                              />
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="w-full h-full bg-muted rounded-sm flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">0</span>
+                        </div>
+                      )}
                       
                       {/* Total count label */}
-                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
-                        <span className="text-xs font-medium text-foreground">
-                          {item.total}
-                        </span>
-                      </div>
+                      {item.total > 0 && (
+                        <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                          <span className="text-xs font-medium text-foreground">
+                            {item.total}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
                     {/* Date label */}
-                    <div className="text-xs text-muted-foreground text-center">
+                    <div className="text-xs text-muted-foreground text-center whitespace-nowrap">
                       {item.date}
                     </div>
                   </div>

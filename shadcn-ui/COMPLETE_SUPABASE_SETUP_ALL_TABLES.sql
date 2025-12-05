@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS workers (
     is_packer BOOLEAN DEFAULT FALSE,
     gender VARCHAR(10) DEFAULT 'male' CHECK (gender IN ('male', 'female')),
     base_salary DECIMAL(10, 2),
+    advance_current_month DECIMAL(10, 2) DEFAULT 0,
+    advance_last_month DECIMAL(10, 2) DEFAULT 0,
+    advance_deduction DECIMAL(10, 2) DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );

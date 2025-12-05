@@ -27,6 +27,9 @@ export async function getAllWorkersFromSupabase(): Promise<Worker[]> {
       isPacker: worker.is_packer,
       gender: worker.gender || 'male', // Default to male for backward compatibility
       baseSalary: worker.base_salary || undefined,
+      advanceCurrentMonth: worker.advance_current_month || undefined,
+      advanceLastMonth: worker.advance_last_month || undefined,
+      advanceDeduction: worker.advance_deduction || undefined,
       createdAt: worker.created_at
     }));
   } catch (error) {
@@ -63,6 +66,9 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
       is_packer: worker.isPacker || false,
       gender: worker.gender || 'male',
       base_salary: worker.baseSalary || null,
+      advance_current_month: worker.advanceCurrentMonth || null,
+      advance_last_month: worker.advanceLastMonth || null,
+      advance_deduction: worker.advanceDeduction || null,
     };
 
     // If worker exists, update it
@@ -195,6 +201,9 @@ export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worke
       isPacker: data.is_packer,
       gender: data.gender || 'male',
       baseSalary: data.base_salary || undefined,
+      advanceCurrentMonth: data.advance_current_month || undefined,
+      advanceLastMonth: data.advance_last_month || undefined,
+      advanceDeduction: data.advance_deduction || undefined,
       createdAt: data.created_at
     };
   } catch (error) {

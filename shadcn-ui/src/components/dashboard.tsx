@@ -59,6 +59,33 @@ export function Dashboard() {
     return { startDate, endDate };
   };
 
+  // Get last month date range
+  const getLastMonthRange = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const lastMonth = month === 0 ? 11 : month - 1;
+    const lastMonthYear = month === 0 ? year - 1 : year;
+    const startDate = new Date(lastMonthYear, lastMonth, 1).toISOString().split('T')[0];
+    const endDate = new Date(lastMonthYear, lastMonth + 1, 0).toISOString().split('T')[0];
+    return { startDate, endDate };
+  };
+
+  // Calculate total salary for last month
+  const calculateLastMonthTotalSalary = (): number => {
+    const { month, year } = getCurrentMonthYear();
+    const lastMonth = month === 0 ? 11 : month - 1;
+    const lastMonthYear = month === 0 ? year - 1 : year;
+    
+    let totalSalary = 0;
+    workers.forEach(worker => {
+      const salary = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear);
+      totalSalary += salary;
+    });
+    
+    return totalSalary;
+  };
+
   // Calculate absentee stats for each worker for current month
   const calculateAbsenteeStats = (): WorkerAbsenteeStats[] => {
     const { startDate, endDate } = getCurrentMonthRange();
@@ -279,7 +306,7 @@ export function Dashboard() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Workers</CardTitle>
@@ -305,6 +332,19 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-green-500">
               {calculateAbsenteeStats().filter(s => s.absentCount === 0 && s.presentCount > 0).length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Last Month Total Salary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-500">
+              ₹{calculateLastMonthTotalSalary().toLocaleString()}
             </div>
           </CardContent>
         </Card>

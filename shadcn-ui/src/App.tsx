@@ -7,6 +7,7 @@ import { AttendanceManagement } from '@/components/attendance-management'
 import { Dashboard } from '@/components/dashboard'
 import { ScanOnlyDashboard } from '@/components/dashboard/ScanOnlyDashboard'
 import { ListsDashboard } from '@/components/dashboard/ListsDashboard'
+import { PasswordProtection } from '@/components/PasswordProtection'
 import { Toaster } from "@/components/ui/sonner"
 import { Package, QrCode, ScanLine, Users, BarChart3 } from 'lucide-react'
 
@@ -57,27 +58,34 @@ function App() {
           </TabsList>
           
           <TabsContent value="dashboard">
-            <Dashboard key={refreshTrigger} />
+            <PasswordProtection sectionName="dashboard">
+              <Dashboard key={refreshTrigger} />
+            </PasswordProtection>
           </TabsContent>
           
           <TabsContent value="generator">
-            <BarcodeGenerator 
-              key={refreshTrigger}
-              onBarcodesGenerated={handleBarcodesUpdated} 
-            />
+            <PasswordProtection sectionName="generator">
+              <BarcodeGenerator 
+                key={refreshTrigger}
+                onBarcodesGenerated={handleBarcodesUpdated} 
+              />
+            </PasswordProtection>
           </TabsContent>
           
           <TabsContent value="list">
-            <div className="space-y-6">
-              <ListsDashboard key={refreshTrigger} />
-              <BarcodeList 
-                key={refreshTrigger}
-                onBarcodeUpdated={handleBarcodesUpdated} 
-              />
-            </div>
+            <PasswordProtection sectionName="list">
+              <div className="space-y-6">
+                <ListsDashboard key={refreshTrigger} />
+                <BarcodeList 
+                  key={refreshTrigger}
+                  onBarcodeUpdated={handleBarcodesUpdated} 
+                />
+              </div>
+            </PasswordProtection>
           </TabsContent>
           
           <TabsContent value="scanner">
+            {/* Scanner section is NOT password protected */}
             <div className="space-y-6">
               <DualStatusScanner 
                 key={refreshTrigger}
@@ -88,10 +96,12 @@ function App() {
           </TabsContent>
           
           <TabsContent value="attendance">
-            <AttendanceManagement 
-              key={refreshTrigger}
-              onAttendanceUpdate={handleAttendanceUpdated} 
-            />
+            <PasswordProtection sectionName="attendance">
+              <AttendanceManagement 
+                key={refreshTrigger}
+                onAttendanceUpdate={handleAttendanceUpdated} 
+              />
+            </PasswordProtection>
           </TabsContent>
         </Tabs>
       </div>

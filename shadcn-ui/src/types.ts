@@ -34,6 +34,9 @@ export interface Worker {
   isPacker: boolean; // New field to designate if worker is a packer
   gender: Gender; // Male or Female
   baseSalary?: number; // Daily wage for women, monthly salary for men
+  advanceCurrentMonth?: number; // Advance payment for current month
+  advanceLastMonth?: number; // Advance payment for last month
+  advanceDeduction?: number; // Deduction for advance payment from salary
   createdAt: string;
 }
 
