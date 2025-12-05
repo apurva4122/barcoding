@@ -358,15 +358,15 @@ export async function toggleOvertimeForWorker(workerId: string, date: string): P
       const workers = await getAllWorkers();
       const worker = workers.find(w => w.id === workerId);
       if (worker) {
-      const newRecord: AttendanceRecord = {
-        id: `attendance-${Date.now()}-${workerId}`,
-        workerId: workerId,
-        workerName: worker.name,
-        date: date,
-        status: AttendanceStatus.PRESENT,
-        overtime: 'yes', // Default to 'yes' (overtime on by default)
-        createdAt: new Date().toISOString()
-      };
+        const newRecord: AttendanceRecord = {
+          id: `attendance-${Date.now()}-${workerId}`,
+          workerId: workerId,
+          workerName: worker.name,
+          date: date,
+          status: AttendanceStatus.PRESENT,
+          overtime: 'yes', // Default to 'yes' (overtime on by default)
+          createdAt: new Date().toISOString()
+        };
 
         await saveAttendance(newRecord);
         console.log('✅ New overtime record created in localStorage');

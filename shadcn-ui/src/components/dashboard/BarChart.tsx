@@ -18,7 +18,7 @@ interface BarChartProps {
 
 export function BarChart({ title, data, maxValue, height = 200 }: BarChartProps) {
   const max = maxValue || Math.max(...data.map(d => d.value)) || 1;
-  
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -39,9 +39,8 @@ export function BarChart({ title, data, maxValue, height = 200 }: BarChartProps)
                 <div className="flex-1 relative">
                   <div className="h-6 bg-muted rounded-sm overflow-hidden">
                     <div
-                      className={`h-full transition-all duration-300 ${
-                        item.color || 'bg-primary'
-                      }`}
+                      className={`h-full transition-all duration-300 ${item.color || 'bg-primary'
+                        }`}
                       style={{
                         width: `${(item.value / max) * 100}%`,
                       }}

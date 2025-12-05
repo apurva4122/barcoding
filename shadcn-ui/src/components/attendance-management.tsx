@@ -957,7 +957,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
-                            {worker.baseSalary 
+                            {worker.baseSalary
                               ? `₹${worker.baseSalary.toLocaleString()}${(worker.gender || Gender.MALE) === Gender.MALE ? '/month' : '/day'}`
                               : 'Not set'
                             }

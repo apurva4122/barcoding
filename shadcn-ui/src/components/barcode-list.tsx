@@ -24,16 +24,16 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [barcodeAssignments, setBarcodeAssignments] = useState<{ [key: string]: string }>({});
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
-  
+
   // Load barcodes, workers, and assignments
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoadingAssignments(true);
-        
+
         // Load barcodes
         const barcodesData = await getAllBarcodes();
-        barcodesData.sort((a, b) => 
+        barcodesData.sort((a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         setBarcodes(barcodesData);
@@ -44,12 +44,12 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
 
         // Load barcode assignments using getWorkerForBarcode for each barcode
         const assignmentsMap: { [key: string]: string } = {};
-        
+
         // Process barcodes in batches to avoid overwhelming the database
         const batchSize = 10;
         for (let i = 0; i < barcodesData.length; i += batchSize) {
           const batch = barcodesData.slice(i, i + batchSize);
-          
+
           // Process batch in parallel
           const batchPromises = batch.map(async (barcode) => {
             try {
@@ -60,9 +60,9 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
               return { code: barcode.code, worker: null };
             }
           });
-          
+
           const batchResults = await Promise.all(batchPromises);
-          
+
           // Update assignments map
           batchResults.forEach(result => {
             if (result.worker) {
@@ -70,38 +70,38 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
             }
           });
         }
-        
+
         setBarcodeAssignments(assignmentsMap);
-        
+
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
         setIsLoadingAssignments(false);
       }
     };
-    
+
     loadData();
   }, [refreshTrigger]);
-  
+
   // Filter barcodes based on search, status, and worker
   const filteredBarcodes = barcodes.filter(barcode => {
     const assignedWorker = barcodeAssignments[barcode.code];
-    
-    const matchesSearch = searchTerm === "" || 
+
+    const matchesSearch = searchTerm === "" ||
       barcode.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (barcode.description && barcode.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (barcode.packer && barcode.packer.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (assignedWorker && assignedWorker.toLowerCase().includes(searchTerm.toLowerCase()));
-      
+
     const matchesStatus = statusFilter === "all" || barcode.status === statusFilter;
-    
-    const matchesWorker = workerFilter === "all" || 
+
+    const matchesWorker = workerFilter === "all" ||
       (workerFilter === "unassigned" && !assignedWorker) ||
       assignedWorker === workerFilter;
-    
+
     return matchesSearch && matchesStatus && matchesWorker;
   });
-  
+
   const handleDelete = async (code: string) => {
     if (window.confirm("Are you sure you want to delete this QR code?")) {
       const success = await deleteBarcode(code);
@@ -118,16 +118,16 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
       }
     }
   };
-  
+
   const handlePrint = (barcode: Barcode) => {
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
-    
+
     if (!printWindow) {
       alert("Could not open print window. Please check if pop-ups are blocked.");
       return;
     }
-    
+
     // Create HTML content for printing
     const printContent = `
       <html>
@@ -191,12 +191,12 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
       </body>
       </html>
     `;
-    
+
     // Write to the print window
     printWindow.document.open();
     printWindow.document.write(printContent);
     printWindow.document.close();
-    
+
     // Focus the window for printing
     printWindow.focus();
   };
@@ -210,8 +210,8 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
   };
 
   const handleSelectBarcode = (code: string) => {
-    setSelectedBarcodes(prev => 
-      prev.includes(code) 
+    setSelectedBarcodes(prev =>
+      prev.includes(code)
         ? prev.filter(c => c !== code)
         : [...prev, code]
     );
@@ -219,10 +219,10 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
 
   const handleBulkDelete = async () => {
     if (selectedBarcodes.length === 0) return;
-    
+
     if (confirm(`Are you sure you want to delete ${selectedBarcodes.length} selected QR codes?`)) {
       setIsDeleting(true);
-      
+
       try {
         const success = await deleteMultipleBarcodes(selectedBarcodes);
         if (success) {
@@ -249,28 +249,28 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
 
   const handleBulkPrint = () => {
     if (selectedBarcodes.length === 0) return;
-    
+
     setIsPrinting(true);
-    
+
     try {
       const selectedBarcodeObjects = barcodes.filter(b => selectedBarcodes.includes(b.code));
       const validBarcodes = selectedBarcodeObjects.filter(b => b.qrCodeImage);
-      
+
       if (validBarcodes.length === 0) {
         alert("No valid QR codes found for printing");
         setIsPrinting(false);
         return;
       }
-      
+
       // Create a new window for printing multiple QR codes
       const printWindow = window.open('', '_blank');
-      
+
       if (!printWindow) {
         alert("Could not open print window. Please check if pop-ups are blocked.");
         setIsPrinting(false);
         return;
       }
-      
+
       let printContent = `
         <html>
         <head>
@@ -321,7 +321,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
             <button onclick="window.print();" style="padding: 10px 20px; font-size: 16px;">Print ${validBarcodes.length} QR Codes</button>
           </div>
       `;
-      
+
       validBarcodes.forEach(barcode => {
         printContent += `
           <div class="qr-container">
@@ -332,17 +332,17 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
           </div>
         `;
       });
-      
+
       printContent += `
         </body>
         </html>
       `;
-      
+
       printWindow.document.open();
       printWindow.document.write(printContent);
       printWindow.document.close();
       printWindow.focus();
-      
+
     } catch (error) {
       console.error("Error printing barcodes:", error);
       alert("Failed to print selected QR codes");
@@ -350,7 +350,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
       setIsPrinting(false);
     }
   };
-  
+
   const getStatusBadgeVariant = (status: PackingStatus) => {
     switch (status) {
       case PackingStatus.PENDING:
@@ -365,7 +365,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
         return "outline";
     }
   };
-  
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -376,7 +376,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
               <span className="ml-2 text-sm text-muted-foreground">(Loading assignments...)</span>
             )}
           </CardTitle>
-          
+
           {filteredBarcodes.length > 0 && (
             <div className="flex items-center gap-2">
               <Button
@@ -388,7 +388,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
                 <CheckSquare className="w-4 h-4" />
                 {selectedBarcodes.length === filteredBarcodes.length ? 'Deselect All' : 'Select All'}
               </Button>
-              
+
               {selectedBarcodes.length > 0 && (
                 <>
                   <Button
@@ -401,7 +401,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
                     <Printer className="w-4 h-4" />
                     {isPrinting ? 'Printing...' : `Print ${selectedBarcodes.length}`}
                   </Button>
-                  
+
                   <Button
                     variant="destructive"
                     size="sm"
@@ -418,7 +418,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="relative flex-1">
@@ -430,10 +430,10 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
               className="pl-8"
             />
           </div>
-          
+
           <div className="w-full sm:w-48">
             <Label htmlFor="status-filter" className="sr-only">Filter by Status</Label>
-            <select 
+            <select
               id="status-filter"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as PackingStatus | "all")}
@@ -449,7 +449,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
 
           <div className="w-full sm:w-48">
             <Label htmlFor="worker-filter" className="sr-only">Filter by Worker</Label>
-            <select 
+            <select
               id="worker-filter"
               value={workerFilter}
               onChange={(e) => setWorkerFilter(e.target.value)}
@@ -465,7 +465,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
             </select>
           </div>
         </div>
-        
+
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -567,7 +567,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
             </TableBody>
           </Table>
         </div>
-        
+
         <div className="mt-4 text-sm text-muted-foreground">
           Total: {filteredBarcodes.length} QR code{filteredBarcodes.length !== 1 ? 's' : ''}
           {Object.keys(barcodeAssignments).length > 0 && (

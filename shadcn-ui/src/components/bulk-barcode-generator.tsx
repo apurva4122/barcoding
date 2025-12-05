@@ -33,26 +33,26 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCodes, setGeneratedCodes] = useState<PrintableQrCode[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Worker management state
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [newWorkerName, setNewWorkerName] = useState("");
   const [isLoadingWorkers, setIsLoadingWorkers] = useState(false);
   const [workerAssignments, setWorkerAssignments] = useState<WorkerAssignment[]>([]);
   const [useEqualDistribution, setUseEqualDistribution] = useState(true);
-  
+
   // Load workers on component mount
   useEffect(() => {
     loadWorkers();
   }, []);
-  
+
   // Update worker assignments when workers or count changes
   useEffect(() => {
     if (useEqualDistribution && workers.length > 0) {
       distributeEqually();
     }
   }, [workers, count, useEqualDistribution]);
-  
+
   const loadWorkers = async () => {
     setIsLoadingWorkers(true);
     try {
@@ -65,10 +65,10 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       setIsLoadingWorkers(false);
     }
   };
-  
+
   const handleAddWorker = async () => {
     if (!newWorkerName.trim()) return;
-    
+
     try {
       const newWorker: Worker = {
         id: `worker-${Date.now()}`,
@@ -90,7 +90,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       setError('Failed to add worker');
     }
   };
-  
+
   const handleDeleteWorker = async (workerId: string) => {
     try {
       const success = await deleteWorkerUtil(workerId);
@@ -106,47 +106,47 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       setError('Failed to delete worker');
     }
   };
-  
+
   const distributeEqually = () => {
     if (workers.length === 0) {
       setWorkerAssignments([]);
       return;
     }
-    
+
     const baseCount = Math.floor(count / workers.length);
     const remainder = count % workers.length;
-    
+
     const assignments: WorkerAssignment[] = workers.map((worker, index) => ({
       worker: worker.name,
       count: baseCount + (index === workers.length - 1 ? remainder : 0)
     }));
-    
+
     setWorkerAssignments(assignments);
   };
-  
+
   const handleWorkerAssignmentChange = (workerName: string, newCount: number) => {
-    setWorkerAssignments(prev => 
-      prev.map(wa => 
-        wa.worker === workerName 
+    setWorkerAssignments(prev =>
+      prev.map(wa =>
+        wa.worker === workerName
           ? { ...wa, count: Math.max(0, Math.floor(newCount)) }
           : wa
       )
     );
   };
-  
+
   const getTotalAssigned = () => {
     return workerAssignments.reduce((sum, wa) => sum + wa.count, 0);
   };
-  
+
   const handleGenerateBulk = async () => {
     if (count <= 0 || count > 100) {
       setError("Please enter a number between 1 and 100");
       return;
     }
-    
+
     setIsGenerating(true);
     setError(null);
-    
+
     try {
       // Get current date in YYMMDD format for serial numbering
       const today = new Date();
@@ -154,14 +154,14 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       const month = (today.getMonth() + 1).toString().padStart(2, '0');
       const day = today.getDate().toString().padStart(2, '0');
       const dateStr = `${year}${month}${day}`;
-      
+
       // Get existing barcodes count for today to start serial numbering correctly
       const existingBarcodes = await getAllBarcodes();
-      const todayBarcodes = existingBarcodes.filter(barcode => 
+      const todayBarcodes = existingBarcodes.filter(barcode =>
         barcode.code.startsWith(dateStr)
       );
       let currentSerial = todayBarcodes.length;
-      
+
       // Generate codes with sequential serial numbers
       const codes: string[] = [];
       for (let i = 0; i < count; i++) {
@@ -170,19 +170,19 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
         const code = `${dateStr}${serialStr}`;
         codes.push(code);
       }
-      
+
       // Assign codes to workers
       let codeIndex = 0;
       const assignments: { barcode_code: string, worker_name: string }[] = [];
-      
+
       // Generate QR codes with worker assignments
       const printableCodes: PrintableQrCode[] = [];
       const barcodesToSave: Barcode[] = [];
-      
+
       for (const code of codes) {
         try {
           const qrCodeImage = await generateQRCodeDataURL(code);
-          
+
           // Determine assigned worker
           let assignedWorker = '';
           if (workerAssignments.length > 0) {
@@ -197,14 +197,14 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
               currentIndex += assignment.count;
             }
           }
-          
+
           // Add to printable codes
           printableCodes.push({
             code,
             dataUrl: qrCodeImage,
             assignedWorker
           });
-          
+
           // Add to barcodes to save in storage
           barcodesToSave.push({
             id: crypto.randomUUID(),
@@ -214,19 +214,19 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
             qrCodeImage,
             status: PackingStatus.PENDING
           });
-          
+
           codeIndex++;
         } catch (error) {
           console.error(`Error generating QR code for ${code}:`, error);
         }
       }
-      
+
       // Save barcodes to storage
       if (barcodesToSave.length > 0) {
         await saveBarcodes(barcodesToSave);
         onBarcodeCreated();
       }
-      
+
       // Save worker assignments to Supabase if any
       if (assignments.length > 0) {
         try {
@@ -236,7 +236,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
           // Don't fail the whole operation if assignments fail
         }
       }
-      
+
       // Set generated codes for display/printing
       setGeneratedCodes(printableCodes);
     } catch (error) {
@@ -246,7 +246,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       setIsGenerating(false);
     }
   };
-  
+
   const handleBulkCreateAndPrint = async () => {
     await handleGenerateBulk();
     // Wait briefly for the codes to be generated
@@ -256,18 +256,18 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       }
     }, 500);
   };
-  
+
   const handlePrint = () => {
     if (!generatedCodes.length) return;
-    
+
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
-    
+
     if (!printWindow) {
       alert("Could not open print window. Please check if pop-ups are blocked.");
       return;
     }
-    
+
     // Create HTML content for printing
     let printContent = `
       <html>
@@ -314,7 +314,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
           <button onclick="window.print();" style="padding: 10px 20px; font-size: 16px;">Print QR Codes</button>
         </div>
     `;
-    
+
     // Add each QR code to the print content
     generatedCodes.forEach(qrCode => {
       printContent += `
@@ -324,22 +324,22 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
         </div>
       `;
     });
-    
+
     // Close the HTML content
     printContent += `
       </body>
       </html>
     `;
-    
+
     // Write to the print window
     printWindow.document.open();
     printWindow.document.write(printContent);
     printWindow.document.close();
-    
+
     // Focus the window for printing
     printWindow.focus();
   };
-  
+
   const handleClear = () => {
     setGeneratedCodes([]);
   };
@@ -348,21 +348,21 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
     try {
       // Get all barcodes from storage
       const allBarcodes = await getAllBarcodes();
-      
+
       // Filter to only include the recently generated codes if any
       let barcodesToExport = allBarcodes;
       if (generatedCodes.length > 0) {
         const generatedCodeStrings = generatedCodes.map(gc => gc.code);
-        barcodesToExport = allBarcodes.filter(barcode => 
+        barcodesToExport = allBarcodes.filter(barcode =>
           generatedCodeStrings.includes(barcode.code)
         );
       }
-      
+
       // If no recent codes, export all barcodes
       if (barcodesToExport.length === 0) {
         barcodesToExport = allBarcodes;
       }
-      
+
       // Get worker assignments for the exported barcodes using getWorkerForBarcode
       const assignments: { [key: string]: string } = {};
       try {
@@ -389,11 +389,11 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
         'Packed At': barcode.packedAt ? new Date(barcode.packedAt).toLocaleString() : '',
         'Shipped At': barcode.shippedAt ? new Date(barcode.shippedAt).toLocaleString() : ''
       }));
-      
+
       // Create workbook and worksheet
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(exportData);
-      
+
       // Auto-size columns
       const colWidth = [
         { wch: 15 }, // QR Code
@@ -408,44 +408,44 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
         { wch: 18 }  // Shipped At
       ];
       ws['!cols'] = colWidth;
-      
+
       // Add worksheet to workbook
       XLSX.utils.book_append_sheet(wb, ws, 'QR Codes');
-      
+
       // Generate filename with current date
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0];
       const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
       const filename = `qr-codes-${dateStr}-${timeStr}.xlsx`;
-      
+
       // Save file
       XLSX.writeFile(wb, filename);
-      
+
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       setError('Failed to export to Excel. Please try again.');
     }
   };
-  
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle>Bulk QR Code Generator</CardTitle>
         <CardDescription>Generate multiple QR codes at once</CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        
+
         <div className="space-y-2">
           <Label htmlFor="count">Number of QR Codes (1-100)</Label>
-          <Input 
-            id="count" 
-            type="number" 
+          <Input
+            id="count"
+            type="number"
             value={count}
             min={1}
             max={100}
@@ -453,11 +453,11 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
             disabled={isGenerating}
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="prefix">Prefix</Label>
-          <Input 
-            id="prefix" 
+          <Input
+            id="prefix"
             value={prefix}
             onChange={(e) => setPrefix(e.target.value)}
             disabled={isGenerating}
@@ -465,11 +465,11 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
             placeholder="PKG"
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="description">Description (Optional)</Label>
-          <Input 
-            id="description" 
+          <Input
+            id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             disabled={isGenerating}
@@ -485,7 +485,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
             <Users className="h-4 w-4" />
             <Label className="text-sm font-semibold">Labor Management</Label>
           </div>
-          
+
           {/* Add new worker */}
           <div className="flex gap-2">
             <Input
@@ -503,7 +503,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          
+
           {/* Workers list */}
           {workers.length > 0 && (
             <div className="space-y-2">
@@ -525,7 +525,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
               </div>
             </div>
           )}
-          
+
           {/* Worker assignments */}
           {workers.length > 0 && (
             <div className="space-y-2">
@@ -540,7 +540,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
                   {useEqualDistribution ? 'Custom' : 'Equal'}
                 </Button>
               </div>
-              
+
               {useEqualDistribution ? (
                 <div className="text-xs text-muted-foreground">
                   {count} codes will be distributed equally among {workers.length} workers
@@ -571,10 +571,10 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
         </div>
 
         <Separator />
-        
+
         {/* Always show Excel export button for all barcodes */}
         <div>
-          <Button 
+          <Button
             onClick={handleExportToExcel}
             variant="outline"
             className="w-full flex items-center gap-2"
@@ -585,41 +585,41 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
           </Button>
         </div>
       </CardContent>
-      
+
       <CardFooter className="flex flex-wrap justify-between gap-2">
-        <Button 
+        <Button
           onClick={handleGenerateBulk}
           disabled={isGenerating}
           variant="outline"
         >
           {isGenerating ? "Generating..." : "Generate QR Codes"}
         </Button>
-        
+
         <Button
           onClick={handleBulkCreateAndPrint}
           disabled={isGenerating}
         >
           Create & Print QR Codes
         </Button>
-        
+
         {generatedCodes.length > 0 && (
           <>
-            <Button 
+            <Button
               variant="outline"
               onClick={handleClear}
               className="mr-auto"
             >
               Clear
             </Button>
-            
-            <Button 
+
+            <Button
               onClick={handlePrint}
               variant="secondary"
             >
               Print {generatedCodes.length} QR Codes
             </Button>
-            
-            <Button 
+
+            <Button
               onClick={handleExportToExcel}
               variant="secondary"
               className="flex items-center gap-2"
