@@ -1,8 +1,8 @@
 import { Barcode, PackingStatus } from "@/types";
-import { 
-  saveQRCodeToSupabase, 
-  getAllQRCodesFromSupabase, 
-  findQRCodeByCodeInSupabase, 
+import {
+  saveQRCodeToSupabase,
+  getAllQRCodesFromSupabase,
+  findQRCodeByCodeInSupabase,
   updateQRCodeStatusInSupabase,
   deleteQRCodeFromSupabase,
   getQRCodesByDateRange
@@ -11,7 +11,16 @@ import {
 const STORAGE_KEY = "package-qr-codes";
 
 /**
- * Retrieve all barcodes from Supabase (last 10 days) and fallback to local storage
+ * Get date 10 days ago
+ */
+function getTenDaysAgo(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - 10);
+  return date.toISOString();
+}
+
+/**
+ * Retrieve all barcodes from Supabase (last 10 days) and fallback to local storage (also filtered to last 10 days)
  */
 export async function getAllBarcodes(): Promise<Barcode[]> {
   try {
@@ -22,21 +31,40 @@ export async function getAllBarcodes(): Promise<Barcode[]> {
       return supabaseBarcodes;
     }
 
-    // Fallback to local storage
+    // Fallback to local storage - also filter to last 10 days
     const storedData = localStorage.getItem(STORAGE_KEY);
     if (!storedData) {
       return [];
     }
-    const localBarcodes = JSON.parse(storedData);
-    console.log(`Retrieved ${localBarcodes.length} barcodes from local storage`);
+    const allLocalBarcodes = JSON.parse(storedData);
+    
+    // Filter to last 10 days
+    const tenDaysAgo = getTenDaysAgo();
+    const localBarcodes = allLocalBarcodes.filter((barcode: Barcode) => {
+      const createdAt = new Date(barcode.createdAt);
+      return createdAt >= new Date(tenDaysAgo);
+    });
+    
+    console.log(`Retrieved ${localBarcodes.length} barcodes from local storage (last 10 days, filtered from ${allLocalBarcodes.length} total)`);
     return localBarcodes;
   } catch (error) {
     console.error("Error retrieving barcodes:", error);
-    // Fallback to local storage
+    // Fallback to local storage - also filter to last 10 days
     try {
       const storedData = localStorage.getItem(STORAGE_KEY);
-      const localBarcodes = storedData ? JSON.parse(storedData) : [];
-      console.log(`Fallback: Retrieved ${localBarcodes.length} barcodes from local storage`);
+      if (!storedData) {
+        return [];
+      }
+      const allLocalBarcodes = JSON.parse(storedData);
+      
+      // Filter to last 10 days
+      const tenDaysAgo = getTenDaysAgo();
+      const localBarcodes = allLocalBarcodes.filter((barcode: Barcode) => {
+        const createdAt = new Date(barcode.createdAt);
+        return createdAt >= new Date(tenDaysAgo);
+      });
+      
+      console.log(`Fallback: Retrieved ${localBarcodes.length} barcodes from local storage (last 10 days, filtered from ${allLocalBarcodes.length} total)`);
       return localBarcodes;
     } catch (localError) {
       console.error("Error retrieving barcodes from local storage:", localError);
@@ -49,7 +77,7 @@ export async function getAllBarcodes(): Promise<Barcode[]> {
  * Get barcodes by date range for better performance
  */
 export async function getBarcodesByDateRange(
-  startDate: string, 
+  startDate: string,
   endDate?: string
 ): Promise<Barcode[]> {
   try {
@@ -66,7 +94,7 @@ export async function getBarcodesByDateRange(
 export async function getRecentBarcodes(days: number = 10): Promise<Barcode[]> {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  
+
   return await getBarcodesByDateRange(startDate.toISOString());
 }
 
@@ -77,7 +105,7 @@ export async function saveBarcode(barcode: Barcode): Promise<Barcode> {
   try {
     // Try to save to Supabase first
     const supabaseSuccess = await saveQRCodeToSupabase(barcode);
-    
+
     if (supabaseSuccess) {
       console.log('QR code saved to Supabase successfully');
       return barcode;
@@ -90,10 +118,10 @@ export async function saveBarcode(barcode: Barcode): Promise<Barcode> {
 
   // Fallback to local storage
   const barcodes = await getAllBarcodes();
-  
+
   // Check if barcode already exists
   const existingIndex = barcodes.findIndex(b => b.code === barcode.code);
-  
+
   if (existingIndex >= 0) {
     // Update existing barcode
     barcodes[existingIndex] = barcode;
@@ -101,7 +129,7 @@ export async function saveBarcode(barcode: Barcode): Promise<Barcode> {
     // Add new barcode
     barcodes.push(barcode);
   }
-  
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(barcodes));
     return barcode;
@@ -117,7 +145,7 @@ export async function saveBarcode(barcode: Barcode): Promise<Barcode> {
 export async function saveBarcodes(newBarcodes: Barcode[]): Promise<Barcode[]> {
   // Try to save each barcode to Supabase first
   const savedBarcodes: Barcode[] = [];
-  
+
   for (const barcode of newBarcodes) {
     try {
       const savedBarcode = await saveBarcode(barcode);
@@ -126,7 +154,7 @@ export async function saveBarcodes(newBarcodes: Barcode[]): Promise<Barcode[]> {
       console.error(`Error saving barcode ${barcode.code}:`, error);
     }
   }
-  
+
   return savedBarcodes;
 }
 
@@ -139,7 +167,7 @@ export async function findBarcodeByCode(code: string): Promise<Barcode | null> {
     const supabaseBarcode = await findQRCodeByCodeInSupabase(code);
     if (supabaseBarcode) {
 
-     console.log("Supabase:",supabaseBarcode);
+      console.log("Supabase:", supabaseBarcode);
       return supabaseBarcode;
     }
   } catch (error) {
@@ -168,11 +196,11 @@ export async function deleteBarcode(code: string): Promise<boolean> {
   // Fallback to local storage
   const barcodes = await getAllBarcodes();
   const newBarcodes = barcodes.filter(b => b.code !== code);
-  
+
   if (newBarcodes.length === barcodes.length) {
     return false; // No barcode was found to delete
   }
-  
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newBarcodes));
     return true;
@@ -205,7 +233,7 @@ export async function deleteMultipleBarcodes(codes: string[]): Promise<boolean> 
   // Fallback to local storage
   const barcodes = await getAllBarcodes();
   const newBarcodes = barcodes.filter(b => !codes.includes(b.code));
-  
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newBarcodes));
     return true;
@@ -219,18 +247,18 @@ export async function deleteMultipleBarcodes(codes: string[]): Promise<boolean> 
  * Update barcode status in Supabase and local storage
  */
 export async function updateBarcodeStatus(
-  code: string, 
-  status: PackingStatus, 
+  code: string,
+  status: PackingStatus,
   updateData?: { weight?: string; packerName?: string; shippingLocation?: string }
 ): Promise<Barcode | null> {
   console.log("Starting updateBarcodeStatus with code:", code, "status:", status);
   console.log("Update data received:", updateData);
-  
+
   if (!code) {
     console.error("Error: Empty code passed to updateBarcodeStatus");
     return null;
   }
-  
+
   // Try to update in Supabase first (now with optimized search)
   try {
     console.log("Attempting to update directly in Supabase first");
@@ -244,10 +272,10 @@ export async function updateBarcodeStatus(
   } catch (supabaseError) {
     console.error('Error updating barcode status in Supabase:', supabaseError);
   }
-  
+
   // Fallback to local handling
   const barcode = await findBarcodeByCode(code);
-  
+
   if (!barcode) {
     console.log("No barcode found with code:", code);
     // Create a new barcode with minimal information if not found
@@ -264,13 +292,13 @@ export async function updateBarcodeStatus(
       updatedAt: new Date().toISOString(),
       qrCodeImage: ''
     };
-    
+
     // Save the new barcode first
     await saveBarcode(newBarcode);
     console.log("Created new barcode:", newBarcode);
     return newBarcode;
   }
-  
+
   console.log("Found existing barcode:", barcode);
   // Validate status progression
   if (!isValidStatusProgression(barcode.status, status)) {
@@ -288,7 +316,7 @@ export async function updateBarcodeStatus(
     shippedAt: status === PackingStatus.DISPATCHED ? new Date().toISOString() : barcode.shippedAt,
     updatedAt: new Date().toISOString()
   };
-  
+
   try {
     const result = await saveBarcode(updatedBarcode);
     console.log("Successfully saved updated barcode to local storage:", updatedBarcode);
@@ -305,31 +333,31 @@ export async function updateBarcodeStatus(
  */
 function isValidStatusProgression(currentStatus?: PackingStatus, newStatus?: PackingStatus): boolean {
   console.log(`Checking status progression from ${currentStatus} to ${newStatus}`);
-  
+
   // If no current status, or status is PENDING, any new status is valid
   if (!currentStatus || currentStatus === PackingStatus.PENDING) {
     return true;
   }
-  
+
   // Same status is always valid
   if (currentStatus === newStatus) {
     return true;
   }
-  
+
   // Enable proper status progression
   switch (currentStatus) {
     case PackingStatus.PACKED:
       // From PACKED can move to DISPATCHED or DELIVERED (for flexibility)
       return newStatus === PackingStatus.DISPATCHED || newStatus === PackingStatus.DELIVERED;
-      
+
     case PackingStatus.DISPATCHED:
       // From DISPATCHED can only move to DELIVERED
       return newStatus === PackingStatus.DELIVERED;
-      
+
     case PackingStatus.DELIVERED:
       // Cannot change status once delivered
       return false;
-      
+
     default:
       // Unknown status - allow the change for robustness
       console.warn(`Unknown current status: ${currentStatus}`);
