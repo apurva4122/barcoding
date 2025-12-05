@@ -10,7 +10,7 @@ import { generateQRCodeDataURL } from "@/lib/qr-generator";
 import { Barcode, PackingStatus } from "@/types";
 import { saveBarcodes, getAllBarcodes } from "@/lib/storage";
 import { getAllWorkers, saveWorker, deleteWorker as deleteWorkerUtil } from "@/lib/attendance-utils";
-import { Worker } from "@/types";
+import { Worker, Gender } from "@/types";
 import { getWorkerForBarcode, saveBarcodeAssignments } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
 import { Download, Plus, Trash2, Users } from "lucide-react";
@@ -74,7 +74,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
         id: `worker-${Date.now()}`,
         name: newWorkerName.trim(),
         employeeId: `EMP${Date.now()}`,
-        gender: 'male' as any, // Default gender
+        gender: Gender.MALE, // Default gender
         isPacker: false,
         createdAt: new Date().toISOString()
       };
