@@ -493,6 +493,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="w-full"
+                  // Allow past dates - no max restriction
                 />
               </div>
             </div>
