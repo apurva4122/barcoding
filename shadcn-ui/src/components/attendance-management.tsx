@@ -948,8 +948,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       <TableCell className="font-mono">{worker.employeeId}</TableCell>
                       <TableCell className="font-medium">{worker.name}</TableCell>
                       <TableCell>
-                        <Badge variant={worker.gender === Gender.MALE ? "default" : "secondary"}>
-                          {worker.gender === Gender.MALE ? "Male" : "Female"}
+                        <Badge variant={(worker.gender || Gender.MALE) === Gender.MALE ? "default" : "secondary"}>
+                          {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}
                         </Badge>
                       </TableCell>
                       <TableCell>{worker.department || '-'}</TableCell>
@@ -958,7 +958,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
                             {worker.baseSalary 
-                              ? `₹${worker.baseSalary.toLocaleString()}${worker.gender === Gender.MALE ? '/month' : '/day'}`
+                              ? `₹${worker.baseSalary.toLocaleString()}${(worker.gender || Gender.MALE) === Gender.MALE ? '/month' : '/day'}`
                               : 'Not set'
                             }
                           </span>
