@@ -8,7 +8,6 @@ export interface SupabaseBarcode {
   id: string
   user_id: string
   code: string
-  description: string
   weight?: string
   packer_name?: string
   status: string
@@ -25,12 +24,12 @@ function convertToBarcode(row: SupabaseBarcode): Barcode {
   return {
     id: row.id || '',
     code: row.code,
-    description: row.description || '',
+    description: '', // Description column doesn't exist in Supabase table
     createdAt: row.created_at || new Date().toISOString(),
     weight: row.weight,
     packerName: row.packer_name,
     status: (row.status as PackingStatus) || 'pending',
-    qrCodeImage: row.qr_code_image,
+    qrCodeImage: row.qr_code_image || '',
     shippingLocation: row.shipping_location || '',
     // assignedWorker is stored in barcode_assignments table, not in qr_codes table
     packedAt: row.packed_at,
@@ -43,7 +42,7 @@ function convertToBarcode(row: SupabaseBarcode): Barcode {
 function convertToSupabaseRow(barcode: Barcode): Omit<SupabaseBarcode, 'id' | 'created_at' | 'updated_at' | 'user_id'> {
   return {
     code: barcode.code,
-    description: barcode.description || '',
+    // description column doesn't exist in Supabase table, so we omit it
     packer_name: barcode.packerName || '',
     weight: barcode.weight || '',
     status: barcode.status || 'pending',
@@ -253,7 +252,7 @@ export async function updateQRCodeStatusInSupabase(
       const newRecord = {
         code: code,
         status: status,
-        description: 'Auto-created record',
+        // description column doesn't exist in Supabase table
         updated_at: new Date().toISOString(),
         ...(updateData?.weight && { weight: updateData.weight }),
         ...(updateData?.packerName && { packer_name: updateData.packerName }),
