@@ -7,11 +7,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { generateBarcodeCode } from "@/lib/barcode-generator";
 import { generateQRCodeDataURL } from "@/lib/qr-generator";
-import { Barcode, PackingStatus } from "@/types";
+import { Barcode, PackingStatus, Worker, Gender } from "@/types";
 import { saveBarcodes, getAllBarcodes } from "@/lib/storage";
-import { getAllWorkers, saveWorker, deleteWorker as deleteWorkerUtil } from "@/lib/attendance-utils";
-import { Worker, Gender } from "@/types";
-import { getWorkerForBarcode, saveBarcodeAssignments } from "@/lib/supabase";
+import { getAllWorkers, saveWorker, deleteWorker } from "@/lib/attendance-utils";
+import { saveBarcodeAssignments, getWorkerForBarcode } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
 import { Download, Plus, Trash2, Users } from "lucide-react";
 
@@ -56,7 +55,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   const loadWorkers = async () => {
     setIsLoadingWorkers(true);
     try {
-      const workersList = await getAllWorkers();
+      const workersList = await getAllWorkers(true); // Include inactive workers for barcode assignment
       setWorkers(workersList);
     } catch (error) {
       console.error('Error loading workers:', error);
@@ -68,7 +67,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
 
   const handleAddWorker = async () => {
     if (!newWorkerName.trim()) return;
-
+    
     try {
       const newWorker: Worker = {
         id: `worker-${Date.now()}`,
@@ -76,11 +75,12 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
         employeeId: `EMP${Date.now()}`,
         gender: Gender.MALE, // Default gender
         isPacker: false,
+        isActive: true,
         createdAt: new Date().toISOString()
       };
       const success = await saveWorker(newWorker);
       if (success) {
-        await loadWorkers();
+        setWorkers(prev => [...prev, newWorker]);
         setNewWorkerName("");
       } else {
         setError('Failed to add worker');
@@ -93,9 +93,9 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
 
   const handleDeleteWorker = async (workerId: string) => {
     try {
-      const success = await deleteWorkerUtil(workerId);
+      const success = await deleteWorker(workerId);
       if (success) {
-        await loadWorkers();
+        setWorkers(prev => prev.filter(w => w.id !== workerId));
         // Remove from assignments
         setWorkerAssignments(prev => prev.filter(wa => wa.worker !== workers.find(w => w.id === workerId)?.name));
       } else {
