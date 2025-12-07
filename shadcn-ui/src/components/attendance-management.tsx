@@ -121,12 +121,12 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         if (workersWithoutRecords.length > 0) {
           // Load overtime status for all workers first
           const { hasOvertimeForDate } = await import('@/lib/attendance-utils');
-          
+
           // Auto-save as present for workers without records
           for (const worker of workersWithoutRecords) {
             // Check current overtime status for this worker and date
             const hasOvertime = await hasOvertimeForDate(worker.id, selectedDate);
-            
+
             const newRecord: AttendanceRecord = {
               id: `attendance-${Date.now()}-${worker.id}`,
               workerId: worker.id,

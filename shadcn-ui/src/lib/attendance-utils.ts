@@ -37,13 +37,13 @@ export async function getAllWorkers(includeInactive: boolean = true): Promise<Wo
       return [];
     }
     const allLocalWorkers = JSON.parse(storedData);
-    
+
     // Filter inactive workers if needed
     if (!includeInactive) {
       const localWorkers = allLocalWorkers.filter((w: Worker) => w.isActive !== false);
       return localWorkers;
     }
-    
+
     return allLocalWorkers;
   } catch (error) {
     console.error('Error retrieving workers:', error);
@@ -51,13 +51,13 @@ export async function getAllWorkers(includeInactive: boolean = true): Promise<Wo
     try {
       const storedData = localStorage.getItem(WORKERS_STORAGE_KEY);
       const allLocalWorkers = storedData ? JSON.parse(storedData) : [];
-      
+
       // Filter inactive workers if needed
       if (!includeInactive) {
         const localWorkers = allLocalWorkers.filter((w: Worker) => w.isActive !== false);
         return localWorkers;
       }
-      
+
       return allLocalWorkers;
     } catch (localError) {
       console.error('Error retrieving workers from localStorage:', localError);

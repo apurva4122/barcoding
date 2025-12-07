@@ -22,14 +22,14 @@ export function ListsDashboard() {
       setLoading(true);
       const barcodesData = await getAllBarcodes();
       console.log('[ListsDashboard] Total barcodes loaded:', barcodesData.length);
-      
+
       // Log dispatched barcodes
       const dispatchedBarcodes = barcodesData.filter(b => b.status === PackingStatus.DISPATCHED);
       console.log('[ListsDashboard] Dispatched barcodes count:', dispatchedBarcodes.length);
-      
+
       // Log sample dispatched barcode data
       if (dispatchedBarcodes.length > 0) {
-        console.log('[ListsDashboard] Sample dispatched barcodes (first 5):', 
+        console.log('[ListsDashboard] Sample dispatched barcodes (first 5):',
           dispatchedBarcodes.slice(0, 5).map(b => ({
             id: b.id,
             status: b.status,
@@ -40,7 +40,7 @@ export function ListsDashboard() {
           }))
         );
       }
-      
+
       setBarcodes(barcodesData);
     } catch (error) {
       console.error('[ListsDashboard] Error loading dashboard data:', error);
@@ -91,7 +91,7 @@ export function ListsDashboard() {
 
       // Log matching barcodes for this date
       if (dayBarcodes.length > 0) {
-        console.log(`[ListsDashboard] Date ${date}: Found ${dayBarcodes.length} dispatched barcodes`, 
+        console.log(`[ListsDashboard] Date ${date}: Found ${dayBarcodes.length} dispatched barcodes`,
           dayBarcodes.map(b => ({
             id: b.id,
             shippedAt: b.shippedAt,

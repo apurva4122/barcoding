@@ -78,7 +78,7 @@ export function Dashboard() {
     const lastMonth = month === 0 ? 11 : month - 1;
     const lastMonthYear = month === 0 ? year - 1 : year;
     const { startDate, endDate } = getLastMonthRange();
-    
+
     // Filter attendance records for last month
     const lastMonthRecords = attendanceRecords.filter(record => {
       return record.date >= startDate && record.date <= endDate;
@@ -90,7 +90,7 @@ export function Dashboard() {
     // Initialize all workers with last month salary
     workers.forEach(worker => {
       const salary = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear);
-      
+
       statsMap.set(worker.id, {
         workerId: worker.id,
         workerName: worker.name,

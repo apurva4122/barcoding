@@ -16,7 +16,7 @@ export interface Barcode {
 export enum PackingStatus {
   PENDING = "pending",
   PACKED = "packed",
-  DISPATCHED = "dispatched",
+  DISPATCHED = "shipped",
   DELIVERED = "delivered"
 }
 
