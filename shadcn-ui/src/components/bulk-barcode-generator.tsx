@@ -55,10 +55,13 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   const loadWorkers = async () => {
     setIsLoadingWorkers(true);
     try {
+      console.log('[BulkBarcodeGenerator] Loading workers...');
       const workersList = await getAllWorkers(true); // Include inactive workers for barcode assignment
+      console.log('[BulkBarcodeGenerator] Workers loaded:', workersList.length);
+      console.log('[BulkBarcodeGenerator] Workers:', workersList.map(w => ({ id: w.id, name: w.name })));
       setWorkers(workersList);
     } catch (error) {
-      console.error('Error loading workers:', error);
+      console.error('[BulkBarcodeGenerator] Error loading workers:', error);
       setError('Failed to load workers');
     } finally {
       setIsLoadingWorkers(false);
@@ -108,7 +111,12 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   };
 
   const distributeEqually = () => {
+    console.log('[BulkBarcodeGenerator] distributeEqually called');
+    console.log('  - workers.length:', workers.length);
+    console.log('  - count:', count);
+    
     if (workers.length === 0) {
+      console.log('[BulkBarcodeGenerator] No workers, setting empty assignments');
       setWorkerAssignments([]);
       return;
     }
@@ -121,6 +129,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       count: baseCount + (index === workers.length - 1 ? remainder : 0)
     }));
 
+    console.log('[BulkBarcodeGenerator] Created assignments:', JSON.stringify(assignments));
     setWorkerAssignments(assignments);
   };
 
@@ -139,6 +148,14 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   };
 
   const handleGenerateBulk = async () => {
+    console.log('=== [BulkBarcodeGenerator] Starting handleGenerateBulk ===');
+    console.log('[BulkBarcodeGenerator] Current state:');
+    console.log('  - workers:', workers.length, 'workers loaded');
+    console.log('  - workers list:', workers.map(w => w.name));
+    console.log('  - workerAssignments:', workerAssignments);
+    console.log('  - useEqualDistribution:', useEqualDistribution);
+    console.log('  - count:', count);
+    
     if (count <= 0 || count > 100) {
       setError("Please enter a number between 1 and 100");
       return;
@@ -174,6 +191,11 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       // Assign codes to workers
       let codeIndex = 0;
       const assignments: { barcode_code: string, worker_name: string }[] = [];
+
+      console.log('[BulkBarcodeGenerator] Before generating QR codes:');
+      console.log('  - codes to generate:', codes.length);
+      console.log('  - workerAssignments state:', JSON.stringify(workerAssignments));
+      console.log('  - workers available:', workers.length);
 
       // Generate QR codes with worker assignments
       const printableCodes: PrintableQrCode[] = [];
@@ -224,9 +246,15 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
         }
       }
 
+      console.log('[BulkBarcodeGenerator] After generating QR codes:');
+      console.log('  - barcodesToSave:', barcodesToSave.length);
+      console.log('  - assignments created:', assignments.length);
+      console.log('  - assignments:', JSON.stringify(assignments));
+
       // Save barcodes to storage
       if (barcodesToSave.length > 0) {
         await saveBarcodes(barcodesToSave);
+        console.log('[BulkBarcodeGenerator] Barcodes saved to storage');
       }
 
       // Save worker assignments to Supabase if any (BEFORE triggering refresh)
@@ -235,10 +263,10 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
           console.log('[BulkBarcodeGenerator] Saving worker assignments:', assignments);
           console.log(`[BulkBarcodeGenerator] Total assignments to save: ${assignments.length}`);
           console.log('[BulkBarcodeGenerator] Assignment details:', assignments.map(a => `${a.barcode_code} -> ${a.worker_name}`));
-          
+
           await saveBarcodeAssignments(assignments);
           console.log('[BulkBarcodeGenerator] Worker assignments saved successfully to Supabase');
-          
+
           // Small delay to ensure Supabase has processed the insert
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch (error: any) {
