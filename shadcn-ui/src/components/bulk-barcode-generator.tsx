@@ -192,10 +192,13 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
               if (codeIndex >= currentIndex && codeIndex < currentIndex + assignment.count) {
                 assignedWorker = assignment.worker;
                 assignments.push({ barcode_code: code, worker_name: assignment.worker });
+                console.log(`[BulkBarcodeGenerator] Assigned ${code} to worker: ${assignment.worker}`);
                 break;
               }
               currentIndex += assignment.count;
             }
+          } else {
+            console.log(`[BulkBarcodeGenerator] No worker assignments configured for code ${code}`);
           }
 
           // Add to printable codes
@@ -230,17 +233,24 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       if (assignments.length > 0) {
         try {
           console.log('[BulkBarcodeGenerator] Saving worker assignments:', assignments);
+          console.log(`[BulkBarcodeGenerator] Total assignments to save: ${assignments.length}`);
+          console.log('[BulkBarcodeGenerator] Assignment details:', assignments.map(a => `${a.barcode_code} -> ${a.worker_name}`));
+          
           await saveBarcodeAssignments(assignments);
-          console.log('[BulkBarcodeGenerator] Worker assignments saved successfully');
+          console.log('[BulkBarcodeGenerator] Worker assignments saved successfully to Supabase');
           
           // Small delay to ensure Supabase has processed the insert
           await new Promise(resolve => setTimeout(resolve, 500));
-        } catch (error) {
-          console.error('[BulkBarcodeGenerator] Error saving barcode assignments:', error);
-          // Don't fail the whole operation if assignments fail
+        } catch (error: any) {
+          console.error('[BulkBarcodeGenerator] ERROR: Failed to save barcode assignments:', error);
+          console.error('[BulkBarcodeGenerator] Error details:', error?.message || JSON.stringify(error));
+          // Show user-friendly error but don't fail the whole operation
+          alert(`Warning: Worker assignments could not be saved to database. Error: ${error?.message || 'Unknown error'}. Please check browser console for details.`);
         }
       } else {
-        console.log('[BulkBarcodeGenerator] No worker assignments to save');
+        console.log('[BulkBarcodeGenerator] No worker assignments to save (assignments array is empty)');
+        console.log('[BulkBarcodeGenerator] Worker assignments state:', workerAssignments);
+        console.log('[BulkBarcodeGenerator] Workers count:', workers.length);
       }
 
       // Trigger refresh AFTER assignments are saved

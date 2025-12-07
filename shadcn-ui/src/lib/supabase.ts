@@ -124,21 +124,36 @@ export const saveBarcodeAssignments = async (assignments: { barcode_code: string
 
     if (error) {
       console.error('[saveBarcodeAssignments] Error inserting assignments:', error);
-      // If table doesn't exist or CORS error, silently fail (assignments stored in barcode records)
+      console.error('[saveBarcodeAssignments] Error details:', JSON.stringify(error, null, 2));
+      // If table doesn't exist or CORS error, log but don't throw (to allow fallback)
       if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS') || error.code === '42P01') {
         console.warn('⚠️ Barcode assignments table not accessible, assignments will be stored in barcode records');
-        return
+        console.warn('⚠️ This may be a CORS issue or the table may not exist. Please check Supabase setup.');
+        // Still throw so caller knows it failed
+        throw new Error(`Failed to save assignments: ${error.message || 'Unknown error'}`);
       }
       throw error
     }
 
+    if (!data || data.length === 0) {
+      console.error('[saveBarcodeAssignments] No data returned from insert, assignments may not have been saved');
+      throw new Error('No data returned from Supabase insert operation');
+    }
+
     console.log('[saveBarcodeAssignments] Successfully inserted assignments:', data);
+    console.log(`[saveBarcodeAssignments] Saved ${data.length} assignments to Supabase`);
   } catch (error: any) {
     console.error('[saveBarcodeAssignments] Exception caught:', error);
+    console.error('[saveBarcodeAssignments] Exception details:', JSON.stringify(error, null, 2));
     // Catch CORS and network errors
     if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
-      console.warn('⚠️ CORS/Network error saving barcode assignments, assignments will be stored in barcode records');
-      return
+      console.warn('⚠️ CORS/Network error saving barcode assignments');
+      console.warn('⚠️ Please check:');
+      console.warn('   1. Table app_070c516bb6_barcode_assignments exists in Supabase');
+      console.warn('   2. RLS policies allow INSERT operations');
+      console.warn('   3. CORS is properly configured');
+      // Re-throw so caller knows it failed
+      throw new Error(`CORS/Network error: ${error.message || 'Unknown error'}`);
     }
     throw error
   }
