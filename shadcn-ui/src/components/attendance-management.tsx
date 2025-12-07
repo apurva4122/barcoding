@@ -259,6 +259,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     try {
       let successCount = 0;
       let failCount = 0;
+      const { hasOvertimeForDate } = await import('@/lib/attendance-utils');
 
       for (const worker of workers) {
         try {
@@ -267,13 +268,17 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             r => r.workerId === worker.id && r.date === selectedDate
           );
 
+          // Get current overtime status for this worker
+          const hasOvertime = await hasOvertimeForDate(worker.id, selectedDate);
+
           let newRecord: AttendanceRecord;
 
           if (existingRecord) {
-            // Update existing record to present
+            // Update existing record to present, keep overtime status
             newRecord = {
               ...existingRecord,
               status: AttendanceStatus.PRESENT,
+              overtime: hasOvertime ? 'yes' : 'no', // Use current toggle status
               updatedAt: new Date().toISOString()
             };
           } else {
@@ -284,7 +289,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               workerName: worker.name,
               date: selectedDate,
               status: AttendanceStatus.PRESENT,
-              overtime: 'yes', // Default to 'yes'
+              overtime: hasOvertime ? 'yes' : 'no', // Use current toggle status
               createdAt: new Date().toISOString()
             };
           }
