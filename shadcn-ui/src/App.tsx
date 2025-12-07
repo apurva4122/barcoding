@@ -33,7 +33,7 @@ function App() {
           </p>
         </div>
 
-        <Tabs defaultValue="dashboard" className="space-y-6">
+        <Tabs defaultValue="scanner" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
