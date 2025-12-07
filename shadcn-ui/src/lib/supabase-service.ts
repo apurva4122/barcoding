@@ -6,12 +6,18 @@ import { Worker, AttendanceRecord, AttendanceStatus } from '@/types';
 /**
  * Get all workers from Supabase
  */
-export async function getAllWorkersFromSupabase(): Promise<Worker[]> {
+export async function getAllWorkersFromSupabase(includeInactive: boolean = true): Promise<Worker[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('workers')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*');
+
+    // If includeInactive is false, filter to only active workers
+    if (!includeInactive) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching workers from Supabase:', error);
