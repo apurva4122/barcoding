@@ -1348,14 +1348,26 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleteConfirmation({ isOpen: true, worker })}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleMarkInactive(worker)}
+                            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                            title="Mark as inactive (left company)"
+                          >
+                            <UserMinus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteConfirmation({ isOpen: true, worker })}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Delete worker permanently"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
