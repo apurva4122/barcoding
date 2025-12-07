@@ -21,10 +21,10 @@ const ATTENDANCE_STORAGE_KEY = 'attendance';
 /**
  * Get all workers from Supabase with localStorage fallback
  */
-export async function getAllWorkers(): Promise<Worker[]> {
+export async function getAllWorkers(includeInactive: boolean = true): Promise<Worker[]> {
   try {
     // Try to get from Supabase first
-    const supabaseWorkers = await getAllWorkersFromSupabase();
+    const supabaseWorkers = await getAllWorkersFromSupabase(includeInactive);
     if (supabaseWorkers.length > 0) {
       // Also sync to localStorage for offline access
       localStorage.setItem(WORKERS_STORAGE_KEY, JSON.stringify(supabaseWorkers));

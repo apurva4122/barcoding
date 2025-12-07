@@ -36,8 +36,9 @@ export function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
+      // Include inactive workers for salary calculations in dashboard
       const [workersData, attendanceData] = await Promise.all([
-        getAllWorkers(),
+        getAllWorkers(true), // true = include inactive workers
         getAllAttendance()
       ]);
       setWorkers(workersData);
