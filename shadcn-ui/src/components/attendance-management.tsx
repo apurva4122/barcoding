@@ -194,6 +194,78 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     }
   };
 
+  // Mark all workers as present for selected date
+  const markAllPresent = async () => {
+    if (workers.length === 0) {
+      toast.error("No workers to mark");
+      return;
+    }
+
+    setFormLoading(true);
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const worker of workers) {
+        try {
+          // Check if attendance already exists
+          const existingRecord = attendanceRecords.find(
+            r => r.workerId === worker.id && r.date === selectedDate
+          );
+
+          let newRecord: AttendanceRecord;
+
+          if (existingRecord) {
+            // Update existing record to present
+            newRecord = {
+              ...existingRecord,
+              status: AttendanceStatus.PRESENT,
+              updatedAt: new Date().toISOString()
+            };
+          } else {
+            // Create new record
+            newRecord = {
+              id: `attendance-${Date.now()}-${worker.id}`,
+              workerId: worker.id,
+              workerName: worker.name,
+              date: selectedDate,
+              status: AttendanceStatus.PRESENT,
+              overtime: 'yes', // Default to 'yes'
+              createdAt: new Date().toISOString()
+            };
+          }
+
+          const success = await saveAttendance(newRecord);
+          if (success) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          console.error(`Error marking attendance for ${worker.name}:`, error);
+          failCount++;
+        }
+      }
+
+      await loadData(); // Refresh data
+
+      if (successCount > 0) {
+        toast.success(`Marked ${successCount} worker${successCount > 1 ? 's' : ''} as present${failCount > 0 ? ` (${failCount} failed)` : ''}`);
+      } else {
+        toast.error(`Failed to mark attendance for all workers`);
+      }
+
+      if (onAttendanceUpdate) {
+        onAttendanceUpdate();
+      }
+    } catch (error) {
+      console.error("Error marking all present:", error);
+      toast.error("Failed to mark all workers as present");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
   // Mark attendance (can be present, absent, or half-day)
   const markAttendance = async () => {
     if (!attendanceForm.workerId) {
