@@ -134,8 +134,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             await saveAttendance(newRecord);
           }
 
-          // Reload data to reflect changes
-          await loadData();
+          // Reload data to reflect changes (but don't trigger this effect again)
+          const [workersData, attendanceData] = await Promise.all([
+            getAllWorkers(false),
+            getAllAttendance()
+          ]);
+          setWorkers(workersData);
+          setAttendanceRecords(attendanceData);
         }
       } catch (error) {
         console.error('Error auto-saving attendance:', error);
@@ -143,9 +148,10 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     };
 
     // Small delay to avoid race conditions
-    const timeoutId = setTimeout(autoSaveAttendance, 500);
+    const timeoutId = setTimeout(autoSaveAttendance, 1000);
     return () => clearTimeout(timeoutId);
-  }, [selectedDate, workers, attendanceRecords, loading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]); // Only depend on selectedDate to avoid infinite loops
 
   // Add new worker
   const addWorker = async () => {
