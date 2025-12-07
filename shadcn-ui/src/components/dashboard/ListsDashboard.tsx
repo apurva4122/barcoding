@@ -48,43 +48,24 @@ export function ListsDashboard() {
   // Shipped barcodes by date and location (last 10 days)
   const getShippedByDateAndLocation = (): DateBarChartData[] => {
     const last10Days = getLastNDays(10);
-
-    // Debug: Log all shipped barcodes
-    const allShippedBarcodes = barcodes.filter(b => 
-      b.status === PackingStatus.DISPATCHED || b.shippedAt
-    );
-    console.log('🔍 All shipped barcodes:', allShippedBarcodes);
-    allShippedBarcodes.forEach(b => {
-      console.log(`  - Code: ${b.code}, Status: ${b.status}, shippedAt: ${b.shippedAt}, updatedAt: ${b.updatedAt}, createdAt: ${b.createdAt}, location: ${b.shippingLocation}`);
-    });
-
-    const chartData = last10Days.map(date => {
-      // Get all shipped barcodes (DISPATCHED status OR have shippedAt field) for this specific date
+    
+    return last10Days.map(date => {
+      // Get all dispatched barcodes for this specific date
       const dayBarcodes = barcodes.filter(barcode => {
-        // Include barcodes that are DISPATCHED or have shippedAt field set
-        const isShipped = barcode.status === PackingStatus.DISPATCHED || barcode.shippedAt;
-        if (!isShipped) return false;
-
-        // Use shippedAt date if available, otherwise use updatedAt or createdAt
+        if (barcode.status !== PackingStatus.DISPATCHED) return false;
+        
+        // Use shippedAt if available, otherwise fall back to updatedAt or createdAt
         let relevantDate: Date;
         if (barcode.shippedAt) {
           relevantDate = new Date(barcode.shippedAt);
-        } else if (barcode.status === PackingStatus.DISPATCHED && barcode.updatedAt) {
-          // If status is DISPATCHED but no shippedAt, use updatedAt
+        } else if (barcode.updatedAt) {
           relevantDate = new Date(barcode.updatedAt);
         } else {
           relevantDate = new Date(barcode.createdAt);
         }
-
+        
         const barcodeDate = getDateString(relevantDate);
-        const matches = barcodeDate === date;
-        
-        // Debug logging for matching barcodes
-        if (matches) {
-          console.log(`✅ Match for ${date}: Code ${barcode.code}, Location: ${barcode.shippingLocation || 'Unknown'}`);
-        }
-        
-        return matches;
+        return barcodeDate === date;
       });
 
       // Group by shipping location for this date
@@ -95,9 +76,9 @@ export function ListsDashboard() {
       });
 
       // Format date for display (MM/DD)
-      const displayDate = new Date(date).toLocaleDateString('en-US', {
-        month: 'numeric',
-        day: 'numeric'
+      const displayDate = new Date(date).toLocaleDateString('en-US', { 
+        month: 'numeric', 
+        day: 'numeric' 
       });
 
       return {
@@ -106,23 +87,6 @@ export function ListsDashboard() {
         total: dayBarcodes.length
       };
     });
-
-    // Debug logging
-    console.log('📊 Chart data:', chartData);
-    console.log('📦 Total barcodes:', barcodes.length);
-    console.log('📦 DISPATCHED barcodes:', barcodes.filter(b => b.status === PackingStatus.DISPATCHED).length);
-    console.log('📦 Shipped barcodes (with shippedAt):', barcodes.filter(b => b.shippedAt).length);
-    console.log('📦 Shipped barcodes (DISPATCHED or shippedAt):', barcodes.filter(b => b.status === PackingStatus.DISPATCHED || b.shippedAt).length);
-    console.log('📅 Last 10 days:', last10Days);
-    
-    // Log date breakdown
-    chartData.forEach(item => {
-      if (item.total > 0) {
-        console.log(`📊 ${item.date}: ${item.total} barcodes`, item.locations);
-      }
-    });
-
-    return chartData;
   };
 
   if (loading) {
@@ -133,35 +97,13 @@ export function ListsDashboard() {
     );
   }
 
-  const chartData = getShippedByDateAndLocation();
-  const hasData = chartData.some(item => item.total > 0);
-
   return (
     <div className="mb-6">
       <DateAxisBarChart
         title="QR Codes Shipped by Date and Location - Last 10 Days"
-        data={chartData}
+        data={getShippedByDateAndLocation()}
         height={350}
       />
-      {!hasData && (
-        <div className="mt-4 text-sm text-muted-foreground text-center space-y-2">
-          <p className="font-medium">No shipped QR codes found in the last 10 days.</p>
-          {barcodes.length > 0 ? (
-            <>
-              <p className="text-xs">
-                Total barcodes: {barcodes.length} |
-                DISPATCHED: {barcodes.filter(b => b.status === PackingStatus.DISPATCHED).length} |
-                With shippedAt: {barcodes.filter(b => b.shippedAt).length}
-              </p>
-              <p className="text-xs text-orange-600">
-                💡 Tip: Ship barcodes using the Scanner section to see them in this chart.
-              </p>
-            </>
-          ) : (
-            <p className="text-xs">No barcodes found. Generate QR codes first.</p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
