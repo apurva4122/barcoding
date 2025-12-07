@@ -67,7 +67,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
 
   const handleAddWorker = async () => {
     if (!newWorkerName.trim()) return;
-    
+
     try {
       const newWorker: Worker = {
         id: `worker-${Date.now()}`,
@@ -230,11 +230,15 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       // Save worker assignments to Supabase if any
       if (assignments.length > 0) {
         try {
+          console.log('[BulkBarcodeGenerator] Saving worker assignments:', assignments);
           await saveBarcodeAssignments(assignments);
+          console.log('[BulkBarcodeGenerator] Worker assignments saved successfully');
         } catch (error) {
-          console.error('Error saving barcode assignments:', error);
+          console.error('[BulkBarcodeGenerator] Error saving barcode assignments:', error);
           // Don't fail the whole operation if assignments fail
         }
+      } else {
+        console.log('[BulkBarcodeGenerator] No worker assignments to save');
       }
 
       // Set generated codes for display/printing
