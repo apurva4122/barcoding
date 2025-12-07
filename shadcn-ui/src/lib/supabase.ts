@@ -91,7 +91,27 @@ export const saveBarcodeAssignments = async (assignments: { barcode_code: string
 
   console.log('[saveBarcodeAssignments] Saving assignments:', assignments.length, 'assignments');
 
+  if (assignments.length === 0) {
+    console.log('[saveBarcodeAssignments] No assignments to save, skipping');
+    return;
+  }
+
   try {
+    // First, verify the table is accessible by doing a simple count
+    const { count, error: countError } = await supabase
+      .from('app_070c516bb6_barcode_assignments')
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error('[saveBarcodeAssignments] Table check failed:', countError);
+      console.error('[saveBarcodeAssignments] Error details:', JSON.stringify(countError, null, 2));
+      console.error('[saveBarcodeAssignments] The app_070c516bb6_barcode_assignments table may not exist or have permission issues.');
+      console.error('[saveBarcodeAssignments] Please run FIX_BARCODE_ASSIGNMENTS_TABLE.sql in Supabase SQL Editor.');
+      throw new Error(`Table not accessible: ${countError.message}`);
+    }
+    
+    console.log('[saveBarcodeAssignments] Table check passed, current row count:', count);
+
     // Delete existing assignments for these barcodes
     const barcodeCodes = assignments.map(a => a.barcode_code)
     console.log('[saveBarcodeAssignments] Deleting existing assignments for codes:', barcodeCodes);
@@ -104,6 +124,7 @@ export const saveBarcodeAssignments = async (assignments: { barcode_code: string
 
     if (deleteError) {
       console.warn('[saveBarcodeAssignments] Error deleting existing assignments:', deleteError);
+      // Don't throw here, continue with insert
     } else {
       console.log('[saveBarcodeAssignments] Successfully deleted existing assignments');
     }
@@ -115,7 +136,7 @@ export const saveBarcodeAssignments = async (assignments: { barcode_code: string
       worker_name: assignment.worker_name
     }))
 
-    console.log('[saveBarcodeAssignments] Inserting assignments:', assignmentsToInsert);
+    console.log('[saveBarcodeAssignments] Inserting assignments:', JSON.stringify(assignmentsToInsert, null, 2));
 
     const { data, error } = await supabase
       .from('app_070c516bb6_barcode_assignments')
@@ -193,27 +214,30 @@ export const getWorkerForBarcode = async (barcodeCode: string): Promise<string |
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
   try {
-    console.log('[getWorkerForBarcode] Looking up worker for barcode:', barcodeCode);
-    
+    // Use .limit(1) instead of .single() to avoid errors when no record found
     const { data, error } = await supabase
       .from('app_070c516bb6_barcode_assignments')
       .select('worker_name')
       .eq('barcode_code', barcodeCode)
       .eq('user_id', FIXED_USER_ID)
-      .single()
+      .limit(1)
 
     if (error) {
       console.log('[getWorkerForBarcode] Error fetching assignment:', error.code, error.message);
       // If table doesn't exist or CORS error, return null
-      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS') || error.code === '42P01' || error.code === 'PGRST116') {
-        console.log('[getWorkerForBarcode] Table not accessible or record not found, returning null');
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS') || error.code === '42P01') {
+        console.log('[getWorkerForBarcode] Table not accessible, returning null');
         return null
       }
       return null
     }
-    
-    console.log('[getWorkerForBarcode] Found worker:', data?.worker_name);
-    return data?.worker_name || null
+
+    // data is an array with .limit(1), get the first item if it exists
+    const workerName = data && data.length > 0 ? data[0].worker_name : null;
+    if (workerName) {
+      console.log('[getWorkerForBarcode] Found worker:', workerName);
+    }
+    return workerName
   } catch (error: any) {
     console.error('[getWorkerForBarcode] Exception caught:', error);
     // Catch CORS and network errors
