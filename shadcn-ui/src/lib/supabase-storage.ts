@@ -30,10 +30,10 @@ function convertToBarcode(row: SupabaseBarcode): Barcode {
     status: (row.status as PackingStatus) || PackingStatus.PENDING,
     qrCodeImage: '', // qr_code_image column doesn't exist in Supabase table
     shippingLocation: row.shipping_location || '',
-    // assignedWorker is stored in barcode_assignments table, not in qr_codes table
-    packedAt: row.packed_at,
     shippedAt: row.shipped_at,
     updatedAt: row.updated_at
+    // assignedWorker is stored in barcode_assignments table, not in qr_codes table
+    // packedAt is not in Barcode type, so we omit it
   }
 }
 
