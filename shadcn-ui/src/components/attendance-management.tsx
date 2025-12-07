@@ -567,6 +567,16 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   className="w-full"
                 />
               </div>
+              <Button
+                type="button"
+                onClick={markAllPresent}
+                disabled={formLoading || workers.length === 0}
+                className="w-full"
+                variant="outline"
+              >
+                <UserCheck className="h-4 w-4 mr-2" />
+                {formLoading ? "Marking..." : `Mark All Workers as Present for ${selectedDate}`}
+              </Button>
             </div>
           </CardContent>
         </Card>
