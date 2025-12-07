@@ -45,6 +45,9 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
         // Load barcode assignments using getWorkerForBarcode for each barcode
         const assignmentsMap: { [key: string]: string } = {};
 
+        // Small delay to ensure Supabase has processed any recent inserts
+        await new Promise(resolve => setTimeout(resolve, 300));
+
         // Process barcodes in batches to avoid overwhelming the database
         const batchSize = 10;
         for (let i = 0; i < barcodesData.length; i += batchSize) {
@@ -54,9 +57,12 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
           const batchPromises = batch.map(async (barcode) => {
             try {
               const workerName = await getWorkerForBarcode(barcode.code);
+              if (workerName) {
+                console.log(`[BarcodeList] Found assignment for ${barcode.code}: ${workerName}`);
+              }
               return { code: barcode.code, worker: workerName };
             } catch (error) {
-              console.error(`Error getting worker for barcode ${barcode.code}:`, error);
+              console.error(`[BarcodeList] Error getting worker for barcode ${barcode.code}:`, error);
               return { code: barcode.code, worker: null };
             }
           });
@@ -71,6 +77,7 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
           });
         }
 
+        console.log(`[BarcodeList] Loaded ${Object.keys(assignmentsMap).length} worker assignments`);
         setBarcodeAssignments(assignmentsMap);
 
       } catch (error) {

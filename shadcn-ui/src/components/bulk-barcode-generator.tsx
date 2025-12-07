@@ -224,15 +224,17 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       // Save barcodes to storage
       if (barcodesToSave.length > 0) {
         await saveBarcodes(barcodesToSave);
-        onBarcodeCreated();
       }
 
-      // Save worker assignments to Supabase if any
+      // Save worker assignments to Supabase if any (BEFORE triggering refresh)
       if (assignments.length > 0) {
         try {
           console.log('[BulkBarcodeGenerator] Saving worker assignments:', assignments);
           await saveBarcodeAssignments(assignments);
           console.log('[BulkBarcodeGenerator] Worker assignments saved successfully');
+          
+          // Small delay to ensure Supabase has processed the insert
+          await new Promise(resolve => setTimeout(resolve, 500));
         } catch (error) {
           console.error('[BulkBarcodeGenerator] Error saving barcode assignments:', error);
           // Don't fail the whole operation if assignments fail
@@ -240,6 +242,9 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       } else {
         console.log('[BulkBarcodeGenerator] No worker assignments to save');
       }
+
+      // Trigger refresh AFTER assignments are saved
+      onBarcodeCreated();
 
       // Set generated codes for display/printing
       setGeneratedCodes(printableCodes);
