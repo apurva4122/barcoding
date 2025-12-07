@@ -92,14 +92,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
   const loadData = async () => {
     try {
+      // Get only active workers for attendance management
       const [workersData, attendanceData] = await Promise.all([
-        getAllWorkers(),
+        getAllWorkers(false), // false = only active workers
         getAllAttendance()
       ]);
 
-      // Filter to only active workers for attendance management
-      const activeWorkers = workersData.filter(w => w.isActive !== false);
-      setWorkers(activeWorkers);
+      setWorkers(workersData);
       setAttendanceRecords(attendanceData);
     } catch (error) {
       console.error('Error loading attendance data:', error);
