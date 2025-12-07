@@ -11,7 +11,6 @@ export interface SupabaseBarcode {
   weight?: string
   packer_name?: string
   status: string
-  qr_code_image?: string
   shipping_location?: string
   packed_at?: string
   shipped_at?: string
@@ -29,7 +28,7 @@ function convertToBarcode(row: SupabaseBarcode): Barcode {
     weight: row.weight,
     packerName: row.packer_name,
     status: (row.status as PackingStatus) || PackingStatus.PENDING,
-    qrCodeImage: row.qr_code_image || '',
+    qrCodeImage: '', // qr_code_image column doesn't exist in Supabase table
     shippingLocation: row.shipping_location || '',
     // assignedWorker is stored in barcode_assignments table, not in qr_codes table
     packedAt: row.packed_at,
@@ -46,7 +45,7 @@ function convertToSupabaseRow(barcode: Barcode): Omit<SupabaseBarcode, 'id' | 'c
     packer_name: barcode.packerName || '',
     weight: barcode.weight || '',
     status: barcode.status || 'pending',
-    qr_code_image: barcode.qrCodeImage || '',
+    // qr_code_image column doesn't exist in Supabase table, so we omit it
     shipping_location: barcode.shippingLocation || ''
     // assignedWorker is stored in barcode_assignments table, not in qr_codes table
   }
