@@ -11,7 +11,6 @@ export interface SupabaseBarcode {
   weight?: string
   packer_name?: string
   status: string
-  shipping_location?: string
   packed_at?: string
   shipped_at?: string
   created_at: string
@@ -29,7 +28,7 @@ function convertToBarcode(row: SupabaseBarcode): Barcode {
     packerName: row.packer_name,
     status: (row.status as PackingStatus) || PackingStatus.PENDING,
     qrCodeImage: '', // qr_code_image column doesn't exist in Supabase table
-    shippingLocation: row.shipping_location || '',
+    shippingLocation: '', // shipping_location column doesn't exist in Supabase table
     shippedAt: row.shipped_at,
     updatedAt: row.updated_at
     // assignedWorker is stored in barcode_assignments table, not in qr_codes table
@@ -44,9 +43,9 @@ function convertToSupabaseRow(barcode: Barcode): Omit<SupabaseBarcode, 'id' | 'c
     // description column doesn't exist in Supabase table, so we omit it
     packer_name: barcode.packerName || '',
     weight: barcode.weight || '',
-    status: barcode.status || 'pending',
+    status: barcode.status || 'pending'
     // qr_code_image column doesn't exist in Supabase table, so we omit it
-    shipping_location: barcode.shippingLocation || ''
+    // shipping_location column doesn't exist in Supabase table, so we omit it
     // assignedWorker is stored in barcode_assignments table, not in qr_codes table
   }
 }
@@ -255,13 +254,12 @@ export async function updateQRCodeStatusInSupabase(
         updated_at: new Date().toISOString(),
         ...(updateData?.weight && { weight: updateData.weight }),
         ...(updateData?.packerName && { packer_name: updateData.packerName }),
-        // Always include shippingLocation if provided (even if empty string, to clear it)
-        ...(updateData?.shippingLocation !== undefined && { shipping_location: updateData.shippingLocation }),
+        // shipping_location column doesn't exist in Supabase table, so we omit it
         // Set shipped_at when status is DISPATCHED
         ...(status === PackingStatus.DISPATCHED && { shipped_at: new Date().toISOString() })
       };
 
-      console.log('[updateQRCodeStatusInSupabase] Creating new record with shipping location:', newRecord.shipping_location);
+      console.log('[updateQRCodeStatusInSupabase] Creating new record');
 
       const { data: insertData, error: insertError } = await supabase
         .from(TABLE_NAME)
@@ -285,14 +283,12 @@ export async function updateQRCodeStatusInSupabase(
       updated_at: new Date().toISOString(),
       ...(updateData?.weight && { weight: updateData.weight }),
       ...(updateData?.packerName && { packer_name: updateData.packerName }),
-      // Always include shippingLocation if provided (even if empty string, to clear it)
-      ...(updateData?.shippingLocation !== undefined && { shipping_location: updateData.shippingLocation }),
+      // shipping_location column doesn't exist in Supabase table, so we omit it
       // Set shipped_at when status is DISPATCHED
       ...(status === PackingStatus.DISPATCHED && { shipped_at: new Date().toISOString() })
     };
 
     console.log('[updateQRCodeStatusInSupabase] Update payload:', JSON.stringify(updatePayload, null, 2));
-    console.log('[updateQRCodeStatusInSupabase] Shipping location in payload:', updatePayload.shipping_location);
 
 
 
