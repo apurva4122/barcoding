@@ -1,5 +1,6 @@
-import { supabase, type SupabaseQRCode } from './supabase'
-import type { Barcode, PackingStatus } from '@/types'
+import { supabase } from './supabase'
+import type { Barcode } from '@/types'
+import { PackingStatus } from '@/types'
 
 const TABLE_NAME = 'app_070c516bb6_qr_codes'
 
@@ -13,7 +14,6 @@ export interface SupabaseBarcode {
   status: string
   qr_code_image?: string
   shipping_location?: string
-  assigned_worker?: string // Store worker assignment directly
   packed_at?: string
   shipped_at?: string
   created_at: string
@@ -32,7 +32,7 @@ function convertToBarcode(row: SupabaseBarcode): Barcode {
     status: (row.status as PackingStatus) || 'pending',
     qrCodeImage: row.qr_code_image,
     shippingLocation: row.shipping_location || '',
-    assignedWorker: row.assigned_worker, // Include assigned worker
+    // assignedWorker is stored in barcode_assignments table, not in qr_codes table
     packedAt: row.packed_at,
     shippedAt: row.shipped_at,
     updatedAt: row.updated_at
@@ -40,16 +40,16 @@ function convertToBarcode(row: SupabaseBarcode): Barcode {
 }
 
 // Convert Barcode to Supabase row
-function convertToSupabaseRow(barcode: Barcode): Omit<SupabaseBarcode, 'id' | 'created_at' | 'updated_at'> {
+function convertToSupabaseRow(barcode: Barcode): Omit<SupabaseBarcode, 'id' | 'created_at' | 'updated_at' | 'user_id'> {
   return {
     code: barcode.code,
     description: barcode.description || '',
-    packer_name: barcode.packerName || barcode.packer || '',
+    packer_name: barcode.packerName || '',
     weight: barcode.weight || '',
     status: barcode.status || 'pending',
     qr_code_image: barcode.qrCodeImage || '',
-    shipping_location: barcode.shippingLocation || '',
-    assigned_worker: barcode.assignedWorker
+    shipping_location: barcode.shippingLocation || ''
+    // assignedWorker is stored in barcode_assignments table, not in qr_codes table
   }
 }
 
