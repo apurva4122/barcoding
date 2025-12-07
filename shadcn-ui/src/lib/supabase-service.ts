@@ -30,6 +30,7 @@ export async function getAllWorkersFromSupabase(): Promise<Worker[]> {
       advanceCurrentMonth: worker.advance_current_month || undefined,
       advanceLastMonth: worker.advance_last_month || undefined,
       advanceDeduction: worker.advance_deduction || undefined,
+      isActive: worker.is_active !== undefined ? worker.is_active : true, // Default to true for backward compatibility
       createdAt: worker.created_at
     }));
   } catch (error) {
@@ -69,6 +70,7 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
       advance_current_month: worker.advanceCurrentMonth || null,
       advance_last_month: worker.advanceLastMonth || null,
       advance_deduction: worker.advanceDeduction || null,
+      is_active: worker.isActive !== undefined ? worker.isActive : true,
     };
 
     // If worker exists, update it
@@ -204,6 +206,7 @@ export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worke
       advanceCurrentMonth: data.advance_current_month || undefined,
       advanceLastMonth: data.advance_last_month || undefined,
       advanceDeduction: data.advance_deduction || undefined,
+      isActive: data.is_active !== undefined ? data.is_active : true,
       createdAt: data.created_at
     };
   } catch (error) {

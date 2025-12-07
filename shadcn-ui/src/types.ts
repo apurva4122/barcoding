@@ -37,6 +37,7 @@ export interface Worker {
   advanceCurrentMonth?: number; // Advance payment for current month
   advanceLastMonth?: number; // Advance payment for last month
   advanceDeduction?: number; // Deduction for advance payment from salary
+  isActive?: boolean; // Whether worker is still active (not left company). Defaults to true
   createdAt: string;
 }
 

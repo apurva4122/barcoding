@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Worker, AttendanceRecord, AttendanceStatus, Gender } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
-import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign } from "lucide-react";
+import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus } from "lucide-react";
 import { toast } from "sonner";
 
 interface AttendanceManagementProps {
@@ -97,7 +97,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         getAllAttendance()
       ]);
 
-      setWorkers(workersData);
+      // Filter to only active workers for attendance management
+      const activeWorkers = workersData.filter(w => w.isActive !== false);
+      setWorkers(activeWorkers);
       setAttendanceRecords(attendanceData);
     } catch (error) {
       console.error('Error loading attendance data:', error);
@@ -105,6 +107,46 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       setLoading(false);
     }
   };
+
+  // Auto-save attendance as "present" for workers without records when date changes
+  useEffect(() => {
+    if (loading || workers.length === 0 || !selectedDate) return;
+
+    const autoSaveAttendance = async () => {
+      try {
+        const dateRecords = attendanceRecords.filter(r => r.date === selectedDate);
+        const workersWithoutRecords = workers.filter(worker => {
+          return !dateRecords.some(record => record.workerId === worker.id);
+        });
+
+        if (workersWithoutRecords.length > 0) {
+          // Auto-save as present for workers without records
+          for (const worker of workersWithoutRecords) {
+            const newRecord: AttendanceRecord = {
+              id: `attendance-${Date.now()}-${worker.id}`,
+              workerId: worker.id,
+              workerName: worker.name,
+              date: selectedDate,
+              status: AttendanceStatus.PRESENT,
+              overtime: 'yes', // Default to 'yes'
+              createdAt: new Date().toISOString()
+            };
+
+            await saveAttendance(newRecord);
+          }
+
+          // Reload data to reflect changes
+          await loadData();
+        }
+      } catch (error) {
+        console.error('Error auto-saving attendance:', error);
+      }
+    };
+
+    // Small delay to avoid race conditions
+    const timeoutId = setTimeout(autoSaveAttendance, 500);
+    return () => clearTimeout(timeoutId);
+  }, [selectedDate, workers, attendanceRecords, loading]);
 
   // Add new worker
   const addWorker = async () => {
@@ -130,6 +172,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         isPacker: workerForm.isPacker,
         gender: workerForm.gender,
         baseSalary: workerForm.baseSalary ? parseFloat(workerForm.baseSalary) : undefined,
+        isActive: true, // New workers are active by default
         createdAt: new Date().toISOString()
       };
 

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS workers (
     advance_current_month DECIMAL(10, 2) DEFAULT 0,
     advance_last_month DECIMAL(10, 2) DEFAULT 0,
     advance_deduction DECIMAL(10, 2) DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
