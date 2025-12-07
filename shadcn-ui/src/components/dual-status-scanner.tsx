@@ -162,21 +162,25 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
     }
     
     const newLocation = shippingLocation.trim();
-    console.log("Setting shipping location to:", newLocation);
+    console.log("[handleLocationSubmit] Setting shipping location to:", newLocation);
     
-    // Store in both state and ref for immediate access
-    setCurrentSessionLocation(newLocation);
+    // Store in ref FIRST for immediate access (before any async operations)
     sessionLocationRef.current = newLocation;
     
-    console.log("Location stored in ref:", sessionLocationRef.current);
-    console.log("Location stored in state:", newLocation);
+    // Then update state
+    setCurrentSessionLocation(newLocation);
+    
+    console.log("[handleLocationSubmit] Location stored in ref:", sessionLocationRef.current);
+    console.log("[handleLocationSubmit] Location stored in state:", newLocation);
     
     setLocationDialogOpen(false);
     setShippingLocation("");
     setError(null);
     
     // Initialize scanner after location is set
+    // Use a small delay to ensure state updates are processed
     setTimeout(() => {
+      console.log("[handleLocationSubmit] Initializing scanner with location:", sessionLocationRef.current);
       initializeShippedScanner();
     }, 100);
   };
@@ -280,25 +284,38 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
         return;
       }
       
-      // Use ref for immediate access to location
-      const locationToUse = sessionLocationRef.current;
-      console.log("Using location for shipping:", locationToUse);
-      console.log("currentSessionLocation state:", currentSessionLocation);
-      console.log("sessionLocationRef.current:", sessionLocationRef.current);
+      // Use ref for immediate access to location (most reliable)
+      // Also check state as fallback
+      const locationToUse = sessionLocationRef.current || currentSessionLocation;
       
-      if (!locationToUse) {
-        toast.error("No shipping location set. Please restart the scanner.");
+      console.log("[handleShippedScan] Barcode code:", code);
+      console.log("[handleShippedScan] Location from ref:", sessionLocationRef.current);
+      console.log("[handleShippedScan] Location from state:", currentSessionLocation);
+      console.log("[handleShippedScan] Final location to use:", locationToUse);
+      
+      if (!locationToUse || locationToUse.trim() === '') {
+        console.error("[handleShippedScan] ERROR: No shipping location available!");
+        toast.error("No shipping location set. Please restart the scanner and set a location.");
         return;
       }
       
       // Update status to SHIPPED with current session location
+      console.log("[handleShippedScan] Calling updateBarcodeStatus with:", {
+        code,
+        status: PackingStatus.DISPATCHED,
+        shippingLocation: locationToUse
+      });
+      
       const updated = await updateBarcodeStatus(
         code,
         PackingStatus.DISPATCHED,
         {
-          shippingLocation: locationToUse
+          shippingLocation: locationToUse.trim()
         }
       );
+      
+      console.log("[handleShippedScan] Update result:", updated);
+      console.log("[handleShippedScan] Updated barcode shippingLocation:", updated?.shippingLocation);
       
       if (updated) {
         // Show temporary success notification
@@ -319,7 +336,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
       }
       
     } catch (error) {
-      console.error("Error in handleShippedScan:", error);
+      console.error("[handleShippedScan] Error processing barcode:", error);
       toast.error("Error processing barcode");
     }
   };

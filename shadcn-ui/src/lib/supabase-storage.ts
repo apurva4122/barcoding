@@ -257,10 +257,13 @@ export async function updateQRCodeStatusInSupabase(
         updated_at: new Date().toISOString(),
         ...(updateData?.weight && { weight: updateData.weight }),
         ...(updateData?.packerName && { packer_name: updateData.packerName }),
-        ...(updateData?.shippingLocation && { shipping_location: updateData.shippingLocation }),
+        // Always include shippingLocation if provided (even if empty string, to clear it)
+        ...(updateData?.shippingLocation !== undefined && { shipping_location: updateData.shippingLocation }),
         // Set shipped_at when status is DISPATCHED
         ...(status === PackingStatus.DISPATCHED && { shipped_at: new Date().toISOString() })
       };
+
+      console.log('[updateQRCodeStatusInSupabase] Creating new record with shipping location:', newRecord.shipping_location);
 
       const { data: insertData, error: insertError } = await supabase
         .from(TABLE_NAME)
@@ -284,10 +287,14 @@ export async function updateQRCodeStatusInSupabase(
       updated_at: new Date().toISOString(),
       ...(updateData?.weight && { weight: updateData.weight }),
       ...(updateData?.packerName && { packer_name: updateData.packerName }),
-      ...(updateData?.shippingLocation && { shipping_location: updateData.shippingLocation }),
+      // Always include shippingLocation if provided (even if empty string, to clear it)
+      ...(updateData?.shippingLocation !== undefined && { shipping_location: updateData.shippingLocation }),
       // Set shipped_at when status is DISPATCHED
       ...(status === PackingStatus.DISPATCHED && { shipped_at: new Date().toISOString() })
     };
+
+    console.log('[updateQRCodeStatusInSupabase] Update payload:', JSON.stringify(updatePayload, null, 2));
+    console.log('[updateQRCodeStatusInSupabase] Shipping location in payload:', updatePayload.shipping_location);
 
 
 
@@ -304,8 +311,14 @@ export async function updateQRCodeStatusInSupabase(
       return null;
     }
 
+    console.log('[updateQRCodeStatusInSupabase] Updated data from Supabase:', data);
+    console.log('[updateQRCodeStatusInSupabase] Shipping location in returned data:', data?.shipping_location);
 
-    return data ? convertToBarcode(data) : null;
+    const convertedBarcode = data ? convertToBarcode(data) : null;
+    console.log('[updateQRCodeStatusInSupabase] Converted barcode:', convertedBarcode);
+    console.log('[updateQRCodeStatusInSupabase] Shipping location in converted barcode:', convertedBarcode?.shippingLocation);
+
+    return convertedBarcode;
   } catch (error) {
     console.error('❌ UNEXPECTED ERROR:', error);
     return null;
