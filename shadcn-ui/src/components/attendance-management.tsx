@@ -389,7 +389,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     }
   };
 
-  // Toggle overtime for a worker
+  // Toggle overtime for a worker - auto-saves immediately
   const handleOvertimeToggle = async (workerId: string) => {
     try {
       console.log('🔄 Toggling overtime for worker:', workerId, 'date:', selectedDate);
@@ -399,6 +399,28 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       // Optimistically update UI
       setOvertimeStatus(prev => ({ ...prev, [workerId]: newStatus }));
 
+      // Ensure attendance record exists before toggling overtime
+      const existingRecord = attendanceRecords.find(
+        r => r.workerId === workerId && r.date === selectedDate
+      );
+
+      if (!existingRecord) {
+        // Create attendance record first if it doesn't exist
+        const worker = workers.find(w => w.id === workerId);
+        if (worker) {
+          const newRecord: AttendanceRecord = {
+            id: `attendance-${Date.now()}-${workerId}`,
+            workerId: workerId,
+            workerName: worker.name,
+            date: selectedDate,
+            status: AttendanceStatus.PRESENT,
+            overtime: newStatus ? 'yes' : 'no',
+            createdAt: new Date().toISOString()
+          };
+          await saveAttendance(newRecord);
+        }
+      }
+
       await toggleOvertimeForWorker(workerId, selectedDate);
       await loadData(); // Refresh data from Supabase
 
@@ -407,7 +429,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       const updatedStatus = await hasOvertimeForDate(workerId, selectedDate);
       setOvertimeStatus(prev => ({ ...prev, [workerId]: updatedStatus }));
 
-      toast.success(`Overtime ${newStatus ? 'enabled' : 'disabled'} for this date and future dates`);
+      // Don't show toast for auto-saves to avoid spam
+      // toast.success(`Overtime ${newStatus ? 'enabled' : 'disabled'} for this date and future dates`);
 
       if (onAttendanceUpdate) {
         onAttendanceUpdate();
