@@ -28,7 +28,7 @@ function convertToBarcode(row: SupabaseBarcode): Barcode {
     createdAt: row.created_at || new Date().toISOString(),
     weight: row.weight,
     packerName: row.packer_name,
-    status: (row.status as PackingStatus) || 'pending',
+    status: (row.status as PackingStatus) || PackingStatus.PENDING,
     qrCodeImage: row.qr_code_image || '',
     shippingLocation: row.shipping_location || '',
     // assignedWorker is stored in barcode_assignments table, not in qr_codes table
