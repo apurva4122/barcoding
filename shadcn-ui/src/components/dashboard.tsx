@@ -231,6 +231,60 @@ export function Dashboard() {
         </p>
       </div>
 
+      {/* All Workers Salaries Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            All Workers Salaries - {currentMonth}
+          </CardTitle>
+          <CardDescription>
+            Complete salary breakdown for all workers including attendance bonus
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {workers.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No workers found
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {calculateAbsenteeStats()
+                .sort((a, b) => b.salary - a.salary) // Sort by salary descending
+                .map((stat) => {
+                  const worker = workers.find(w => w.id === stat.workerId);
+                  const hasBonus = stat.salaryDetails?.hasBonus || false;
+                  const bonus = stat.salaryDetails?.bonus || 0;
+                  const baseSalary = stat.salaryDetails?.baseSalary || 0;
+                  return (
+                    <div key={stat.workerId} className="flex items-center justify-between py-3 border-b">
+                      <div className="flex-1">
+                        <div className="font-medium">{stat.workerName}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {stat.employeeId} • {stat.presentCount} present, {stat.absentCount} absent, {stat.halfDayCount} half day
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-lg">
+                          ₹{stat.salary.toLocaleString()}
+                          {hasBonus && (
+                            <span className="text-green-600 text-sm font-normal ml-1">
+                              (+₹{bonus.toLocaleString()} bonus)
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Base: ₹{baseSalary.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top 5 Highest Absentees */}
