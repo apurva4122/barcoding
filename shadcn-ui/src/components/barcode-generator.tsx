@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Barcode, PackingStatus } from "@/types";
 import { saveBarcode, getAllBarcodes } from "@/lib/storage";
 import { getPresentPackersForDate } from "@/lib/attendance-utils";
+import { saveBarcodeAssignments } from "@/lib/supabase";
 import { QRCodeSVG } from "qrcode.react";
 import { Package, Download, Plus, AlertCircle, CheckCircle, Loader2, Users, Hash, Shuffle, UserCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -185,6 +186,9 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
       assignments: {} as { [key: string]: number }
     };
 
+    // Track assignments for barcode_assignments table
+    const assignmentsToSave: { barcode_code: string, worker_name: string }[] = [];
+
     // Initialize assignment counters
     presentPackers.forEach(packer => {
       results.assignments[packer.name] = 0;
@@ -225,6 +229,8 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                 results.codes.push(newBarcode.code);
                 if (assignedWorker) {
                   results.assignments[assignedWorker] = (results.assignments[assignedWorker] || 0) + 1;
+                  // Track assignment for barcode_assignments table
+                  assignmentsToSave.push({ barcode_code: code, worker_name: assignedWorker });
                 }
               })
               .catch((error) => {
@@ -242,6 +248,18 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
 
         // Small delay to allow UI updates
         await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      // Save assignments to barcode_assignments table
+      if (assignmentsToSave.length > 0) {
+        console.log('[BarcodeGenerator] Saving', assignmentsToSave.length, 'assignments to barcode_assignments table');
+        try {
+          await saveBarcodeAssignments(assignmentsToSave);
+          console.log('[BarcodeGenerator] Successfully saved assignments to barcode_assignments table');
+        } catch (error) {
+          console.error('[BarcodeGenerator] Error saving assignments to barcode_assignments table:', error);
+          // Don't fail the whole operation if assignments fail
+        }
       }
 
       await loadData(); // Refresh data
