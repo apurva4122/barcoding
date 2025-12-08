@@ -139,6 +139,9 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   };
 
   const handleGenerateBulk = async () => {
+    console.log('[BulkBarcodeGenerator] ===== handleGenerateBulk STARTED =====');
+    console.log('[BulkBarcodeGenerator] Input values:', { count, prefix, description });
+    
     if (count <= 0 || count > 100) {
       setError("Please enter a number between 1 and 100");
       return;
@@ -148,6 +151,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
     setError(null);
 
     try {
+      console.log('[BulkBarcodeGenerator] Starting barcode generation process...');
       // Get current date in YYMMDD format for serial numbering
       const today = new Date();
       const year = today.getFullYear().toString().slice(-2);
@@ -176,12 +180,14 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       const assignments: { barcode_code: string, worker_name: string }[] = [];
 
       // Debug: Check worker assignments state
+      console.log('[BulkBarcodeGenerator] ===== WORKER ASSIGNMENTS CHECK =====');
       console.log('[BulkBarcodeGenerator] Worker assignments state:', {
         workerAssignmentsLength: workerAssignments.length,
         workerAssignments: workerAssignments,
         workersLength: workers.length,
         workers: workers.map(w => w.name)
       });
+      console.log('[BulkBarcodeGenerator] Codes to generate:', codes.length);
 
       // Generate QR codes with worker assignments
       const printableCodes: PrintableQrCode[] = [];
@@ -230,11 +236,16 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       }
 
       // Save barcodes to storage
+      console.log('[BulkBarcodeGenerator] ===== SAVING BARCODES =====');
+      console.log('[BulkBarcodeGenerator] Barcodes to save:', barcodesToSave.length);
+      
       if (barcodesToSave.length > 0) {
         await saveBarcodes(barcodesToSave);
+        console.log('[BulkBarcodeGenerator] Barcodes saved successfully');
       }
 
       // Save worker assignments to Supabase if any
+      console.log('[BulkBarcodeGenerator] ===== SAVING ASSIGNMENTS =====');
       console.log('[BulkBarcodeGenerator] Final assignments array before save:', {
         assignmentsLength: assignments.length,
         assignments: assignments,
@@ -262,15 +273,20 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       }
 
       // Trigger refresh AFTER assignments are saved
+      console.log('[BulkBarcodeGenerator] Calling onBarcodeCreated callback');
       onBarcodeCreated();
 
       // Set generated codes for display/printing
       setGeneratedCodes(printableCodes);
+      console.log('[BulkBarcodeGenerator] ===== handleGenerateBulk COMPLETED SUCCESSFULLY =====');
     } catch (error) {
+      console.error('[BulkBarcodeGenerator] ===== ERROR IN handleGenerateBulk =====');
       console.error("Error generating bulk codes:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       setError("Failed to generate QR codes. Please try again.");
     } finally {
       setIsGenerating(false);
+      console.log('[BulkBarcodeGenerator] setIsGenerating(false) called');
     }
   };
 
