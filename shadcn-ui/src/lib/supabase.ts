@@ -89,13 +89,29 @@ export const saveBarcodeAssignments = async (assignments: { barcode_code: string
   // Use a fixed user_id since we're not using Supabase auth
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
+  console.log('[saveBarcodeAssignments] Starting save with', assignments.length, 'assignments');
+  console.log('[saveBarcodeAssignments] Assignments:', JSON.stringify(assignments, null, 2));
+
+  if (assignments.length === 0) {
+    console.warn('[saveBarcodeAssignments] No assignments provided, skipping');
+    return;
+  }
+
   // Delete existing assignments for these barcodes
   const barcodeCodes = assignments.map(a => a.barcode_code)
-  await supabase
+  console.log('[saveBarcodeAssignments] Deleting existing assignments for codes:', barcodeCodes);
+  
+  const { error: deleteError } = await supabase
     .from('app_070c516bb6_barcode_assignments')
     .delete()
     .in('barcode_code', barcodeCodes)
     .eq('user_id', FIXED_USER_ID)
+
+  if (deleteError) {
+    console.warn('[saveBarcodeAssignments] Error deleting (may be expected if no existing records):', deleteError);
+  } else {
+    console.log('[saveBarcodeAssignments] Successfully deleted existing assignments');
+  }
 
   // Insert new assignments
   const assignmentsToInsert = assignments.map(assignment => ({
@@ -104,11 +120,21 @@ export const saveBarcodeAssignments = async (assignments: { barcode_code: string
     worker_name: assignment.worker_name     // <-- The assigned worker name
   }))
 
-  const { error } = await supabase
+  console.log('[saveBarcodeAssignments] Inserting assignments:', JSON.stringify(assignmentsToInsert, null, 2));
+
+  const { data, error } = await supabase
     .from('app_070c516bb6_barcode_assignments')
     .insert(assignmentsToInsert)
+    .select()
 
-  if (error) throw error
+  if (error) {
+    console.error('[saveBarcodeAssignments] ERROR inserting assignments:', error);
+    console.error('[saveBarcodeAssignments] Error details:', JSON.stringify(error, null, 2));
+    throw error;
+  }
+
+  console.log('[saveBarcodeAssignments] Successfully inserted assignments:', data);
+  console.log('[saveBarcodeAssignments] Saved', data?.length || 0, 'assignments to Supabase');
 }
 
 export const getBarcodeAssignments = async (): Promise<BarcodeAssignment[]> => {

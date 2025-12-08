@@ -227,13 +227,30 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       }
 
       // Save worker assignments to Supabase if any
+      console.log('[BulkBarcodeGenerator] About to save assignments:', {
+        assignmentsCount: assignments.length,
+        assignments: assignments,
+        workerAssignmentsState: workerAssignments,
+        workersCount: workers.length
+      });
+
       if (assignments.length > 0) {
         try {
+          console.log('[BulkBarcodeGenerator] Calling saveBarcodeAssignments with:', assignments);
           await saveBarcodeAssignments(assignments);
-        } catch (error) {
-          console.error('Error saving barcode assignments:', error);
-          // Don't fail the whole operation if assignments fail
+          console.log('[BulkBarcodeGenerator] Successfully saved assignments to Supabase');
+        } catch (error: any) {
+          console.error('[BulkBarcodeGenerator] ERROR saving barcode assignments:', error);
+          console.error('[BulkBarcodeGenerator] Error details:', JSON.stringify(error, null, 2));
+          console.error('[BulkBarcodeGenerator] Error message:', error?.message);
+          console.error('[BulkBarcodeGenerator] Error code:', error?.code);
+          // Show alert to user so they know assignments failed
+          alert(`Failed to save worker assignments: ${error?.message || 'Unknown error'}. Check console for details.`);
         }
+      } else {
+        console.warn('[BulkBarcodeGenerator] No assignments to save!');
+        console.warn('[BulkBarcodeGenerator] workerAssignments:', workerAssignments);
+        console.warn('[BulkBarcodeGenerator] workers:', workers.map(w => w.name));
       }
 
       // Trigger refresh AFTER assignments are saved
