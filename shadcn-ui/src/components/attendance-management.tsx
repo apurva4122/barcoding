@@ -84,6 +84,12 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
   const [error, setError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  
+  // Default overtime state - load from localStorage or default to false
+  const [defaultOvertime, setDefaultOvertime] = useState<boolean>(() => {
+    const saved = localStorage.getItem('defaultOvertime');
+    return saved === 'true';
+  });
 
   // Load data when component mounts or date changes
   useEffect(() => {
@@ -259,7 +265,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     try {
       let successCount = 0;
       let failCount = 0;
-      const { hasOvertimeForDate } = await import('@/lib/attendance-utils');
 
       for (const worker of workers) {
         try {
@@ -268,28 +273,28 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             r => r.workerId === worker.id && r.date === selectedDate
           );
 
-          // Get current overtime status for this worker
-          const hasOvertime = await hasOvertimeForDate(worker.id, selectedDate);
+          // Use default overtime state for new records, or keep existing overtime status
+          const overtimeStatus = existingRecord?.overtime || (defaultOvertime ? 'yes' : 'no');
 
           let newRecord: AttendanceRecord;
 
           if (existingRecord) {
-            // Update existing record to present, keep overtime status
+            // Update existing record to present, use default overtime if not already set
             newRecord = {
               ...existingRecord,
               status: AttendanceStatus.PRESENT,
-              overtime: hasOvertime ? 'yes' : 'no', // Use current toggle status
+              overtime: existingRecord.overtime || (defaultOvertime ? 'yes' : 'no'),
               updatedAt: new Date().toISOString()
             };
           } else {
-            // Create new record
+            // Create new record with default overtime
             newRecord = {
               id: `attendance-${Date.now()}-${worker.id}`,
               workerId: worker.id,
               workerName: worker.name,
               date: selectedDate,
               status: AttendanceStatus.PRESENT,
-              overtime: hasOvertime ? 'yes' : 'no', // Use current toggle status
+              overtime: overtimeStatus,
               createdAt: new Date().toISOString()
             };
           }
@@ -469,7 +474,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
       setAttendanceRecords(updatedRecords);
       setOvertimeStatus(prev => ({ ...prev, [workerId]: newStatus }));
-      
+
       // Only trigger dashboard refresh, don't remount this component
       if (onAttendanceUpdate) {
         setTimeout(() => onAttendanceUpdate(), 100);
@@ -677,6 +682,24 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="w-full"
+                />
+              </div>
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="default-overtime" className="text-sm font-medium">
+                    Default Overtime
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Apply overtime by default when marking present
+                  </p>
+                </div>
+                <Switch
+                  id="default-overtime"
+                  checked={defaultOvertime}
+                  onCheckedChange={(checked) => {
+                    setDefaultOvertime(checked);
+                    localStorage.setItem('defaultOvertime', checked.toString());
+                  }}
                 />
               </div>
               <Button
@@ -1381,7 +1404,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                         createdAt: new Date().toISOString()
                                       }),
                                       status: AttendanceStatus.PRESENT,
-                                      overtime: existingRecord?.overtime || 'no',
+                                      overtime: existingRecord?.overtime || (defaultOvertime ? 'yes' : 'no'),
                                       updatedAt: new Date().toISOString()
                                     };
 
