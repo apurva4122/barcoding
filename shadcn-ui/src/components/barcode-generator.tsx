@@ -37,7 +37,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
 
   // Bulk barcode form
   const [bulkForm, setBulkForm] = useState({
-    prefix: "PKG-",
+    prefix: "", // No longer used, kept for compatibility
     quantity: 10,
     baseDescription: "",
     assignmentMode: "equal", // "equal", "single", "random"
@@ -62,7 +62,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
         getAllBarcodes(),
         getPresentPackersForDate(new Date().toISOString().split('T')[0])
       ]);
-      
+
       setBarcodes(barcodesData);
       setPresentPackers(packersData);
     } catch (error) {
@@ -70,16 +70,36 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
     }
   };
 
-  // Generate unique barcode code
-  const generateBarcodeCode = (prefix: string = ""): string => {
-    const timestamp = Date.now();
-    const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Generate unique barcode code based on date and sequential number
+  const generateBarcodeCode = async (): Promise<string> => {
+    // Get current date in YYMMDD format for serial numbering
+    const today = new Date();
+    const year = today.getFullYear().toString().slice(-2);
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+
+    // Get existing barcodes count for today to start serial numbering correctly
+    const existingBarcodes = await getAllBarcodes();
+    const todayBarcodes = existingBarcodes.filter(barcode =>
+      barcode.code.startsWith(dateStr)
+    );
     
-    if (prefix) {
-      return `${prefix}${timestamp}-${randomSuffix}`;
-    }
+    // Find the highest serial number for today
+    let maxSerial = 0;
+    todayBarcodes.forEach(barcode => {
+      const serialPart = barcode.code.substring(6); // Get part after date (YYMMDD)
+      const serialNum = parseInt(serialPart, 10);
+      if (!isNaN(serialNum) && serialNum > maxSerial) {
+        maxSerial = serialNum;
+      }
+    });
+
+    // Increment for next barcode
+    const nextSerial = maxSerial + 1;
+    const serialStr = nextSerial.toString().padStart(5, '0');
     
-    return `PKG-${timestamp}-${randomSuffix}`;
+    return `${dateStr}${serialStr}`;
   };
 
   // Generate single barcode
@@ -99,9 +119,12 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
     setError(null);
 
     try {
+      // Generate date-based barcode code
+      const code = await generateBarcodeCode();
+      
       const newBarcode: Barcode = {
         id: `barcode-${Date.now()}`,
-        code: generateBarcodeCode(),
+        code: code,
         description: singleForm.description.trim(),
         status: PackingStatus.PENDING,
         assignedWorker: (singleForm.assignedWorker && singleForm.assignedWorker !== "none") ? singleForm.assignedWorker : undefined,
@@ -109,6 +132,16 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
       };
 
       await saveBarcode(newBarcode);
+      
+      // Save assignment to barcode_assignments table if worker is assigned
+      if (newBarcode.assignedWorker) {
+        try {
+          await saveBarcodeAssignments([{ barcode_code: code, worker_name: newBarcode.assignedWorker }]);
+        } catch (error) {
+          console.error('Error saving assignment:', error);
+          // Don't fail the whole operation if assignment fails
+        }
+      }
       await loadData(); // Refresh data
 
       // Reset form
@@ -147,11 +180,6 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
 
   // Generate bulk barcodes
   const generateBulkBarcodes = async () => {
-    if (!bulkForm.prefix.trim()) {
-      setError("Prefix is required for bulk generation");
-      return;
-    }
-
     if (bulkForm.quantity < 1 || bulkForm.quantity > 1000) {
       setError("Quantity must be between 1 and 1000");
       return;
@@ -195,6 +223,31 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
     });
 
     try {
+      // Get current date in YYMMDD format for serial numbering
+      const today = new Date();
+      const year = today.getFullYear().toString().slice(-2);
+      const month = (today.getMonth() + 1).toString().padStart(2, '0');
+      const day = today.getDate().toString().padStart(2, '0');
+      const dateStr = `${year}${month}${day}`;
+
+      // Get existing barcodes count for today to start serial numbering correctly
+      const existingBarcodes = await getAllBarcodes();
+      const todayBarcodes = existingBarcodes.filter(barcode =>
+        barcode.code.startsWith(dateStr)
+      );
+      
+      // Find the highest serial number for today
+      let maxSerial = 0;
+      todayBarcodes.forEach(barcode => {
+        const serialPart = barcode.code.substring(6); // Get part after date (YYMMDD)
+        const serialNum = parseInt(serialPart, 10);
+        if (!isNaN(serialNum) && serialNum > maxSerial) {
+          maxSerial = serialNum;
+        }
+      });
+
+      let currentSerial = maxSerial;
+
       const batchSize = 10; // Process in batches to avoid blocking UI
       const totalBatches = Math.ceil(bulkForm.quantity / batchSize);
 
@@ -205,10 +258,13 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
         const batchPromises = [];
         
         for (let i = batchStart; i < batchEnd; i++) {
-          const sequentialNumber = String(i + 1).padStart(4, '0');
-          const code = `${bulkForm.prefix}${sequentialNumber}`;
+          // Increment serial number for each barcode
+          currentSerial += 1;
+          const serialStr = currentSerial.toString().padStart(5, '0');
+          const code = `${dateStr}${serialStr}`;
+          
           const description = bulkForm.baseDescription.trim() 
-            ? `${bulkForm.baseDescription.trim()} #${sequentialNumber}`
+            ? `${bulkForm.baseDescription.trim()} #${serialStr}`
             : `Package ${code}`;
 
           const assignedWorker = assignWorker(i, bulkForm.assignmentMode, bulkForm.assignedWorker);
@@ -241,7 +297,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
         }
 
         await Promise.all(batchPromises);
-        
+
         // Update progress
         const progress = ((batch + 1) / totalBatches) * 100;
         setBulkProgress(progress);
@@ -267,7 +323,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
 
       // Reset form
       setBulkForm({
-        prefix: "PKG-",
+        prefix: "",
         quantity: 10,
         baseDescription: "",
         assignmentMode: "equal",
@@ -302,7 +358,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
       canvas.width = img.width;
       canvas.height = img.height;
       ctx?.drawImage(img, 0, 0);
-      
+
       const link = document.createElement("a");
       link.download = `${barcode.code}.png`;
       link.href = canvas.toDataURL();
@@ -321,7 +377,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
 
     const csvContent = [
       "Code,Description,Status,Assigned Worker,Created At",
-      ...barcodes.map(barcode => 
+      ...barcodes.map(barcode =>
         `${barcode.code},"${barcode.description}",${barcode.status},${barcode.assignedWorker || ''},${barcode.createdAt}`
       )
     ].join('\n');
@@ -333,7 +389,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
     a.download = `barcodes-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     toast.success("Barcodes exported successfully");
   };
 
@@ -417,16 +473,16 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                   <Input
                     id="single-description"
                     value={singleForm.description}
-                    onChange={(e) => setSingleForm({...singleForm, description: e.target.value})}
+                    onChange={(e) => setSingleForm({ ...singleForm, description: e.target.value })}
                     placeholder="Package description"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="single-worker">Assign to Packer (Optional)</Label>
-                  <Select 
-                    value={singleForm.assignedWorker} 
-                    onValueChange={(value) => setSingleForm({...singleForm, assignedWorker: value})}
+                  <Select
+                    value={singleForm.assignedWorker}
+                    onValueChange={(value) => setSingleForm({ ...singleForm, assignedWorker: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a packer" />
@@ -486,14 +542,14 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                   <Input
                     id="bulk-prefix"
                     value={bulkForm.prefix}
-                    onChange={(e) => setBulkForm({...bulkForm, prefix: e.target.value})}
+                    onChange={(e) => setBulkForm({ ...bulkForm, prefix: e.target.value })}
                     placeholder="PKG-, BOX-, ITEM-"
                   />
                   <p className="text-xs text-muted-foreground">
                     Will generate: {bulkForm.prefix}0001, {bulkForm.prefix}0002, etc.
                   </p>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="bulk-quantity">Quantity *</Label>
                   <Input
@@ -502,7 +558,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                     min="1"
                     max="1000"
                     value={bulkForm.quantity}
-                    onChange={(e) => setBulkForm({...bulkForm, quantity: parseInt(e.target.value) || 1})}
+                    onChange={(e) => setBulkForm({ ...bulkForm, quantity: parseInt(e.target.value) || 1 })}
                     placeholder="Number of barcodes"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -516,7 +572,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                 <Input
                   id="bulk-description"
                   value={bulkForm.baseDescription}
-                  onChange={(e) => setBulkForm({...bulkForm, baseDescription: e.target.value})}
+                  onChange={(e) => setBulkForm({ ...bulkForm, baseDescription: e.target.value })}
                   placeholder="Base description for all barcodes"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -529,7 +585,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                 <Label>Assignment Mode</Label>
                 <RadioGroup
                   value={bulkForm.assignmentMode}
-                  onValueChange={(value) => setBulkForm({...bulkForm, assignmentMode: value, assignedWorker: ""})}
+                  onValueChange={(value) => setBulkForm({ ...bulkForm, assignmentMode: value, assignedWorker: "" })}
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="equal" id="equal" />
@@ -559,9 +615,9 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
               {bulkForm.assignmentMode === "single" && (
                 <div className="space-y-2">
                   <Label htmlFor="bulk-worker">Select Packer *</Label>
-                  <Select 
-                    value={bulkForm.assignedWorker} 
-                    onValueChange={(value) => setBulkForm({...bulkForm, assignedWorker: value})}
+                  <Select
+                    value={bulkForm.assignedWorker}
+                    onValueChange={(value) => setBulkForm({ ...bulkForm, assignedWorker: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a packer" />
@@ -621,9 +677,9 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                 </Alert>
               )}
 
-              <Button 
-                onClick={generateBulkBarcodes} 
-                disabled={bulkGenerating || bulkForm.quantity < 1} 
+              <Button
+                onClick={generateBulkBarcodes}
+                disabled={bulkGenerating || bulkForm.quantity < 1}
                 className="w-full"
               >
                 {bulkGenerating ? (
@@ -666,13 +722,13 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                       </div>
                       <Badge variant={
                         barcode.status === PackingStatus.DELIVERED ? "default" :
-                        barcode.status === PackingStatus.DISPATCHED ? "secondary" :
-                        barcode.status === PackingStatus.PACKED ? "outline" : "destructive"
+                          barcode.status === PackingStatus.DISPATCHED ? "secondary" :
+                            barcode.status === PackingStatus.PACKED ? "outline" : "destructive"
                       }>
                         {barcode.status}
                       </Badge>
                     </div>
-                    
+
                     <div className="flex justify-center">
                       <QRCodeSVG
                         id={`qr-${barcode.id}`}
@@ -682,14 +738,14 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
                         includeMargin={true}
                       />
                     </div>
-                    
+
                     {barcode.assignedWorker && (
                       <div className="flex items-center gap-2 text-sm">
                         <Users className="h-4 w-4" />
                         <span>Assigned to: {barcode.assignedWorker}</span>
                       </div>
                     )}
-                    
+
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
