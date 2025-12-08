@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Worker, AttendanceRecord, AttendanceStatus, Gender } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
-import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus } from "lucide-react";
+import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus, XCircle, CircleDot } from "lucide-react";
 import { toast } from "sonner";
 
 interface AttendanceManagementProps {
@@ -1318,18 +1318,19 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 flex-wrap">
                           <Badge
                             variant={
                               status === AttendanceStatus.PRESENT ? "default" :
                                 status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
                             }
+                            className="mr-1"
                           >
                             {status}
                           </Badge>
-                          {(status === AttendanceStatus.ABSENT || status === AttendanceStatus.HALF_DAY) && (
+                          <div className="flex gap-1">
                             <Button
-                              variant="ghost"
+                              variant={status === AttendanceStatus.PRESENT ? "default" : "outline"}
                               size="sm"
                               onClick={async () => {
                                 try {
@@ -1365,25 +1366,118 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                   toast.error("Failed to update attendance");
                                 }
                               }}
-                              className="h-6 text-xs text-green-600 hover:text-green-700"
+                              className="h-7 text-xs px-2"
                               title="Mark as present"
                             >
                               <CheckCircle2 className="h-3 w-3 mr-1" />
                               Present
                             </Button>
-                          )}
+                            <Button
+                              variant={status === AttendanceStatus.HALF_DAY ? "secondary" : "outline"}
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const existingRecord = attendanceRecords.find(
+                                    r => r.workerId === worker.id && r.date === selectedDate
+                                  );
+
+                                  const updatedRecord: AttendanceRecord = {
+                                    ...(existingRecord || {
+                                      id: `attendance-${Date.now()}`,
+                                      workerId: worker.id,
+                                      workerName: worker.name,
+                                      date: selectedDate,
+                                      createdAt: new Date().toISOString()
+                                    }),
+                                    status: AttendanceStatus.HALF_DAY,
+                                    overtime: existingRecord?.overtime || 'no',
+                                    updatedAt: new Date().toISOString()
+                                  };
+
+                                  const success = await saveAttendance(updatedRecord);
+                                  if (success) {
+                                    await loadData();
+                                    toast.success(`${worker.name} marked as half day`);
+                                    if (onAttendanceUpdate) {
+                                      onAttendanceUpdate();
+                                    }
+                                  } else {
+                                    toast.error("Failed to update attendance");
+                                  }
+                                } catch (error) {
+                                  console.error("Error marking as half day:", error);
+                                  toast.error("Failed to update attendance");
+                                }
+                              }}
+                              className="h-7 text-xs px-2"
+                              title="Mark as half day"
+                            >
+                              <CircleDot className="h-3 w-3 mr-1" />
+                              Half Day
+                            </Button>
+                            <Button
+                              variant={status === AttendanceStatus.ABSENT ? "destructive" : "outline"}
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const existingRecord = attendanceRecords.find(
+                                    r => r.workerId === worker.id && r.date === selectedDate
+                                  );
+
+                                  const updatedRecord: AttendanceRecord = {
+                                    ...(existingRecord || {
+                                      id: `attendance-${Date.now()}`,
+                                      workerId: worker.id,
+                                      workerName: worker.name,
+                                      date: selectedDate,
+                                      createdAt: new Date().toISOString()
+                                    }),
+                                    status: AttendanceStatus.ABSENT,
+                                    overtime: 'no', // No overtime for absent
+                                    updatedAt: new Date().toISOString()
+                                  };
+
+                                  const success = await saveAttendance(updatedRecord);
+                                  if (success) {
+                                    await loadData();
+                                    toast.success(`${worker.name} marked as absent`);
+                                    if (onAttendanceUpdate) {
+                                      onAttendanceUpdate();
+                                    }
+                                  } else {
+                                    toast.error("Failed to update attendance");
+                                  }
+                                } catch (error) {
+                                  console.error("Error marking as absent:", error);
+                                  toast.error("Failed to update attendance");
+                                }
+                              }}
+                              className="h-7 text-xs px-2"
+                              title="Mark as absent"
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Absent
+                            </Button>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={hasOvertime}
-                            onCheckedChange={() => handleOvertimeToggle(worker.id)}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant={hasOvertime ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              if (status !== AttendanceStatus.ABSENT) {
+                                handleOvertimeToggle(worker.id);
+                              }
+                            }}
                             disabled={status === AttendanceStatus.ABSENT}
-                          />
-                          <span className="text-sm text-muted-foreground">
-                            {hasOvertime ? 'Yes' : 'No'}
-                          </span>
+                            className="h-7 text-xs px-2"
+                            title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime" : "Add overtime"}
+                          >
+                            <Clock className="h-3 w-3 mr-1" />
+                            {hasOvertime ? 'Overtime' : 'No OT'}
+                          </Button>
                         </div>
                       </TableCell>
                       <TableCell>
