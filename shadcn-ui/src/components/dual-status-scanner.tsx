@@ -20,20 +20,20 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
   const [packedScannerActive, setPackedScannerActive] = useState(false);
   const [shippedScannerActive, setShippedScannerActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Scanner refs
   const packedScannerRef = useRef<Html5QrcodeScanner | null>(null);
   const shippedScannerRef = useRef<Html5QrcodeScanner | null>(null);
-  
+
   // Results tracking
   const [recentPackedResults, setRecentPackedResults] = useState<Barcode[]>([]);
   const [recentShippedResults, setRecentShippedResults] = useState<Barcode[]>([]);
-  
+
   // Location dialog - simplified to use only one state
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [shippingLocation, setShippingLocation] = useState("");
   const [currentSessionLocation, setCurrentSessionLocation] = useState<string | null>(null);
-  
+
   // Use ref to store location immediately for reliable access
   const sessionLocationRef = useRef<string | null>(null);
 
@@ -49,13 +49,13 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
   const startPackedScanner = async () => {
     try {
       setError(null);
-      
+
       // Clean up existing scanner
       if (packedScannerRef.current) {
         await packedScannerRef.current.clear();
         packedScannerRef.current = null;
       }
-      
+
       // Create new scanner instance
       const scanner = new Html5QrcodeScanner(
         "packed-scanner",
@@ -70,9 +70,9 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
         },
         false
       );
-      
+
       packedScannerRef.current = scanner;
-      
+
       // Configure scanner with continuous scanning
       scanner.render(
         async (decodedText) => {
@@ -85,7 +85,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
           // console.warn("QR scan error:", error);
         }
       );
-      
+
       setPackedScannerActive(true);
     } catch (err) {
       console.error("Error starting packed scanner:", err);
@@ -97,16 +97,16 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
   const startShippedScanner = async () => {
     try {
       setError(null);
-      
+
       // First show the location dialog to get location for this session
       setLocationDialogOpen(true);
-      
+
     } catch (err) {
       console.error("Error preparing shipped scanner:", err);
       setError("Failed to start scanner setup.");
     }
   };
-  
+
   // Initialize the shipped scanner after location is set
   const initializeShippedScanner = async () => {
     try {
@@ -115,7 +115,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
         await shippedScannerRef.current.clear();
         shippedScannerRef.current = null;
       }
-      
+
       // Create new scanner instance
       const scanner = new Html5QrcodeScanner(
         "shipped-scanner",
@@ -130,9 +130,9 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
         },
         false
       );
-      
+
       shippedScannerRef.current = scanner;
-      
+
       // Configure scanner with continuous scanning
       scanner.render(
         async (decodedText) => {
@@ -145,38 +145,34 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
           // console.warn("QR scan error:", error);
         }
       );
-      
+
       setShippedScannerActive(true);
-      
+
     } catch (err) {
       console.error("Error starting shipped scanner:", err);
       setError("Failed to start camera. Please allow camera permissions and try again.");
     }
   };
-  
+
   // Handle location dialog submit - simplified approach
   const handleLocationSubmit = () => {
     if (!shippingLocation.trim()) {
       setError("Shipping location is required");
       return;
     }
-    
+
     const newLocation = shippingLocation.trim();
-    console.log("[handleLocationSubmit] Setting shipping location to:", newLocation);
-    
+
     // Store in ref FIRST for immediate access (before any async operations)
     sessionLocationRef.current = newLocation;
-    
+
     // Then update state
     setCurrentSessionLocation(newLocation);
-    
-    console.log("[handleLocationSubmit] Location stored in ref:", sessionLocationRef.current);
-    console.log("[handleLocationSubmit] Location stored in state:", newLocation);
-    
+
     setLocationDialogOpen(false);
     setShippingLocation("");
     setError(null);
-    
+
     // Initialize scanner after location is set
     // Use a small delay to ensure state updates are processed
     setTimeout(() => {
@@ -218,22 +214,22 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
   const handlePackedScan = async (code: string) => {
     try {
       const barcode = await findBarcodeByCode(code);
-      
+
       if (!barcode) {
         toast.error(`QR code not found: ${code}`);
         return;
       }
-      
+
       // Only allow PENDING status to be updated
       if (barcode.status !== PackingStatus.PENDING) {
         toast.error(`Package status is ${barcode.status}, expected ${PackingStatus.PENDING}`);
         return;
       }
-      
+
       // Auto-generate weight and packer name (no dialog)
       const weight = `${(Math.random() * 9 + 1).toFixed(1)}kg`;
       const packerName = "Auto Scanner";
-      
+
       // Update status to PACKED
       const updated = await updateBarcodeStatus(
         code,
@@ -243,17 +239,17 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
           packerName
         }
       );
-      
+
       if (updated) {
         // Show temporary success notification
         toast.success(`Package marked as packed: ${code}`);
-        
+
         // Add to recent results (keeping only the 5 most recent)
         setRecentPackedResults(prev => {
           const newResults = [updated, ...prev];
           return newResults.slice(0, 5);
         });
-        
+
         // Notify parent component
         if (onBarcodesUpdated) {
           onBarcodesUpdated();
@@ -261,7 +257,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
       } else {
         toast.error("Failed to update package status");
       }
-      
+
     } catch (error) {
       console.error("Error in handlePackedScan:", error);
       toast.error("Error processing barcode");
@@ -272,40 +268,29 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
   const handleShippedScan = async (code: string) => {
     try {
       const barcode = await findBarcodeByCode(code);
-      
+
       if (!barcode) {
         toast.error(`QR code not found: ${code}`);
         return;
       }
-      
+
       // Only allow PACKED status to be updated
       if (barcode.status !== PackingStatus.PACKED) {
         toast.error(`Package status is ${barcode.status}, expected ${PackingStatus.PACKED}`);
         return;
       }
-      
+
       // Use ref for immediate access to location (most reliable)
       // Also check state as fallback
       const locationToUse = sessionLocationRef.current || currentSessionLocation;
-      
-      console.log("[handleShippedScan] Barcode code:", code);
-      console.log("[handleShippedScan] Location from ref:", sessionLocationRef.current);
-      console.log("[handleShippedScan] Location from state:", currentSessionLocation);
-      console.log("[handleShippedScan] Final location to use:", locationToUse);
-      
+
       if (!locationToUse || locationToUse.trim() === '') {
         console.error("[handleShippedScan] ERROR: No shipping location available!");
         toast.error("No shipping location set. Please restart the scanner and set a location.");
         return;
       }
-      
+
       // Update status to SHIPPED with current session location
-      console.log("[handleShippedScan] Calling updateBarcodeStatus with:", {
-        code,
-        status: PackingStatus.DISPATCHED,
-        shippingLocation: locationToUse
-      });
-      
       const updated = await updateBarcodeStatus(
         code,
         PackingStatus.DISPATCHED,
@@ -313,20 +298,17 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
           shippingLocation: locationToUse.trim()
         }
       );
-      
-      console.log("[handleShippedScan] Update result:", updated);
-      console.log("[handleShippedScan] Updated barcode shippingLocation:", updated?.shippingLocation);
-      
+
       if (updated) {
         // Show temporary success notification
         toast.success(`Package shipped to ${locationToUse}: ${code}`);
-        
+
         // Add to recent results (keeping only the 5 most recent)
         setRecentShippedResults(prev => {
           const newResults = [updated, ...prev];
           return newResults.slice(0, 5);
         });
-        
+
         // Notify parent component
         if (onBarcodesUpdated) {
           onBarcodesUpdated();
@@ -334,13 +316,13 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
       } else {
         toast.error("Failed to update package status");
       }
-      
+
     } catch (error) {
       console.error("[handleShippedScan] Error processing barcode:", error);
       toast.error("Error processing barcode");
     }
   };
-  
+
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -358,10 +340,10 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
           <CardContent className="space-y-4">
             <div className="space-y-4">
               <div id="packed-scanner" className="w-full min-h-[250px] border rounded"></div>
-              
+
               <div className="flex justify-center gap-4">
                 {!packedScannerActive ? (
-                  <Button 
+                  <Button
                     onClick={startPackedScanner}
                     className="flex-1"
                     variant="default"
@@ -369,7 +351,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
                     Start Pack Scanner
                   </Button>
                 ) : (
-                  <Button 
+                  <Button
                     onClick={stopPackedScanner}
                     className="flex-1"
                     variant="destructive"
@@ -379,7 +361,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
                 )}
               </div>
             </div>
-            
+
             {/* Recent results */}
             {recentPackedResults.length > 0 && (
               <div className="mt-4">
@@ -396,7 +378,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
             )}
           </CardContent>
         </Card>
-        
+
         {/* Shipped Scanner */}
         <Card>
           <CardHeader>
@@ -411,10 +393,10 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
           <CardContent className="space-y-4">
             <div className="space-y-4">
               <div id="shipped-scanner" className="w-full min-h-[250px] border rounded"></div>
-              
+
               <div className="flex justify-center gap-4">
                 {!shippedScannerActive ? (
-                  <Button 
+                  <Button
                     onClick={startShippedScanner}
                     className="flex-1"
                     variant="default"
@@ -422,7 +404,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
                     Start Ship Scanner
                   </Button>
                 ) : (
-                  <Button 
+                  <Button
                     onClick={stopShippedScanner}
                     className="flex-1"
                     variant="destructive"
@@ -431,7 +413,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
                   </Button>
                 )}
               </div>
-              
+
               {currentSessionLocation && (
                 <div className="text-center text-sm">
                   <span className="font-medium">Current Shipping Location: </span>
@@ -439,7 +421,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
                 </div>
               )}
             </div>
-            
+
             {/* Recent results */}
             {recentShippedResults.length > 0 && (
               <div className="mt-4">
@@ -457,14 +439,14 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
           </CardContent>
         </Card>
       </div>
-      
+
       {error && (
         <Alert variant="destructive" className="mt-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       {/* Location Dialog */}
       <Dialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen}>
         <DialogContent>
@@ -475,7 +457,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
               This location will be applied to all QR codes scanned.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="shipping-location">Shipping Location</Label>
@@ -491,7 +473,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
                 }}
               />
             </div>
-            
+
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -499,7 +481,7 @@ export function DualStatusScanner({ onBarcodesUpdated }: DualStatusScannerProps)
               </Alert>
             )}
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setLocationDialogOpen(false)}>
               Cancel

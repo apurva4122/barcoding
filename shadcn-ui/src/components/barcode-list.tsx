@@ -57,9 +57,6 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
           const batchPromises = batch.map(async (barcode) => {
             try {
               const workerName = await getWorkerForBarcode(barcode.code);
-              if (workerName) {
-                console.log(`[BarcodeList] Found assignment for ${barcode.code}: ${workerName}`);
-              }
               return { code: barcode.code, worker: workerName };
             } catch (error) {
               console.error(`[BarcodeList] Error getting worker for barcode ${barcode.code}:`, error);
@@ -77,7 +74,6 @@ export function BarcodeList({ refreshTrigger }: { refreshTrigger: number }) {
           });
         }
 
-        console.log(`[BarcodeList] Loaded ${Object.keys(assignmentsMap).length} worker assignments`);
         setBarcodeAssignments(assignmentsMap);
 
       } catch (error) {

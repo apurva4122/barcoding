@@ -21,26 +21,6 @@ export function ListsDashboard() {
     try {
       setLoading(true);
       const barcodesData = await getAllBarcodes();
-      console.log('[ListsDashboard] Total barcodes loaded:', barcodesData.length);
-
-      // Log dispatched barcodes
-      const dispatchedBarcodes = barcodesData.filter(b => b.status === PackingStatus.DISPATCHED);
-      console.log('[ListsDashboard] Dispatched barcodes count:', dispatchedBarcodes.length);
-
-      // Log sample dispatched barcode data
-      if (dispatchedBarcodes.length > 0) {
-        console.log('[ListsDashboard] Sample dispatched barcodes (first 5):',
-          dispatchedBarcodes.slice(0, 5).map(b => ({
-            id: b.id,
-            status: b.status,
-            shippedAt: b.shippedAt,
-            updatedAt: b.updatedAt,
-            createdAt: b.createdAt,
-            shippingLocation: b.shippingLocation
-          }))
-        );
-      }
-
       setBarcodes(barcodesData);
     } catch (error) {
       console.error('[ListsDashboard] Error loading dashboard data:', error);
@@ -68,7 +48,6 @@ export function ListsDashboard() {
   // Shipped barcodes by date and location (last 10 days)
   const getShippedByDateAndLocation = (): DateBarChartData[] => {
     const last10Days = getLastNDays(10);
-    console.log('[ListsDashboard] Last 10 days being checked:', last10Days);
 
     const chartData = last10Days.map(date => {
       // Get all dispatched barcodes for this specific date
@@ -88,19 +67,6 @@ export function ListsDashboard() {
         const barcodeDate = getDateString(relevantDate);
         return barcodeDate === date;
       });
-
-      // Log matching barcodes for this date
-      if (dayBarcodes.length > 0) {
-        console.log(`[ListsDashboard] Date ${date}: Found ${dayBarcodes.length} dispatched barcodes`,
-          dayBarcodes.map(b => ({
-            id: b.id,
-            shippedAt: b.shippedAt,
-            updatedAt: b.updatedAt,
-            createdAt: b.createdAt,
-            shippingLocation: b.shippingLocation
-          }))
-        );
-      }
 
       // Group by shipping location for this date
       const locations: { [key: string]: number } = {};
@@ -122,14 +88,6 @@ export function ListsDashboard() {
       };
     });
 
-    console.log('[ListsDashboard] Final chart data:', chartData);
-    console.log('[ListsDashboard] Chart data summary:', {
-      totalDates: chartData.length,
-      datesWithData: chartData.filter(d => d.total > 0).length,
-      totalBarcodes: chartData.reduce((sum, d) => sum + d.total, 0),
-      locationsFound: [...new Set(chartData.flatMap(d => Object.keys(d.locations)))]
-    });
-
     return chartData;
   };
 
@@ -143,8 +101,6 @@ export function ListsDashboard() {
       </div>
     );
   }
-
-  console.log('[ListsDashboard] Rendering chart with data:', chartData);
 
   return (
     <div className="mb-6">

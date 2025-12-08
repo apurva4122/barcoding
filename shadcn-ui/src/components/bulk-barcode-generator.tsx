@@ -47,18 +47,8 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
 
   // Update worker assignments when workers or count changes
   useEffect(() => {
-    console.log('[BulkBarcodeGenerator] useEffect triggered:', {
-      useEqualDistribution,
-      workersLength: workers.length,
-      count
-    });
     if (useEqualDistribution && workers.length > 0) {
-      console.log('[BulkBarcodeGenerator] Calling distributeEqually');
       distributeEqually();
-    } else if (!useEqualDistribution) {
-      console.log('[BulkBarcodeGenerator] Equal distribution disabled, keeping custom assignments');
-    } else if (workers.length === 0) {
-      console.log('[BulkBarcodeGenerator] No workers loaded yet');
     }
   }, [workers, count, useEqualDistribution]);
 
@@ -118,14 +108,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   };
 
   const distributeEqually = () => {
-    console.log('[BulkBarcodeGenerator] distributeEqually called with:', {
-      workersCount: workers.length,
-      count,
-      workers: workers.map(w => w.name)
-    });
-
     if (workers.length === 0) {
-      console.warn('[BulkBarcodeGenerator] No workers available, clearing assignments');
       setWorkerAssignments([]);
       return;
     }
@@ -138,7 +121,6 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       count: baseCount + (index === workers.length - 1 ? remainder : 0)
     }));
 
-    console.log('[BulkBarcodeGenerator] Created worker assignments:', JSON.stringify(assignments, null, 2));
     setWorkerAssignments(assignments);
   };
 
@@ -245,30 +227,13 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       }
 
       // Save worker assignments to Supabase if any
-      console.log('[BulkBarcodeGenerator] About to save assignments:', {
-        assignmentsCount: assignments.length,
-        assignments: assignments,
-        workerAssignmentsState: workerAssignments,
-        workersCount: workers.length
-      });
-
       if (assignments.length > 0) {
         try {
-          console.log('[BulkBarcodeGenerator] Calling saveBarcodeAssignments with:', assignments);
           await saveBarcodeAssignments(assignments);
-          console.log('[BulkBarcodeGenerator] Successfully saved assignments to Supabase');
         } catch (error: any) {
-          console.error('[BulkBarcodeGenerator] ERROR saving barcode assignments:', error);
-          console.error('[BulkBarcodeGenerator] Error details:', JSON.stringify(error, null, 2));
-          console.error('[BulkBarcodeGenerator] Error message:', error?.message);
-          console.error('[BulkBarcodeGenerator] Error code:', error?.code);
-          // Show alert to user so they know assignments failed
-          alert(`Failed to save worker assignments: ${error?.message || 'Unknown error'}. Check console for details.`);
+          console.error('Error saving barcode assignments:', error);
+          // Don't fail the whole operation if assignments fail
         }
-      } else {
-        console.warn('[BulkBarcodeGenerator] No assignments to save!');
-        console.warn('[BulkBarcodeGenerator] workerAssignments:', workerAssignments);
-        console.warn('[BulkBarcodeGenerator] workers:', workers.map(w => w.name));
       }
 
       // Trigger refresh AFTER assignments are saved
