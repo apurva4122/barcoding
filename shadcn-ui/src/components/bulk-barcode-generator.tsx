@@ -175,6 +175,14 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       let codeIndex = 0;
       const assignments: { barcode_code: string, worker_name: string }[] = [];
 
+      // Debug: Check worker assignments state
+      console.log('[BulkBarcodeGenerator] Worker assignments state:', {
+        workerAssignmentsLength: workerAssignments.length,
+        workerAssignments: workerAssignments,
+        workersLength: workers.length,
+        workers: workers.map(w => w.name)
+      });
+
       // Generate QR codes with worker assignments
       const printableCodes: PrintableQrCode[] = [];
       const barcodesToSave: Barcode[] = [];
@@ -227,13 +235,30 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       }
 
       // Save worker assignments to Supabase if any
+      console.log('[BulkBarcodeGenerator] Final assignments array before save:', {
+        assignmentsLength: assignments.length,
+        assignments: assignments,
+        sampleAssignment: assignments[0],
+        allBarcodeCodes: assignments.map(a => a.barcode_code),
+        allWorkerNames: assignments.map(a => a.worker_name)
+      });
+
       if (assignments.length > 0) {
         try {
+          console.log('[BulkBarcodeGenerator] Calling saveBarcodeAssignments with', assignments.length, 'assignments');
           await saveBarcodeAssignments(assignments);
+          console.log('[BulkBarcodeGenerator] Successfully saved assignments');
         } catch (error: any) {
-          console.error('Error saving barcode assignments:', error);
+          console.error('[BulkBarcodeGenerator] ERROR saving barcode assignments:', error);
+          console.error('[BulkBarcodeGenerator] Error details:', JSON.stringify(error, null, 2));
           // Don't fail the whole operation if assignments fail
         }
+      } else {
+        console.warn('[BulkBarcodeGenerator] WARNING: No assignments to save!', {
+          workerAssignmentsLength: workerAssignments.length,
+          workerAssignments: workerAssignments,
+          codesGenerated: codes.length
+        });
       }
 
       // Trigger refresh AFTER assignments are saved
