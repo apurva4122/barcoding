@@ -145,36 +145,22 @@ export const getWorkerForBarcode = async (barcodeCode: string): Promise<string |
   const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
   try {
-    // Use .limit(1) instead of .single() to avoid errors when no record found
     const { data, error } = await supabase
       .from('app_070c516bb6_barcode_assignments')
       .select('worker_name')
       .eq('barcode_code', barcodeCode)
       .eq('user_id', FIXED_USER_ID)
-      .limit(1)
+      .single()
 
     if (error) {
-      console.log('[getWorkerForBarcode] Error fetching assignment:', error.code, error.message);
-      // If table doesn't exist or CORS error, return null
-      if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS') || error.code === '42P01') {
-        console.log('[getWorkerForBarcode] Table not accessible, returning null');
+      // PGRST116 = no rows returned, which is normal if barcode has no assignment
+      if (error.code === 'PGRST116') {
         return null
       }
       return null
     }
-
-    // data is an array with .limit(1), get the first item if it exists
-    const workerName = data && data.length > 0 ? data[0].worker_name : null;
-    if (workerName) {
-      console.log('[getWorkerForBarcode] Found worker:', workerName);
-    }
-    return workerName
+    return data?.worker_name || null
   } catch (error: any) {
-    console.error('[getWorkerForBarcode] Exception caught:', error);
-    // Catch CORS and network errors
-    if (error?.message?.includes('Failed to fetch') || error?.message?.includes('CORS') || error?.name === 'TypeError') {
-      return null
-    }
     return null
   }
 }
