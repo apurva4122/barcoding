@@ -538,16 +538,16 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="bulk-prefix">Code Prefix *</Label>
-                  <Input
-                    id="bulk-prefix"
-                    value={bulkForm.prefix}
-                    onChange={(e) => setBulkForm({ ...bulkForm, prefix: e.target.value })}
-                    placeholder="PKG-, BOX-, ITEM-"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Will generate: {bulkForm.prefix}0001, {bulkForm.prefix}0002, etc.
-                  </p>
+                  <Label htmlFor="bulk-prefix">Code Format Info</Label>
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="text-sm font-medium">Date-based sequential codes</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: YYMMDD##### (e.g., {new Date().getFullYear().toString().slice(-2)}{(new Date().getMonth() + 1).toString().padStart(2, '0')}{new Date().getDate().toString().padStart(2, '0')}00001)
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Codes continue from last saved number for today
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
