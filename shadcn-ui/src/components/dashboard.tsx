@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BarChart } from "./dashboard/BarChart";
 import { getAllWorkers, getAllAttendance } from "@/lib/attendance-utils";
 import { Worker, AttendanceRecord, AttendanceStatus } from "@/types";
-import { calculateMonthlySalary, getCurrentMonthYear } from "@/lib/salary-calculator";
+import { calculateMonthlySalary, getCurrentMonthYear, type SalaryCalculationResult } from "@/lib/salary-calculator";
 import { TrendingDown, TrendingUp, DollarSign, Calendar } from "lucide-react";
 
 interface WorkerAbsenteeStats {
@@ -16,7 +16,8 @@ interface WorkerAbsenteeStats {
   presentCount: number;
   halfDayCount: number;
   totalDays: number;
-  salary: number; // Calculated monthly salary
+  salary: number; // Total monthly salary (base + bonus)
+  salaryDetails: SalaryCalculationResult; // Detailed salary breakdown
 }
 
 export function Dashboard() {
@@ -137,7 +138,7 @@ export function Dashboard() {
     // Initialize all workers
     workers.forEach(worker => {
       // Calculate salary for this worker
-      const salary = calculateMonthlySalary(worker, attendanceRecords, month, year);
+      const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, month, year);
 
       statsMap.set(worker.id, {
         workerId: worker.id,
@@ -147,7 +148,8 @@ export function Dashboard() {
         presentCount: 0,
         halfDayCount: 0,
         totalDays: 0,
-        salary: salary
+        salary: salaryDetails.totalSalary,
+        salaryDetails: salaryDetails
       });
     });
 
@@ -199,7 +201,8 @@ export function Dashboard() {
       value: showAbsent ? stat.absentCount : stat.presentCount,
       color: showAbsent ? 'bg-red-500' : 'bg-green-500',
       employeeId: stat.employeeId,
-      salary: stat.salary || 0
+      salary: stat.salary || 0,
+      salaryDetails: stat.salaryDetails
     }));
   };
 
@@ -268,11 +271,19 @@ export function Dashboard() {
                   <div className="space-y-1">
                     {highestChartData.map((item, index) => {
                       const worker = workers.find(w => w.name === item.label);
+                      const stat = top5Highest.find(s => s.workerName === item.label);
+                      const hasBonus = stat?.salaryDetails?.hasBonus || false;
+                      const bonus = stat?.salaryDetails?.bonus || 0;
                       return (
                         <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
                           <span className="font-medium">{item.label}</span>
                           <span className="text-muted-foreground">
                             ₹{item.salary?.toLocaleString() || '0'}
+                            {hasBonus && (
+                              <span className="text-green-600 ml-1">
+                                (+₹{bonus.toLocaleString()} bonus)
+                              </span>
+                            )}
                           </span>
                         </div>
                       );
@@ -323,11 +334,19 @@ export function Dashboard() {
                   <div className="space-y-1">
                     {minimumChartData.map((item, index) => {
                       const worker = workers.find(w => w.name === item.label);
+                      const stat = top5Minimum.find(s => s.workerName === item.label);
+                      const hasBonus = stat?.salaryDetails?.hasBonus || false;
+                      const bonus = stat?.salaryDetails?.bonus || 0;
                       return (
                         <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
                           <span className="font-medium">{item.label}</span>
                           <span className="text-muted-foreground">
                             ₹{item.salary?.toLocaleString() || '0'}
+                            {hasBonus && (
+                              <span className="text-green-600 ml-1">
+                                (+₹{bonus.toLocaleString()} bonus)
+                              </span>
+                            )}
                           </span>
                         </div>
                       );
@@ -399,7 +418,14 @@ export function Dashboard() {
                       <div className="text-sm text-muted-foreground">{stat.employeeId}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-lg">₹{stat.salary.toLocaleString()}</div>
+                      <div className="font-bold text-lg">
+                        ₹{stat.salary.toLocaleString()}
+                        {stat.salaryDetails?.hasBonus && (
+                          <span className="text-green-600 text-sm font-normal ml-1">
+                            (+₹{stat.salaryDetails.bonus.toLocaleString()} bonus)
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {stat.presentCount} present, {stat.absentCount} absent
                       </div>
