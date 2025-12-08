@@ -90,7 +90,7 @@ export function Dashboard() {
 
     // Initialize all workers with last month salary
     workers.forEach(worker => {
-      const salary = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear);
+      const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear);
 
       statsMap.set(worker.id, {
         workerId: worker.id,
@@ -100,7 +100,8 @@ export function Dashboard() {
         presentCount: 0,
         halfDayCount: 0,
         totalDays: 0,
-        salary: salary
+        salary: salaryDetails.totalSalary,
+        salaryDetails: salaryDetails
       });
     });
 
