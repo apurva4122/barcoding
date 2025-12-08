@@ -1213,12 +1213,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         </CardHeader>
         <CardContent>
           {workers.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Gender</TableHead>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee ID</TableHead>
+                    <TableHead className="sticky left-0 z-10 bg-background min-w-[150px]">Name</TableHead>
+                    <TableHead>Gender</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Position</TableHead>
                   <TableHead>Base Salary</TableHead>
@@ -1239,7 +1240,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   return (
                     <TableRow key={worker.id}>
                       <TableCell className="font-mono">{worker.employeeId}</TableCell>
-                      <TableCell className="font-medium">{worker.name}</TableCell>
+                      <TableCell className="font-medium sticky left-0 z-10 bg-background min-w-[150px]">{worker.name}</TableCell>
                       <TableCell>
                         <Badge variant={(worker.gender || Gender.MALE) === Gender.MALE ? "default" : "secondary"}>
                           {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}
@@ -1507,6 +1508,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 })}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
