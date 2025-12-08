@@ -1,6 +1,74 @@
 import { supabase } from './supabase-client';
 import { Worker, AttendanceRecord, AttendanceStatus } from '@/types';
 
+// Settings Management Functions
+
+const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000';
+const SETTINGS_TABLE = 'app_070c516bb6_settings';
+
+/**
+ * Get default overtime setting from Supabase
+ */
+export async function getDefaultOvertimeSetting(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from(SETTINGS_TABLE)
+      .select('value')
+      .eq('user_id', FIXED_USER_ID)
+      .eq('key', 'default_overtime')
+      .single();
+
+    if (error) {
+      // If setting doesn't exist, return false (default)
+      if (error.code === 'PGRST116') {
+        return false;
+      }
+      console.error('Error fetching default overtime setting:', error);
+      return false;
+    }
+
+    return data?.value === true || data?.value === 'true';
+  } catch (error) {
+    console.error('Error in getDefaultOvertimeSetting:', error);
+    return false;
+  }
+}
+
+/**
+ * Save default overtime setting to Supabase
+ */
+export async function saveDefaultOvertimeSetting(value: boolean): Promise<boolean> {
+  try {
+    // Try to update existing setting
+    const { error: updateError } = await supabase
+      .from(SETTINGS_TABLE)
+      .update({ value: value })
+      .eq('user_id', FIXED_USER_ID)
+      .eq('key', 'default_overtime');
+
+    // If update failed (no existing record), insert new one
+    if (updateError) {
+      const { error: insertError } = await supabase
+        .from(SETTINGS_TABLE)
+        .insert({
+          user_id: FIXED_USER_ID,
+          key: 'default_overtime',
+          value: value
+        });
+
+      if (insertError) {
+        console.error('Error saving default overtime setting:', insertError);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in saveDefaultOvertimeSetting:', error);
+    return false;
+  }
+}
+
 // Worker Management Functions
 
 /**

@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Worker, AttendanceRecord, AttendanceStatus, Gender } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
+import { getDefaultOvertimeSetting, saveDefaultOvertimeSetting } from "@/lib/supabase-service";
 import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus, XCircle, CircleDot } from "lucide-react";
 import { toast } from "sonner";
 
@@ -85,16 +86,31 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const [error, setError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   
-  // Default overtime state - load from localStorage or default to false
-  const [defaultOvertime, setDefaultOvertime] = useState<boolean>(() => {
-    const saved = localStorage.getItem('defaultOvertime');
-    return saved === 'true';
-  });
+  // Default overtime state - load from Supabase
+  const [defaultOvertime, setDefaultOvertime] = useState<boolean>(false);
 
   // Load data when component mounts or date changes
   useEffect(() => {
     loadData();
+    loadDefaultOvertimeSetting();
   }, [selectedDate]);
+
+  // Load default overtime setting from Supabase
+  const loadDefaultOvertimeSetting = async () => {
+    try {
+      const setting = await getDefaultOvertimeSetting();
+      setDefaultOvertime(setting);
+      // Also sync to localStorage as fallback
+      localStorage.setItem('defaultOvertime', setting.toString());
+    } catch (error) {
+      console.error('Error loading default overtime setting:', error);
+      // Fallback to localStorage if Supabase fails
+      const saved = localStorage.getItem('defaultOvertime');
+      if (saved !== null) {
+        setDefaultOvertime(saved === 'true');
+      }
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -696,8 +712,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 <Switch
                   id="default-overtime"
                   checked={defaultOvertime}
-                  onCheckedChange={(checked) => {
+                  onCheckedChange={async (checked) => {
                     setDefaultOvertime(checked);
+                    // Save to Supabase
+                    await saveDefaultOvertimeSetting(checked);
+                    // Also save to localStorage as fallback
                     localStorage.setItem('defaultOvertime', checked.toString());
                   }}
                 />
