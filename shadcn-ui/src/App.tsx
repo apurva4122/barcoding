@@ -98,7 +98,6 @@ function App() {
           <TabsContent value="attendance">
             <PasswordProtection sectionName="attendance">
               <AttendanceManagement
-                key={refreshTrigger}
                 onAttendanceUpdate={handleAttendanceUpdated}
               />
             </PasswordProtection>

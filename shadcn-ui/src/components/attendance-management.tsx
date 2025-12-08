@@ -438,7 +438,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       }
 
       await toggleOvertimeForWorker(workerId, selectedDate);
-      
+
       // Update local state instead of full reload
       const updatedRecords = attendanceRecords.map(record => {
         if (record.workerId === workerId && record.date === selectedDate) {
@@ -450,7 +450,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         }
         return record;
       });
-      
+
       // If record doesn't exist, add it
       if (!existingRecord) {
         const worker = workers.find(w => w.id === workerId);
@@ -466,9 +466,14 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           });
         }
       }
-      
+
       setAttendanceRecords(updatedRecords);
       setOvertimeStatus(prev => ({ ...prev, [workerId]: newStatus }));
+      
+      // Only trigger dashboard refresh, don't remount this component
+      if (onAttendanceUpdate) {
+        setTimeout(() => onAttendanceUpdate(), 100);
+      }
 
       // Don't show toast for auto-saves to avoid spam
       // toast.success(`Overtime ${newStatus ? 'enabled' : 'disabled'} for this date and future dates`);
@@ -1383,15 +1388,16 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                     const success = await saveAttendance(updatedRecord);
                                     if (success) {
                                       // Update local state instead of full reload
-                                      const updatedRecords = attendanceRecords.filter(r => 
+                                      const updatedRecords = attendanceRecords.filter(r =>
                                         !(r.workerId === worker.id && r.date === selectedDate)
                                       );
                                       updatedRecords.push(updatedRecord);
                                       setAttendanceRecords(updatedRecords);
-                                      
+
                                       toast.success(`${worker.name} marked as present`);
+                                      // Only trigger dashboard refresh, don't remount this component
                                       if (onAttendanceUpdate) {
-                                        onAttendanceUpdate();
+                                        setTimeout(() => onAttendanceUpdate(), 100);
                                       }
                                     } else {
                                       toast.error("Failed to update attendance");
@@ -1435,15 +1441,16 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                     const success = await saveAttendance(updatedRecord);
                                     if (success) {
                                       // Update local state instead of full reload
-                                      const updatedRecords = attendanceRecords.filter(r => 
+                                      const updatedRecords = attendanceRecords.filter(r =>
                                         !(r.workerId === worker.id && r.date === selectedDate)
                                       );
                                       updatedRecords.push(updatedRecord);
                                       setAttendanceRecords(updatedRecords);
-                                      
+
                                       toast.success(`${worker.name} marked as half day`);
+                                      // Only trigger dashboard refresh, don't remount this component
                                       if (onAttendanceUpdate) {
-                                        onAttendanceUpdate();
+                                        setTimeout(() => onAttendanceUpdate(), 100);
                                       }
                                     } else {
                                       toast.error("Failed to update attendance");
@@ -1487,18 +1494,19 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                     const success = await saveAttendance(updatedRecord);
                                     if (success) {
                                       // Update local state instead of full reload
-                                      const updatedRecords = attendanceRecords.filter(r => 
+                                      const updatedRecords = attendanceRecords.filter(r =>
                                         !(r.workerId === worker.id && r.date === selectedDate)
                                       );
                                       updatedRecords.push(updatedRecord);
                                       setAttendanceRecords(updatedRecords);
-                                      
+
                                       // Also update overtime status since absent means no overtime
                                       setOvertimeStatus(prev => ({ ...prev, [worker.id]: false }));
-                                      
+
                                       toast.success(`${worker.name} marked as absent`);
+                                      // Only trigger dashboard refresh, don't remount this component
                                       if (onAttendanceUpdate) {
-                                        onAttendanceUpdate();
+                                        setTimeout(() => onAttendanceUpdate(), 100);
                                       }
                                     } else {
                                       toast.error("Failed to update attendance");
