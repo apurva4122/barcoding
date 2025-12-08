@@ -47,8 +47,18 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
 
   // Update worker assignments when workers or count changes
   useEffect(() => {
+    console.log('[BulkBarcodeGenerator] useEffect triggered:', {
+      useEqualDistribution,
+      workersLength: workers.length,
+      count
+    });
     if (useEqualDistribution && workers.length > 0) {
+      console.log('[BulkBarcodeGenerator] Calling distributeEqually');
       distributeEqually();
+    } else if (!useEqualDistribution) {
+      console.log('[BulkBarcodeGenerator] Equal distribution disabled, keeping custom assignments');
+    } else if (workers.length === 0) {
+      console.log('[BulkBarcodeGenerator] No workers loaded yet');
     }
   }, [workers, count, useEqualDistribution]);
 
@@ -108,7 +118,14 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   };
 
   const distributeEqually = () => {
+    console.log('[BulkBarcodeGenerator] distributeEqually called with:', {
+      workersCount: workers.length,
+      count,
+      workers: workers.map(w => w.name)
+    });
+
     if (workers.length === 0) {
+      console.warn('[BulkBarcodeGenerator] No workers available, clearing assignments');
       setWorkerAssignments([]);
       return;
     }
@@ -121,6 +138,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       count: baseCount + (index === workers.length - 1 ? remainder : 0)
     }));
 
+    console.log('[BulkBarcodeGenerator] Created worker assignments:', JSON.stringify(assignments, null, 2));
     setWorkerAssignments(assignments);
   };
 
