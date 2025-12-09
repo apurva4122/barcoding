@@ -34,7 +34,6 @@ export function HygieneRecords() {
     const [loading, setLoading] = useState(true);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
-    const videoRef = useState<HTMLVideoElement | null>(null)[0];
     const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
 
     useEffect(() => {
@@ -194,13 +193,6 @@ export function HygieneRecords() {
             } else {
                 toast.error('Failed to save hygiene record');
             }
-        } catch (error) {
-            console.error('Error submitting hygiene record:', error);
-            toast.error('Failed to save hygiene record');
-        } finally {
-            setIsUploading(false);
-        }
-    };
         } catch (error) {
             console.error('Error submitting hygiene record:', error);
             toast.error('Failed to save hygiene record');
