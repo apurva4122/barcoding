@@ -1287,12 +1287,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         </CardHeader>
         <CardContent>
           {workers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="sticky left-0 z-20 bg-background border-r min-w-[120px]">Employee ID</TableHead>
-                    <TableHead className="sticky left-[120px] z-20 bg-background border-r min-w-[150px]">Name</TableHead>
+            <div className="w-full overflow-x-auto">
+              <div className="min-w-[1200px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 z-30 bg-background border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Employee ID</TableHead>
+                      <TableHead className="sticky left-[120px] z-30 bg-background border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Name</TableHead>
                     <TableHead>Gender</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Position</TableHead>
@@ -1314,8 +1315,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
                     return (
                       <TableRow key={worker.id}>
-                        <TableCell className="font-mono sticky left-0 z-10 bg-background border-r min-w-[120px]">{worker.employeeId}</TableCell>
-                        <TableCell className="font-medium sticky left-[120px] z-10 bg-background border-r min-w-[150px]">{worker.name}</TableCell>
+                        <TableCell className="font-mono sticky left-0 z-20 bg-background border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.employeeId}</TableCell>
+                        <TableCell className="font-medium sticky left-[120px] z-20 bg-background border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.name}</TableCell>
                         <TableCell>
                           <Badge variant={(worker.gender || Gender.MALE) === Gender.MALE ? "default" : "secondary"}>
                             {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}
@@ -1637,6 +1638,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   })}
                 </TableBody>
               </Table>
+              </div>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
