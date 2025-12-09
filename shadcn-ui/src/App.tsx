@@ -42,7 +42,7 @@ function App() {
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return (
+  return (
           <PasswordProtection sectionName="dashboard">
             <Dashboard key={refreshTrigger} />
           </PasswordProtection>
@@ -50,9 +50,9 @@ function App() {
       case "generator":
         return (
           <PasswordProtection sectionName="generator">
-            <BarcodeGenerator
+            <BarcodeGenerator 
               key={refreshTrigger}
-              onBarcodesGenerated={handleBarcodesUpdated}
+              onBarcodesGenerated={handleBarcodesUpdated} 
             />
           </PasswordProtection>
         )
@@ -61,28 +61,28 @@ function App() {
           <PasswordProtection sectionName="list">
             <div className="space-y-6">
               <ListsDashboard key={refreshTrigger} />
-              <BarcodeList
+              <BarcodeList 
                 key={refreshTrigger}
-                onBarcodeUpdated={handleBarcodesUpdated}
+                onBarcodeUpdated={handleBarcodesUpdated} 
               />
             </div>
           </PasswordProtection>
         )
       case "scanner":
         return (
-          <div className="space-y-6">
-            <DualStatusScanner
-              key={refreshTrigger}
-              onBarcodesUpdated={handleBarcodesUpdated}
-            />
-            <ScanOnlyDashboard key={refreshTrigger} />
-          </div>
+            <div className="space-y-6">
+              <DualStatusScanner 
+                key={refreshTrigger}
+                onBarcodesUpdated={handleBarcodesUpdated} 
+              />
+              <ScanOnlyDashboard key={refreshTrigger} />
+            </div>
         )
       case "attendance":
         return (
           <PasswordProtection sectionName="attendance">
-            <AttendanceManagement
-              onAttendanceUpdate={handleAttendanceUpdated}
+            <AttendanceManagement 
+              onAttendanceUpdate={handleAttendanceUpdated} 
             />
           </PasswordProtection>
         )
@@ -106,13 +106,16 @@ function App() {
   return (
     <SidebarProvider>
       <div className="min-h-screen bg-background flex w-full">
-        <Sidebar>
+        <Sidebar collapsible="icon">
           <SidebarHeader className="border-b border-sidebar-border">
-            <div className="p-4">
-              <h1 className="text-xl font-bold tracking-tight">KETAKI COMPLIANCE</h1>
-              <p className="text-xs text-muted-foreground mt-1">
-                QR codes, attendance & analytics
-              </p>
+            <div className="flex items-center gap-2 p-4">
+              <SidebarTrigger />
+              <div className="flex-1">
+                <h1 className="text-xl font-bold tracking-tight group-data-[collapsible=icon]:hidden">KETAKI COMPLIANCE</h1>
+                <p className="text-xs text-muted-foreground mt-1 group-data-[collapsible=icon]:hidden">
+                  QR codes, attendance & analytics
+                </p>
+              </div>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -197,7 +200,7 @@ function App() {
         </Sidebar>
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
+            <SidebarTrigger />
             <div className="flex-1">
               <h2 className="text-lg font-semibold">
                 {activeTab === "dashboard" && "Dashboard"}
