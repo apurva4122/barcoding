@@ -102,7 +102,7 @@ function App() {
         <Sidebar>
           <SidebarHeader className="border-b border-sidebar-border">
             <div className="p-4">
-              <h1 className="text-xl font-bold tracking-tight">Package Management</h1>
+              <h1 className="text-xl font-bold tracking-tight">KETAKI COMPLIANCE</h1>
               <p className="text-xs text-muted-foreground mt-1">
                 QR codes, attendance & analytics
               </p>

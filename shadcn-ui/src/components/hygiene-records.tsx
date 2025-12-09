@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { getAllWorkers } from "@/lib/attendance-utils";
 import { getAllHygieneRecords, getHygieneRecordsByDate, saveHygieneRecord, uploadHygienePhoto } from "@/lib/hygiene-storage";
 import { Worker, HygieneRecord, HygieneArea } from "@/types";
-import { Camera, Upload, CheckCircle2, XCircle, Calendar } from "lucide-react";
+import { Camera, Upload, CheckCircle2, XCircle, Calendar, X } from "lucide-react";
 import { toast } from "sonner";
 
 const HYGIENE_AREAS = [
@@ -32,6 +32,10 @@ export function HygieneRecords() {
     const [isUploading, setIsUploading] = useState(false);
     const [records, setRecords] = useState<HygieneRecord[]>([]);
     const [loading, setLoading] = useState(true);
+    const [stream, setStream] = useState<MediaStream | null>(null);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const videoRef = useState<HTMLVideoElement | null>(null)[0];
+    const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
 
     useEffect(() => {
         loadWorkers();
@@ -41,6 +45,15 @@ export function HygieneRecords() {
     useEffect(() => {
         loadRecords();
     }, [selectedDate]);
+
+    // Cleanup camera stream on unmount
+    useEffect(() => {
+        return () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [stream]);
 
     const loadWorkers = async () => {
         try {
@@ -70,24 +83,67 @@ export function HygieneRecords() {
         }
     };
 
-    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                toast.error('Photo size must be less than 5MB');
-                return;
+    const startCamera = async () => {
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' } // Use back camera on mobile
+            });
+            setStream(mediaStream);
+            setIsCameraOpen(true);
+            
+            // Set video stream once element is available
+            if (videoElement) {
+                videoElement.srcObject = mediaStream;
+                videoElement.play();
             }
-            if (!file.type.startsWith('image/')) {
-                toast.error('Please select an image file');
-                return;
-            }
-            setPhotoFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPhotoPreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            toast.error('Failed to access camera. Please allow camera permissions.');
         }
+    };
+
+    const stopCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+        setIsCameraOpen(false);
+        if (videoElement) {
+            videoElement.srcObject = null;
+        }
+    };
+
+    const capturePhoto = () => {
+        if (!videoElement) {
+            toast.error('Camera not ready');
+            return;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+            ctx.drawImage(videoElement, 0, 0);
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    // Convert blob to File
+                    const file = new File([blob], `hygiene-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+                    setPhotoFile(file);
+                    setPhotoPreview(canvas.toDataURL('image/jpeg'));
+                    stopCamera();
+                    toast.success('Photo captured successfully');
+                } else {
+                    toast.error('Failed to capture photo');
+                }
+            }, 'image/jpeg', 0.9);
+        }
+    };
+
+    const clearPhoto = () => {
+        setPhotoFile(null);
+        setPhotoPreview(null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -138,6 +194,13 @@ export function HygieneRecords() {
             } else {
                 toast.error('Failed to save hygiene record');
             }
+        } catch (error) {
+            console.error('Error submitting hygiene record:', error);
+            toast.error('Failed to save hygiene record');
+        } finally {
+            setIsUploading(false);
+        }
+    };
         } catch (error) {
             console.error('Error submitting hygiene record:', error);
             toast.error('Failed to save hygiene record');
@@ -229,12 +292,12 @@ export function HygieneRecords() {
                 </CardContent>
             </Card>
 
-            {/* Upload Form */}
+            {/* Capture Form */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Upload Hygiene Record</CardTitle>
+                    <CardTitle>Capture Hygiene Record</CardTitle>
                     <CardDescription>
-                        Select a cleaner, area, and upload a photo
+                        Select a cleaner, area, and capture a photo
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -272,28 +335,92 @@ export function HygieneRecords() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="photo">Photo *</Label>
-                            <div className="flex items-center gap-4">
-                                <Input
-                                    id="photo"
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handlePhotoChange}
-                                    className="max-w-xs"
-                                />
-                                {photoPreview && (
-                                    <div className="relative">
-                                        <img
-                                            src={photoPreview}
-                                            alt="Preview"
-                                            className="w-32 h-32 object-cover rounded-lg border"
+                            <Label>Photo *</Label>
+                            {!isCameraOpen && !photoPreview && (
+                                <div className="space-y-2">
+                                    <Button
+                                        type="button"
+                                        onClick={startCamera}
+                                        variant="outline"
+                                        className="w-full"
+                                    >
+                                        <Camera className="h-4 w-4 mr-2" />
+                                        Open Camera
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground">
+                                        Click to open camera and capture a photo
+                                    </p>
+                                </div>
+                            )}
+
+                            {isCameraOpen && (
+                                <div className="space-y-2">
+                                    <div className="relative border rounded-lg overflow-hidden bg-black">
+                                        <video
+                                            ref={(el) => {
+                                                if (el) {
+                                                    setVideoElement(el);
+                                                    if (stream) {
+                                                        el.srcObject = stream;
+                                                        el.play();
+                                                    }
+                                                }
+                                            }}
+                                            autoPlay
+                                            playsInline
+                                            className="w-full max-w-md mx-auto"
+                                            style={{ maxHeight: '400px', objectFit: 'contain' }}
                                         />
                                     </div>
-                                )}
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                Maximum file size: 5MB. Supported formats: JPG, PNG, WebP
-                            </p>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            onClick={capturePhoto}
+                                            className="flex-1"
+                                        >
+                                            <Camera className="h-4 w-4 mr-2" />
+                                            Capture Photo
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            onClick={stopCamera}
+                                            variant="outline"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {photoPreview && !isCameraOpen && (
+                                <div className="space-y-2">
+                                    <div className="relative inline-block">
+                                        <img
+                                            src={photoPreview}
+                                            alt="Captured photo"
+                                            className="w-full max-w-md rounded-lg border"
+                                        />
+                                        <Button
+                                            type="button"
+                                            onClick={clearPhoto}
+                                            variant="destructive"
+                                            size="sm"
+                                            className="absolute top-2 right-2"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        onClick={startCamera}
+                                        variant="outline"
+                                        className="w-full"
+                                    >
+                                        <Camera className="h-4 w-4 mr-2" />
+                                        Retake Photo
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -314,8 +441,8 @@ export function HygieneRecords() {
                                 </>
                             ) : (
                                 <>
-                                    <Camera className="h-4 w-4 mr-2" />
-                                    Upload Record
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Save Record
                                 </>
                             )}
                         </Button>
