@@ -7,9 +7,10 @@ import { Dashboard } from '@/components/dashboard'
 import { ScanOnlyDashboard } from '@/components/dashboard/ScanOnlyDashboard'
 import { ListsDashboard } from '@/components/dashboard/ListsDashboard'
 import { HygieneRecords } from '@/components/hygiene-records'
+import { LabTests } from '@/components/lab-tests'
 import { PasswordProtection } from '@/components/PasswordProtection'
 import { Toaster } from "@/components/ui/sonner"
-import { Package, QrCode, ScanLine, Users, BarChart3, Sparkles } from 'lucide-react'
+import { Package, QrCode, ScanLine, Users, BarChart3, Sparkles, TestTube } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -89,6 +90,12 @@ function App() {
         return (
           <PasswordProtection sectionName="hygiene">
             <HygieneRecords key={refreshTrigger} />
+          </PasswordProtection>
+        )
+      case "lab-tests":
+        return (
+          <PasswordProtection sectionName="lab-tests">
+            <LabTests key={refreshTrigger} />
           </PasswordProtection>
         )
       default:
@@ -173,6 +180,16 @@ function App() {
                       <span>Hygiene Records</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setActiveTab("lab-tests")}
+                      isActive={activeTab === "lab-tests"}
+                      tooltip="Lab Tests"
+                    >
+                      <TestTube className="h-4 w-4" />
+                      <span>Lab Tests</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -189,6 +206,7 @@ function App() {
                 {activeTab === "scanner" && "Scanner"}
                 {activeTab === "attendance" && "Attendance Management"}
                 {activeTab === "hygiene" && "Hygiene Records"}
+                {activeTab === "lab-tests" && "Lab Tests"}
               </h2>
             </div>
           </header>

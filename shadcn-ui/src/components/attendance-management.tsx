@@ -1291,8 +1291,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Employee ID</TableHead>
-                    <TableHead className="sticky left-0 z-10 bg-background min-w-[150px]">Name</TableHead>
+                    <TableHead className="sticky left-0 z-20 bg-background border-r min-w-[120px]">Employee ID</TableHead>
+                    <TableHead className="sticky left-[120px] z-20 bg-background border-r min-w-[150px]">Name</TableHead>
                     <TableHead>Gender</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Position</TableHead>
@@ -1314,8 +1314,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
                     return (
                       <TableRow key={worker.id}>
-                        <TableCell className="font-mono">{worker.employeeId}</TableCell>
-                        <TableCell className="font-medium sticky left-0 z-10 bg-background min-w-[150px]">{worker.name}</TableCell>
+                        <TableCell className="font-mono sticky left-0 z-10 bg-background border-r min-w-[120px]">{worker.employeeId}</TableCell>
+                        <TableCell className="font-medium sticky left-[120px] z-10 bg-background border-r min-w-[150px]">{worker.name}</TableCell>
                         <TableCell>
                           <Badge variant={(worker.gender || Gender.MALE) === Gender.MALE ? "default" : "secondary"}>
                             {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}

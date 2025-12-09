@@ -61,6 +61,33 @@ export enum HygieneArea {
   OFFICE_AREA = "office_area"
 }
 
+export interface LabTestRecord {
+  id: string;
+  testType: LabTestType;
+  category: LabTestCategory;
+  productName: string;
+  month: string; // YYYY-MM format
+  fileUrl: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export enum LabTestType {
+  FINISHED_GOOD = "finished_good",
+  RAW_MATERIAL = "raw_material"
+}
+
+export enum LabTestCategory {
+  // Finished Goods
+  TAMARIND_JELLY = "tamarind_jelly",
+  MANGO_JELLY = "mango_jelly",
+  POPSICLES = "popsicles",
+  // Raw Materials
+  WATER = "water",
+  SUGAR = "sugar",
+  TAMARIND = "tamarind"
+}
+
 export interface AttendanceRecord {
   id: string;
   workerId: string;

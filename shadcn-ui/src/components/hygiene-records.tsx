@@ -89,7 +89,7 @@ export function HygieneRecords() {
             });
             setStream(mediaStream);
             setIsCameraOpen(true);
-            
+
             // Set video stream once element is available
             if (videoElement) {
                 videoElement.srcObject = mediaStream;
@@ -122,7 +122,7 @@ export function HygieneRecords() {
         canvas.width = videoElement.videoWidth;
         canvas.height = videoElement.videoHeight;
         const ctx = canvas.getContext('2d');
-        
+
         if (ctx) {
             ctx.drawImage(videoElement, 0, 0);
             canvas.toBlob((blob) => {
