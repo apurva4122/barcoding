@@ -141,7 +141,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
   const handleGenerateBulk = async () => {
     console.log('[BulkBarcodeGenerator] ===== handleGenerateBulk STARTED =====');
     console.log('[BulkBarcodeGenerator] Input values:', { count, prefix, description });
-    
+
     if (count <= 0 || count > 100) {
       setError("Please enter a number between 1 and 100");
       return;
@@ -238,7 +238,7 @@ export function BulkBarcodeGenerator({ onBarcodeCreated }: { onBarcodeCreated: (
       // Save barcodes to storage
       console.log('[BulkBarcodeGenerator] ===== SAVING BARCODES =====');
       console.log('[BulkBarcodeGenerator] Barcodes to save:', barcodesToSave.length);
-      
+
       if (barcodesToSave.length > 0) {
         await saveBarcodes(barcodesToSave);
         console.log('[BulkBarcodeGenerator] Barcodes saved successfully');

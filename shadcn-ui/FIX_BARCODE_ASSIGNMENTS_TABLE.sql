@@ -52,3 +52,4 @@ USING (true);
 -- WHERE table_name = 'app_070c516bb6_barcode_assignments' 
 -- ORDER BY ordinal_position;
 
+

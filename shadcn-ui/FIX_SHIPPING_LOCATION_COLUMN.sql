@@ -23,3 +23,4 @@ ON app_070c516bb6_qr_codes(shipping_location);
 -- since they allow full access to the table. If you encounter permission issues,
 -- you may need to refresh the RLS policies.
 
+

@@ -84,7 +84,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
     const todayBarcodes = existingBarcodes.filter(barcode =>
       barcode.code.startsWith(dateStr)
     );
-    
+
     // Find the highest serial number for today
     let maxSerial = 0;
     todayBarcodes.forEach(barcode => {
@@ -98,7 +98,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
     // Increment for next barcode
     const nextSerial = maxSerial + 1;
     const serialStr = nextSerial.toString().padStart(5, '0');
-    
+
     return `${dateStr}${serialStr}`;
   };
 
@@ -121,7 +121,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
     try {
       // Generate date-based barcode code
       const code = await generateBarcodeCode();
-      
+
       const newBarcode: Barcode = {
         id: `barcode-${Date.now()}`,
         code: code,
@@ -132,7 +132,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
       };
 
       await saveBarcode(newBarcode);
-      
+
       // Save assignment to barcode_assignments table if worker is assigned
       if (newBarcode.assignedWorker) {
         try {
@@ -235,7 +235,7 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
       const todayBarcodes = existingBarcodes.filter(barcode =>
         barcode.code.startsWith(dateStr)
       );
-      
+
       // Find the highest serial number for today
       let maxSerial = 0;
       todayBarcodes.forEach(barcode => {
@@ -254,16 +254,16 @@ export function BarcodeGenerator({ onBarcodeGenerated }: BarcodeGeneratorProps) 
       for (let batch = 0; batch < totalBatches; batch++) {
         const batchStart = batch * batchSize;
         const batchEnd = Math.min(batchStart + batchSize, bulkForm.quantity);
-        
+
         const batchPromises = [];
-        
+
         for (let i = batchStart; i < batchEnd; i++) {
           // Increment serial number for each barcode
           currentSerial += 1;
           const serialStr = currentSerial.toString().padStart(5, '0');
           const code = `${dateStr}${serialStr}`;
-          
-          const description = bulkForm.baseDescription.trim() 
+
+          const description = bulkForm.baseDescription.trim()
             ? `${bulkForm.baseDescription.trim()} #${serialStr}`
             : `Package ${code}`;
 

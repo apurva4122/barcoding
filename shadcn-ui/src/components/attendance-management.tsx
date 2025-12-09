@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Worker, AttendanceRecord, AttendanceStatus, Gender } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
-import { getDefaultOvertimeSetting, saveDefaultOvertimeSetting } from "@/lib/supabase-service";
+import { getWorkerDefaultOvertimeSetting, saveWorkerDefaultOvertimeSetting, getAllWorkerDefaultOvertimeSettings } from "@/lib/supabase-service";
 import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus, XCircle, CircleDot } from "lucide-react";
 import { toast } from "sonner";
 
@@ -85,30 +85,23 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
   const [error, setError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  
-  // Default overtime state - load from Supabase
-  const [defaultOvertime, setDefaultOvertime] = useState<boolean>(false);
+
+  // Individual worker default overtime settings - load from Supabase
+  const [workerDefaultOvertime, setWorkerDefaultOvertime] = useState<Record<string, boolean>>({});
 
   // Load data when component mounts or date changes
   useEffect(() => {
     loadData();
-    loadDefaultOvertimeSetting();
+    loadWorkerDefaultOvertimeSettings();
   }, [selectedDate]);
 
-  // Load default overtime setting from Supabase
-  const loadDefaultOvertimeSetting = async () => {
+  // Load all worker default overtime settings from Supabase
+  const loadWorkerDefaultOvertimeSettings = async () => {
     try {
-      const setting = await getDefaultOvertimeSetting();
-      setDefaultOvertime(setting);
-      // Also sync to localStorage as fallback
-      localStorage.setItem('defaultOvertime', setting.toString());
+      const settings = await getAllWorkerDefaultOvertimeSettings();
+      setWorkerDefaultOvertime(settings);
     } catch (error) {
-      console.error('Error loading default overtime setting:', error);
-      // Fallback to localStorage if Supabase fails
-      const saved = localStorage.getItem('defaultOvertime');
-      if (saved !== null) {
-        setDefaultOvertime(saved === 'true');
-      }
+      console.error('Error loading worker default overtime settings:', error);
     }
   };
 
@@ -270,6 +263,34 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     }
   };
 
+  // Mark worker as inactive
+  const handleMarkInactive = async (worker: Worker) => {
+    setFormLoading(true);
+    try {
+      const updatedWorker: Worker = {
+        ...worker,
+        isActive: false
+      };
+
+      const success = await saveWorker(updatedWorker);
+
+      if (success) {
+        await loadData(); // Refresh data
+        toast.success(`Worker ${worker.name} marked as inactive`);
+        if (onAttendanceUpdate) {
+          onAttendanceUpdate();
+        }
+      } else {
+        toast.error("Failed to mark worker as inactive");
+      }
+    } catch (error) {
+      console.error("Error marking worker as inactive:", error);
+      toast.error("Failed to mark worker as inactive");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
   // Mark all workers as present for selected date
   const markAllPresent = async () => {
     if (workers.length === 0) {
@@ -289,21 +310,23 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             r => r.workerId === worker.id && r.date === selectedDate
           );
 
-          // Use default overtime state for new records, or keep existing overtime status
-          const overtimeStatus = existingRecord?.overtime || (defaultOvertime ? 'yes' : 'no');
+          // Use worker's individual default overtime setting for new records, or keep existing overtime status
+          const workerDefaultOT = workerDefaultOvertime[worker.id] || false;
+          const overtimeStatus = existingRecord?.overtime || (workerDefaultOT ? 'yes' : 'no');
 
           let newRecord: AttendanceRecord;
 
           if (existingRecord) {
-            // Update existing record to present, use default overtime if not already set
+            // Update existing record to present, use worker's default overtime if not already set
+            const workerDefaultOT = workerDefaultOvertime[worker.id] || false;
             newRecord = {
               ...existingRecord,
               status: AttendanceStatus.PRESENT,
-              overtime: existingRecord.overtime || (defaultOvertime ? 'yes' : 'no'),
+              overtime: existingRecord.overtime || (workerDefaultOT ? 'yes' : 'no'),
               updatedAt: new Date().toISOString()
             };
           } else {
-            // Create new record with default overtime
+            // Create new record with worker's default overtime
             newRecord = {
               id: `attendance-${Date.now()}-${worker.id}`,
               workerId: worker.id,
@@ -698,27 +721,6 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="w-full"
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="space-y-0.5">
-                  <Label htmlFor="default-overtime" className="text-sm font-medium">
-                    Default Overtime
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Apply overtime by default when marking present
-                  </p>
-                </div>
-                <Switch
-                  id="default-overtime"
-                  checked={defaultOvertime}
-                  onCheckedChange={async (checked) => {
-                    setDefaultOvertime(checked);
-                    // Save to Supabase
-                    await saveDefaultOvertimeSetting(checked);
-                    // Also save to localStorage as fallback
-                    localStorage.setItem('defaultOvertime', checked.toString());
-                  }}
                 />
               </div>
               <Button
@@ -1299,6 +1301,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     <TableHead>Adv. Last Mo</TableHead>
                     <TableHead>Adv. Deduct</TableHead>
                     <TableHead>Packer</TableHead>
+                    <TableHead>Default OT</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Overtime</TableHead>
                     <TableHead>Actions</TableHead>
@@ -1391,6 +1394,24 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                           </div>
                         </TableCell>
                         <TableCell>
+                          <Switch
+                            checked={workerDefaultOvertime[worker.id] || false}
+                            onCheckedChange={async (checked) => {
+                              try {
+                                await saveWorkerDefaultOvertimeSetting(worker.id, checked);
+                                setWorkerDefaultOvertime(prev => ({
+                                  ...prev,
+                                  [worker.id]: checked
+                                }));
+                                toast.success(`Default overtime ${checked ? 'enabled' : 'disabled'} for ${worker.name}`);
+                              } catch (error) {
+                                console.error('Error saving worker default overtime:', error);
+                                toast.error('Failed to save default overtime setting');
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
                           <div className="flex items-center gap-1 flex-wrap">
                             <Badge
                               variant={
@@ -1423,7 +1444,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                         createdAt: new Date().toISOString()
                                       }),
                                       status: AttendanceStatus.PRESENT,
-                                      overtime: existingRecord?.overtime || (defaultOvertime ? 'yes' : 'no'),
+                                      overtime: existingRecord?.overtime || (workerDefaultOvertime[worker.id] ? 'yes' : 'no'),
                                       updatedAt: new Date().toISOString()
                                     };
 

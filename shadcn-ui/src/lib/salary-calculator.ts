@@ -98,12 +98,12 @@ function calculateMaleSalary(
   year: number
 ): SalaryCalculationResult {
   const monthlySalary = worker.baseSalary || 0;
-  
+
   // Calculate working days in the month (excluding Tuesdays)
   const totalDays = new Date(year, month + 1, 0).getDate();
   let workingDays = 0;
   let tuesdays = 0;
-  
+
   for (let day = 1; day <= totalDays; day++) {
     const date = new Date(year, month, day);
     const dayOfWeek = date.getDay();
@@ -116,7 +116,7 @@ function calculateMaleSalary(
 
   // Daily rate = monthly salary / (working days + tuesdays) since men get paid for Tuesday
   const dailyRate = monthlySalary / (workingDays + tuesdays);
-  
+
   // Hourly rate = daily rate / 10 hours
   const hourlyRate = dailyRate / 10;
 
@@ -135,7 +135,7 @@ function calculateMaleSalary(
       presentDays++;
       // Men get paid for Tuesday
       baseSalary += dailyRate;
-      
+
       // Check for overtime
       if (record.overtime === 'yes') {
         overtimeHours += 1; // 1 hour extra
@@ -144,7 +144,7 @@ function calculateMaleSalary(
       halfDays++;
       // Half day = half of daily rate
       baseSalary += dailyRate * 0.5;
-      
+
       // Check for overtime (can still have overtime on half day)
       if (record.overtime === 'yes') {
         overtimeHours += 1;
@@ -186,7 +186,7 @@ function calculateFemaleSalary(
   year: number
 ): SalaryCalculationResult {
   const dailyWage = worker.baseSalary || 0;
-  
+
   // Hourly rate = daily wage / 9 hours
   const hourlyRate = dailyWage / 9;
 
@@ -207,7 +207,7 @@ function calculateFemaleSalary(
 
     if (record.status === AttendanceStatus.PRESENT) {
       baseSalary += dailyWage;
-      
+
       // Check for overtime
       if (record.overtime === 'yes') {
         overtimeHours += 1; // 1 hour extra
@@ -216,7 +216,7 @@ function calculateFemaleSalary(
       halfDays++;
       // Half day = half of daily wage
       baseSalary += dailyWage * 0.5;
-      
+
       // Check for overtime
       if (record.overtime === 'yes') {
         overtimeHours += 1;

@@ -12,6 +12,7 @@ export interface SupabaseWorker {
   department?: string
   position?: string
   is_packer: boolean
+  is_cleaner?: boolean
   created_at: string
   updated_at: string
 }
@@ -38,6 +39,7 @@ function convertToWorker(row: SupabaseWorker): Worker {
     department: row.department || '',
     position: row.position || '',
     isPacker: row.is_packer,
+    isCleaner: row.is_cleaner || false,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -50,7 +52,8 @@ function convertToSupabaseWorkerRow(worker: Worker): Omit<SupabaseWorker, 'id' |
     employee_id: worker.employeeId,
     department: worker.department || '',
     position: worker.position || '',
-    is_packer: worker.isPacker || false
+    is_packer: worker.isPacker || false,
+    is_cleaner: worker.isCleaner || false
   }
 }
 
@@ -85,7 +88,7 @@ function convertToSupabaseAttendanceRow(attendance: AttendanceRecord): Omit<Supa
 export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
   try {
     console.log('🔄 Attempting to save worker to Supabase:', worker);
-    
+
     const rowData = convertToSupabaseWorkerRow(worker);
     console.log('📝 Converted worker data for Supabase:', rowData);
 
@@ -110,7 +113,7 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
 export async function getAllWorkersFromSupabase(): Promise<Worker[]> {
   try {
     //console.log('🔄 Fetching all workers from Supabase...');
-    
+
     const { data, error } = await supabase
       .from(WORKERS_TABLE)
       .select('*')
@@ -132,7 +135,7 @@ export async function getAllWorkersFromSupabase(): Promise<Worker[]> {
 export async function deleteWorkerFromSupabase(workerId: string): Promise<boolean> {
   try {
     console.log('🔄 Deleting worker from Supabase:', workerId);
-    
+
     const { error } = await supabase
       .from(WORKERS_TABLE)
       .delete()
@@ -154,7 +157,7 @@ export async function deleteWorkerFromSupabase(workerId: string): Promise<boolea
 export async function updateWorkerInSupabase(worker: Worker): Promise<boolean> {
   try {
     console.log('🔄 Updating worker in Supabase:', worker);
-    
+
     const updatePayload: Partial<SupabaseWorker> = {
       name: worker.name,
       employee_id: worker.employeeId,
@@ -187,7 +190,7 @@ export async function updateWorkerInSupabase(worker: Worker): Promise<boolean> {
 export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worker | null> {
   try {
     console.log('🔄 Fetching worker by ID from Supabase:', workerId);
-    
+
     const { data, error } = await supabase
       .from(WORKERS_TABLE)
       .select('*')
@@ -215,13 +218,13 @@ export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worke
 export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Promise<boolean> {
   try {
     console.log('🔄 Attempting to save attendance to Supabase:', attendance);
-    
+
     const rowData = convertToSupabaseAttendanceRow(attendance);
     console.log('📝 Converted attendance data for Supabase:', rowData);
 
     const { data, error } = await supabase
       .from(ATTENDANCE_TABLE)
-      .upsert([rowData], { 
+      .upsert([rowData], {
         onConflict: 'worker_id,date',
         ignoreDuplicates: false
       })
@@ -243,7 +246,7 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
 export async function getAllAttendanceFromSupabase(): Promise<AttendanceRecord[]> {
   try {
     //console.log('🔄 Fetching all attendance from Supabase...');
-    
+
     // Get attendance records from last 30 days for performance
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -272,7 +275,7 @@ export async function getAllAttendanceFromSupabase(): Promise<AttendanceRecord[]
 export async function updateAttendanceInSupabase(attendance: AttendanceRecord): Promise<boolean> {
   try {
     console.log('🔄 Updating attendance in Supabase:', attendance);
-    
+
     const updatePayload: Partial<SupabaseAttendance> = {
       status: attendance.status,
       overtime: attendance.overtime || '',
@@ -303,7 +306,7 @@ export async function updateAttendanceInSupabase(attendance: AttendanceRecord): 
 export async function getAttendanceByDateFromSupabase(date: string): Promise<AttendanceRecord[]> {
   try {
     console.log('🔄 Fetching attendance by date from Supabase:', date);
-    
+
     const { data, error } = await supabase
       .from(ATTENDANCE_TABLE)
       .select('*')
@@ -327,7 +330,7 @@ export async function getAttendanceByDateFromSupabase(date: string): Promise<Att
 export async function getPresentPackersFromSupabase(date: string): Promise<Worker[]> {
   try {
     console.log('🔄 Fetching present packers from Supabase for date:', date);
-    
+
     // Get attendance records for the date where status is 'present' and worker is a packer
     const { data: attendanceData, error: attendanceError } = await supabase
       .from(ATTENDANCE_TABLE)
@@ -383,7 +386,7 @@ export async function setupWorkersTables(): Promise<boolean> {
   try {
     // This would typically be done via Supabase dashboard or migration scripts
     // Including here for reference of the expected table structure
-    
+
     const workersTableSQL = `
       CREATE TABLE IF NOT EXISTS ${WORKERS_TABLE} (
         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -438,7 +441,7 @@ export async function setupWorkersTables(): Promise<boolean> {
     console.log('📋 Table setup SQL generated. Please run these in Supabase SQL editor:');
     console.log('Workers Table SQL:', workersTableSQL);
     console.log('Attendance Table SQL:', attendanceTableSQL);
-    
+
     return true;
   } catch (error) {
     console.error('Error setting up tables:', error);

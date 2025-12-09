@@ -31,3 +31,4 @@ DELETE FROM app_070c516bb6_barcode_assignments WHERE barcode_code = 'TEST_CODE_1
 -- If any of these queries fail, the table or policies may need to be set up correctly
 -- Run FIX_BARCODE_ASSIGNMENTS_TABLE.sql to fix the issue
 
+

@@ -32,6 +32,7 @@ export interface Worker {
   department?: string;
   position?: string;
   isPacker: boolean; // New field to designate if worker is a packer
+  isCleaner?: boolean; // New field to designate if worker is a cleaner
   gender: Gender; // Male or Female
   baseSalary?: number; // Daily wage for women, monthly salary for men
   advanceCurrentMonth?: number; // Advance payment for current month
@@ -39,6 +40,25 @@ export interface Worker {
   advanceDeduction?: number; // Deduction for advance payment from salary
   isActive?: boolean; // Whether worker is still active (not left company). Defaults to true
   createdAt: string;
+}
+
+export interface HygieneRecord {
+  id: string;
+  workerId: string;
+  workerName: string;
+  date: string; // YYYY-MM-DD format
+  area: HygieneArea;
+  photoUrl: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export enum HygieneArea {
+  TOILETS = "toilets",
+  STORAGE_AREA = "storage_area",
+  PACKAGING_AREA = "packaging_area",
+  PROCESSING_AREA = "processing_area",
+  OFFICE_AREA = "office_area"
 }
 
 export interface AttendanceRecord {

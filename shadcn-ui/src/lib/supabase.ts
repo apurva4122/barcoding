@@ -107,7 +107,7 @@ export const saveBarcodeAssignments = async (assignments: { barcode_code: string
   // Delete existing assignments for these barcodes
   const barcodeCodes = assignments.map(a => a.barcode_code)
   console.log('[saveBarcodeAssignments] Deleting existing assignments for codes:', barcodeCodes);
-  
+
   const { error: deleteError } = await supabase
     .from('app_070c516bb6_barcode_assignments')
     .delete()

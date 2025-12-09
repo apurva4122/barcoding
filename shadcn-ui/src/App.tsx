@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarcodeGenerator } from '@/components/barcode-generator'
 import { BarcodeList } from '@/components/barcode-list'
 import { DualStatusScanner } from '@/components/dual-status-scanner'
@@ -7,12 +6,28 @@ import { AttendanceManagement } from '@/components/attendance-management'
 import { Dashboard } from '@/components/dashboard'
 import { ScanOnlyDashboard } from '@/components/dashboard/ScanOnlyDashboard'
 import { ListsDashboard } from '@/components/dashboard/ListsDashboard'
+import { HygieneRecords } from '@/components/hygiene-records'
 import { PasswordProtection } from '@/components/PasswordProtection'
 import { Toaster } from "@/components/ui/sonner"
-import { Package, QrCode, ScanLine, Users, BarChart3 } from 'lucide-react'
+import { Package, QrCode, ScanLine, Users, BarChart3, Sparkles } from 'lucide-react'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
 
 function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [activeTab, setActiveTab] = useState("scanner")
 
   const handleBarcodesUpdated = () => {
     setRefreshTrigger(prev => prev + 1)
@@ -23,90 +38,167 @@ function App() {
     setRefreshTrigger(prev => prev + 1)
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Package Management System</h1>
-          <p className="text-muted-foreground">
-            Generate QR codes, track packages, manage attendance, and monitor analytics
-          </p>
-        </div>
-
-        <Tabs defaultValue="scanner" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="generator" className="flex items-center gap-2">
-              <QrCode className="h-4 w-4" />
-              Generator
-            </TabsTrigger>
-            <TabsTrigger value="list" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Package List
-            </TabsTrigger>
-            <TabsTrigger value="scanner" className="flex items-center gap-2">
-              <ScanLine className="h-4 w-4" />
-              Scanner
-            </TabsTrigger>
-            <TabsTrigger value="attendance" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Attendance
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dashboard">
-            <PasswordProtection sectionName="dashboard">
-              <Dashboard key={refreshTrigger} />
-            </PasswordProtection>
-          </TabsContent>
-
-          <TabsContent value="generator">
-            <PasswordProtection sectionName="generator">
-              <BarcodeGenerator
-                key={refreshTrigger}
-                onBarcodesGenerated={handleBarcodesUpdated}
-              />
-            </PasswordProtection>
-          </TabsContent>
-
-          <TabsContent value="list">
-            <PasswordProtection sectionName="list">
-              <div className="space-y-6">
-                <ListsDashboard key={refreshTrigger} />
-                <BarcodeList
-                  key={refreshTrigger}
-                  onBarcodeUpdated={handleBarcodesUpdated}
-                />
-              </div>
-            </PasswordProtection>
-          </TabsContent>
-
-          <TabsContent value="scanner">
-            {/* Scanner section is NOT password protected */}
+  const renderContent = () => {
+    switch (activeTab) {
+      case "dashboard":
+        return (
+          <PasswordProtection sectionName="dashboard">
+            <Dashboard key={refreshTrigger} />
+          </PasswordProtection>
+        )
+      case "generator":
+        return (
+          <PasswordProtection sectionName="generator">
+            <BarcodeGenerator
+              key={refreshTrigger}
+              onBarcodesGenerated={handleBarcodesUpdated}
+            />
+          </PasswordProtection>
+        )
+      case "list":
+        return (
+          <PasswordProtection sectionName="list">
             <div className="space-y-6">
-              <DualStatusScanner
+              <ListsDashboard key={refreshTrigger} />
+              <BarcodeList
                 key={refreshTrigger}
-                onBarcodesUpdated={handleBarcodesUpdated}
+                onBarcodeUpdated={handleBarcodesUpdated}
               />
-              <ScanOnlyDashboard key={refreshTrigger} />
             </div>
-          </TabsContent>
+          </PasswordProtection>
+        )
+      case "scanner":
+        return (
+          <div className="space-y-6">
+            <DualStatusScanner
+              key={refreshTrigger}
+              onBarcodesUpdated={handleBarcodesUpdated}
+            />
+            <ScanOnlyDashboard key={refreshTrigger} />
+          </div>
+        )
+      case "attendance":
+        return (
+          <PasswordProtection sectionName="attendance">
+            <AttendanceManagement
+              onAttendanceUpdate={handleAttendanceUpdated}
+            />
+          </PasswordProtection>
+        )
+      case "hygiene":
+        return (
+          <PasswordProtection sectionName="hygiene">
+            <HygieneRecords key={refreshTrigger} />
+          </PasswordProtection>
+        )
+      default:
+        return null
+    }
+  }
 
-          <TabsContent value="attendance">
-            <PasswordProtection sectionName="attendance">
-              <AttendanceManagement
-                onAttendanceUpdate={handleAttendanceUpdated}
-              />
-            </PasswordProtection>
-          </TabsContent>
-        </Tabs>
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen bg-background flex w-full">
+        <Sidebar>
+          <SidebarHeader className="border-b border-sidebar-border">
+            <div className="p-4">
+              <h1 className="text-xl font-bold tracking-tight">Package Management</h1>
+              <p className="text-xs text-muted-foreground mt-1">
+                QR codes, attendance & analytics
+              </p>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setActiveTab("dashboard")}
+                      isActive={activeTab === "dashboard"}
+                      tooltip="Dashboard"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      <span>Dashboard</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setActiveTab("generator")}
+                      isActive={activeTab === "generator"}
+                      tooltip="Generator"
+                    >
+                      <QrCode className="h-4 w-4" />
+                      <span>Generator</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setActiveTab("list")}
+                      isActive={activeTab === "list"}
+                      tooltip="Package List"
+                    >
+                      <Package className="h-4 w-4" />
+                      <span>Package List</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setActiveTab("scanner")}
+                      isActive={activeTab === "scanner"}
+                      tooltip="Scanner"
+                    >
+                      <ScanLine className="h-4 w-4" />
+                      <span>Scanner</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setActiveTab("attendance")}
+                      isActive={activeTab === "attendance"}
+                      tooltip="Attendance"
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>Attendance</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setActiveTab("hygiene")}
+                      isActive={activeTab === "hygiene"}
+                      tooltip="Hygiene Records"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      <span>Hygiene Records</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold">
+                {activeTab === "dashboard" && "Dashboard"}
+                {activeTab === "generator" && "QR Code Generator"}
+                {activeTab === "list" && "Package List"}
+                {activeTab === "scanner" && "Scanner"}
+                {activeTab === "attendance" && "Attendance Management"}
+                {activeTab === "hygiene" && "Hygiene Records"}
+              </h2>
+            </div>
+          </header>
+          <div className="flex flex-1 flex-col gap-4 p-4 overflow-auto">
+            {renderContent()}
+          </div>
+        </SidebarInset>
       </div>
-
       <Toaster />
-    </div>
+    </SidebarProvider>
   )
 }
 

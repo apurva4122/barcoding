@@ -7,15 +7,15 @@ const FIXED_USER_ID = '00000000-0000-0000-0000-000000000000';
 const SETTINGS_TABLE = 'app_070c516bb6_settings';
 
 /**
- * Get default overtime setting from Supabase
+ * Get default overtime setting for a specific worker from Supabase
  */
-export async function getDefaultOvertimeSetting(): Promise<boolean> {
+export async function getWorkerDefaultOvertimeSetting(workerId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .from(SETTINGS_TABLE)
       .select('value')
       .eq('user_id', FIXED_USER_ID)
-      .eq('key', 'default_overtime')
+      .eq('key', `worker_${workerId}_default_overtime`)
       .single();
 
     if (error) {
@@ -23,28 +23,30 @@ export async function getDefaultOvertimeSetting(): Promise<boolean> {
       if (error.code === 'PGRST116') {
         return false;
       }
-      console.error('Error fetching default overtime setting:', error);
+      console.error('Error fetching worker default overtime setting:', error);
       return false;
     }
 
     return data?.value === true || data?.value === 'true';
   } catch (error) {
-    console.error('Error in getDefaultOvertimeSetting:', error);
+    console.error('Error in getWorkerDefaultOvertimeSetting:', error);
     return false;
   }
 }
 
 /**
- * Save default overtime setting to Supabase
+ * Save default overtime setting for a specific worker to Supabase
  */
-export async function saveDefaultOvertimeSetting(value: boolean): Promise<boolean> {
+export async function saveWorkerDefaultOvertimeSetting(workerId: string, value: boolean): Promise<boolean> {
   try {
+    const settingKey = `worker_${workerId}_default_overtime`;
+
     // Try to update existing setting
     const { error: updateError } = await supabase
       .from(SETTINGS_TABLE)
       .update({ value: value })
       .eq('user_id', FIXED_USER_ID)
-      .eq('key', 'default_overtime');
+      .eq('key', settingKey);
 
     // If update failed (no existing record), insert new one
     if (updateError) {
@@ -52,20 +54,53 @@ export async function saveDefaultOvertimeSetting(value: boolean): Promise<boolea
         .from(SETTINGS_TABLE)
         .insert({
           user_id: FIXED_USER_ID,
-          key: 'default_overtime',
+          key: settingKey,
           value: value
         });
 
       if (insertError) {
-        console.error('Error saving default overtime setting:', insertError);
+        console.error('Error saving worker default overtime setting:', insertError);
         return false;
       }
     }
 
     return true;
   } catch (error) {
-    console.error('Error in saveDefaultOvertimeSetting:', error);
+    console.error('Error in saveWorkerDefaultOvertimeSetting:', error);
     return false;
+  }
+}
+
+/**
+ * Get all worker default overtime settings
+ */
+export async function getAllWorkerDefaultOvertimeSettings(): Promise<Record<string, boolean>> {
+  try {
+    const { data, error } = await supabase
+      .from(SETTINGS_TABLE)
+      .select('key, value')
+      .eq('user_id', FIXED_USER_ID)
+      .like('key', 'worker_%_default_overtime');
+
+    if (error) {
+      console.error('Error fetching worker default overtime settings:', error);
+      return {};
+    }
+
+    const settings: Record<string, boolean> = {};
+    data?.forEach((item: any) => {
+      // Extract worker ID from key (format: worker_{workerId}_default_overtime)
+      const match = item.key.match(/^worker_(.+)_default_overtime$/);
+      if (match) {
+        const workerId = match[1];
+        settings[workerId] = item.value === true || item.value === 'true';
+      }
+    });
+
+    return settings;
+  } catch (error) {
+    console.error('Error in getAllWorkerDefaultOvertimeSettings:', error);
+    return {};
   }
 }
 
