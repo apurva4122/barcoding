@@ -565,6 +565,34 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     }
   };
 
+  // Toggle cleaner status for a worker
+  const handleCleanerToggle = async (workerId: string) => {
+    try {
+      const worker = workers.find(w => w.id === workerId);
+      if (!worker) return;
+
+      const updatedWorker = {
+        ...worker,
+        isCleaner: !worker.isCleaner
+      };
+
+      const success = await saveWorker(updatedWorker);
+      if (success) {
+        await loadData(); // Refresh data
+        toast.success("Cleaner status updated");
+
+        if (onAttendanceUpdate) {
+          onAttendanceUpdate();
+        }
+      } else {
+        toast.error("Failed to update cleaner status");
+      }
+    } catch (error) {
+      console.error("Error toggling cleaner status:", error);
+      toast.error("Failed to update cleaner status");
+    }
+  };
+
   // Get attendance for selected date
   const getDateAttendance = () => {
     return attendanceRecords.filter(record => record.date === selectedDate);
