@@ -13,15 +13,15 @@ import { FileText, Upload, Calendar, Trash2, Download, TestTube } from "lucide-r
 import { toast } from "sonner";
 
 const FINISHED_GOODS = [
-  { value: LabTestCategory.TAMARIND_JELLY, label: "Tamarind Jelly", required: false },
-  { value: LabTestCategory.MANGO_JELLY, label: "Mango Jelly", required: false },
-  { value: LabTestCategory.POPSICLES, label: "Popsicles", required: false },
+    { value: LabTestCategory.TAMARIND_JELLY, label: "Tamarind Jelly", required: false },
+    { value: LabTestCategory.MANGO_JELLY, label: "Mango Jelly", required: false },
+    { value: LabTestCategory.POPSICLES, label: "Popsicles", required: false },
 ];
 
 const RAW_MATERIALS = [
-  { value: LabTestCategory.WATER, label: "Water", required: true },
-  { value: LabTestCategory.SUGAR, label: "Sugar", required: true },
-  { value: LabTestCategory.TAMARIND, label: "Tamarind", required: false },
+    { value: LabTestCategory.WATER, label: "Water", required: true },
+    { value: LabTestCategory.SUGAR, label: "Sugar", required: true },
+    { value: LabTestCategory.TAMARIND, label: "Tamarind", required: false },
 ];
 
 export function LabTests() {
@@ -82,10 +82,12 @@ export function LabTests() {
             const fileUrl = await uploadLabTestFile(file, testType, category, selectedMonth);
 
             if (!fileUrl) {
-                toast.error('Failed to upload file');
+                toast.error('Failed to upload file. Please check browser console for details.');
                 setIsUploading(false);
                 return;
             }
+
+            console.log('✅ File uploaded, now saving record to database...');
 
             // Save record
             const record = await saveLabTestRecord({
@@ -110,7 +112,7 @@ export function LabTests() {
                 // Reload records
                 loadRecords();
             } else {
-                toast.error('Failed to save lab test record');
+                toast.error('Failed to save lab test record. Please check browser console for details.');
             }
         } catch (error) {
             console.error('Error submitting lab test record:', error);
