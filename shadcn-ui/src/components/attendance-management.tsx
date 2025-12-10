@@ -1345,10 +1345,10 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       <TableHead>Adv. This Mo</TableHead>
                       <TableHead>Adv. Last Mo</TableHead>
                       <TableHead>Adv. Deduct</TableHead>
-                    <TableHead>Packer</TableHead>
-                    <TableHead>Cleaner</TableHead>
-                    <TableHead>Default OT</TableHead>
-                    <TableHead>Status</TableHead>
+                      <TableHead>Packer</TableHead>
+                      <TableHead>Cleaner</TableHead>
+                      <TableHead>Default OT</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Overtime</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>

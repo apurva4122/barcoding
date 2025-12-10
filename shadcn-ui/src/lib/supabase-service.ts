@@ -134,6 +134,7 @@ export async function getAllWorkersFromSupabase(includeInactive: boolean = true)
       department: worker.department || undefined,
       position: worker.position || undefined,
       isPacker: worker.is_packer,
+      isCleaner: worker.is_cleaner || false,
       gender: worker.gender || 'male', // Default to male for backward compatibility
       baseSalary: worker.base_salary || undefined,
       advanceCurrentMonth: worker.advance_current_month || undefined,
@@ -174,6 +175,7 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
       department: worker.department || null,
       position: worker.position || null,
       is_packer: worker.isPacker || false,
+      is_cleaner: worker.isCleaner || false,
       gender: worker.gender || 'male',
       base_salary: worker.baseSalary || null,
       advance_current_month: worker.advanceCurrentMonth || null,
@@ -310,6 +312,7 @@ export async function getWorkerByIdFromSupabase(workerId: string): Promise<Worke
       department: data.department || undefined,
       position: data.position || undefined,
       isPacker: data.is_packer,
+      isCleaner: data.is_cleaner || false,
       gender: data.gender || 'male',
       baseSalary: data.base_salary || undefined,
       advanceCurrentMonth: data.advance_current_month || undefined,
@@ -584,6 +587,8 @@ export async function getPresentPackersFromSupabase(date: string): Promise<Worke
       department: worker.department || undefined,
       position: worker.position || undefined,
       isPacker: worker.is_packer,
+      isCleaner: worker.is_cleaner || false,
+      gender: worker.gender || 'male',
       createdAt: worker.created_at,
       updatedAt: worker.updated_at || undefined
     }));
