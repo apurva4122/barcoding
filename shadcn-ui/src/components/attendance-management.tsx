@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Worker, AttendanceRecord, AttendanceStatus, Gender } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
 import { getWorkerDefaultOvertimeSetting, saveWorkerDefaultOvertimeSetting, getAllWorkerDefaultOvertimeSettings } from "@/lib/supabase-service";
-import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus, XCircle, CircleDot } from "lucide-react";
+import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus, XCircle, CircleDot, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface AttendanceManagementProps {
@@ -33,6 +33,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     department: "",
     position: "",
     isPacker: false,
+    isCleaner: false,
     gender: Gender.MALE,
     baseSalary: ""
   });
@@ -198,6 +199,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         isPacker: workerForm.isPacker,
         gender: workerForm.gender,
         baseSalary: workerForm.baseSalary ? parseFloat(workerForm.baseSalary) : undefined,
+        isCleaner: workerForm.isCleaner || false,
         isActive: true, // New workers are active by default
         createdAt: new Date().toISOString()
       };
@@ -214,6 +216,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           department: "",
           position: "",
           isPacker: false,
+          isCleaner: false,
           gender: Gender.MALE,
           baseSalary: ""
         });
@@ -867,16 +870,29 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is-packer"
-                  checked={workerForm.isPacker}
-                  onCheckedChange={(checked) => setWorkerForm({ ...workerForm, isPacker: checked })}
-                />
-                <Label htmlFor="is-packer" className="flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Designate as Packer (can be assigned barcodes)
-                </Label>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is-packer"
+                    checked={workerForm.isPacker}
+                    onCheckedChange={(checked) => setWorkerForm({ ...workerForm, isPacker: checked })}
+                  />
+                  <Label htmlFor="is-packer" className="flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Designate as Packer (can be assigned barcodes)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is-cleaner"
+                    checked={workerForm.isCleaner}
+                    onCheckedChange={(checked) => setWorkerForm({ ...workerForm, isCleaner: checked })}
+                  />
+                  <Label htmlFor="is-cleaner" className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Designate as Cleaner (can upload hygiene records)
+                  </Label>
+                </div>
               </div>
 
               {error && (
@@ -1294,350 +1310,363 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     <TableRow>
                       <TableHead className="sticky left-0 z-30 bg-background border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Employee ID</TableHead>
                       <TableHead className="sticky left-[120px] z-30 bg-background border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Name</TableHead>
-                    <TableHead>Gender</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Base Salary</TableHead>
-                    <TableHead>Adv. This Mo</TableHead>
-                    <TableHead>Adv. Last Mo</TableHead>
-                    <TableHead>Adv. Deduct</TableHead>
+                      <TableHead>Gender</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Position</TableHead>
+                      <TableHead>Base Salary</TableHead>
+                      <TableHead>Adv. This Mo</TableHead>
+                      <TableHead>Adv. Last Mo</TableHead>
+                      <TableHead>Adv. Deduct</TableHead>
                     <TableHead>Packer</TableHead>
+                    <TableHead>Cleaner</TableHead>
                     <TableHead>Default OT</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Overtime</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {workers.map((worker) => {
-                    const status = getWorkerStatus(worker.id);
-                    const hasOvertime = checkHasOvertime(worker.id);
+                      <TableHead>Overtime</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {workers.map((worker) => {
+                      const status = getWorkerStatus(worker.id);
+                      const hasOvertime = checkHasOvertime(worker.id);
 
-                    return (
-                      <TableRow key={worker.id}>
-                        <TableCell className="font-mono sticky left-0 z-20 bg-background border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.employeeId}</TableCell>
-                        <TableCell className="font-medium sticky left-[120px] z-20 bg-background border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.name}</TableCell>
-                        <TableCell>
-                          <Badge variant={(worker.gender || Gender.MALE) === Gender.MALE ? "default" : "secondary"}>
-                            {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{worker.department || '-'}</TableCell>
-                        <TableCell>{worker.position || '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {worker.baseSalary
-                                ? `₹${worker.baseSalary.toLocaleString()}${(worker.gender || Gender.MALE) === Gender.MALE ? '/month' : '/day'}`
-                                : 'Not set'
-                              }
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSalaryEditState({
-                                  workerId: worker.id,
-                                  newSalary: worker.baseSalary?.toString() || "",
-                                  showDialog: true
-                                });
-                              }}
-                              className="h-6 w-6 p-0"
-                              title="Edit salary"
-                            >
-                              <Lock className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">
-                              {worker.advanceCurrentMonth ? `₹${worker.advanceCurrentMonth.toLocaleString()}` : '₹0'}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setAdvanceEditState({
-                                  workerId: worker.id,
-                                  advanceCurrentMonth: worker.advanceCurrentMonth?.toString() || "",
-                                  advanceLastMonth: worker.advanceLastMonth?.toString() || "",
-                                  advanceDeduction: worker.advanceDeduction?.toString() || "",
-                                  showDialog: true
-                                });
-                              }}
-                              className="h-6 w-6 p-0"
-                              title="Edit advance payments"
-                            >
-                              <Lock className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-medium text-sm">
-                            {worker.advanceLastMonth ? `₹${worker.advanceLastMonth.toLocaleString()}` : '₹0'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-medium text-sm text-red-600">
-                            {worker.advanceDeduction ? `₹${worker.advanceDeduction.toLocaleString()}` : '₹0'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={worker.isPacker || false}
-                              onCheckedChange={() => handlePackerToggle(worker.id)}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              {worker.isPacker ? '📦 Packer' : 'Not Packer'}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={workerDefaultOvertime[worker.id] || false}
-                            onCheckedChange={async (checked) => {
-                              try {
-                                await saveWorkerDefaultOvertimeSetting(worker.id, checked);
-                                setWorkerDefaultOvertime(prev => ({
-                                  ...prev,
-                                  [worker.id]: checked
-                                }));
-                                toast.success(`Default overtime ${checked ? 'enabled' : 'disabled'} for ${worker.name}`);
-                              } catch (error) {
-                                console.error('Error saving worker default overtime:', error);
-                                toast.error('Failed to save default overtime setting');
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <Badge
-                              variant={
-                                status === AttendanceStatus.PRESENT ? "default" :
-                                  status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
-                              }
-                              className="mr-1"
-                            >
-                              {status}
+                      return (
+                        <TableRow key={worker.id}>
+                          <TableCell className="font-mono sticky left-0 z-20 bg-background border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.employeeId}</TableCell>
+                          <TableCell className="font-medium sticky left-[120px] z-20 bg-background border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.name}</TableCell>
+                          <TableCell>
+                            <Badge variant={(worker.gender || Gender.MALE) === Gender.MALE ? "default" : "secondary"}>
+                              {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}
                             </Badge>
-                            <div className="flex gap-1">
+                          </TableCell>
+                          <TableCell>{worker.department || '-'}</TableCell>
+                          <TableCell>{worker.position || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {worker.baseSalary
+                                  ? `₹${worker.baseSalary.toLocaleString()}${(worker.gender || Gender.MALE) === Gender.MALE ? '/month' : '/day'}`
+                                  : 'Not set'
+                                }
+                              </span>
                               <Button
-                                type="button"
-                                variant={status === AttendanceStatus.PRESENT ? "default" : "outline"}
+                                variant="ghost"
                                 size="sm"
-                                onClick={async (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  try {
-                                    const existingRecord = attendanceRecords.find(
-                                      r => r.workerId === worker.id && r.date === selectedDate
-                                    );
-
-                                    const updatedRecord: AttendanceRecord = {
-                                      ...(existingRecord || {
-                                        id: `attendance-${Date.now()}`,
-                                        workerId: worker.id,
-                                        workerName: worker.name,
-                                        date: selectedDate,
-                                        createdAt: new Date().toISOString()
-                                      }),
-                                      status: AttendanceStatus.PRESENT,
-                                      overtime: existingRecord?.overtime || (workerDefaultOvertime[worker.id] ? 'yes' : 'no'),
-                                      updatedAt: new Date().toISOString()
-                                    };
-
-                                    const success = await saveAttendance(updatedRecord);
-                                    if (success) {
-                                      // Update local state instead of full reload
-                                      const updatedRecords = attendanceRecords.filter(r =>
-                                        !(r.workerId === worker.id && r.date === selectedDate)
-                                      );
-                                      updatedRecords.push(updatedRecord);
-                                      setAttendanceRecords(updatedRecords);
-
-                                      toast.success(`${worker.name} marked as present`);
-                                      // Only trigger dashboard refresh, don't remount this component
-                                      if (onAttendanceUpdate) {
-                                        setTimeout(() => onAttendanceUpdate(), 100);
-                                      }
-                                    } else {
-                                      toast.error("Failed to update attendance");
-                                    }
-                                  } catch (error) {
-                                    console.error("Error marking as present:", error);
-                                    toast.error("Failed to update attendance");
-                                  }
+                                onClick={() => {
+                                  setSalaryEditState({
+                                    workerId: worker.id,
+                                    newSalary: worker.baseSalary?.toString() || "",
+                                    showDialog: true
+                                  });
                                 }}
-                                className="h-7 text-xs px-2"
-                                title="Mark as present"
+                                className="h-6 w-6 p-0"
+                                title="Edit salary"
                               >
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Present
-                              </Button>
-                              <Button
-                                type="button"
-                                variant={status === AttendanceStatus.HALF_DAY ? "secondary" : "outline"}
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  try {
-                                    const existingRecord = attendanceRecords.find(
-                                      r => r.workerId === worker.id && r.date === selectedDate
-                                    );
-
-                                    const updatedRecord: AttendanceRecord = {
-                                      ...(existingRecord || {
-                                        id: `attendance-${Date.now()}`,
-                                        workerId: worker.id,
-                                        workerName: worker.name,
-                                        date: selectedDate,
-                                        createdAt: new Date().toISOString()
-                                      }),
-                                      status: AttendanceStatus.HALF_DAY,
-                                      overtime: existingRecord?.overtime || 'no',
-                                      updatedAt: new Date().toISOString()
-                                    };
-
-                                    const success = await saveAttendance(updatedRecord);
-                                    if (success) {
-                                      // Update local state instead of full reload
-                                      const updatedRecords = attendanceRecords.filter(r =>
-                                        !(r.workerId === worker.id && r.date === selectedDate)
-                                      );
-                                      updatedRecords.push(updatedRecord);
-                                      setAttendanceRecords(updatedRecords);
-
-                                      toast.success(`${worker.name} marked as half day`);
-                                      // Only trigger dashboard refresh, don't remount this component
-                                      if (onAttendanceUpdate) {
-                                        setTimeout(() => onAttendanceUpdate(), 100);
-                                      }
-                                    } else {
-                                      toast.error("Failed to update attendance");
-                                    }
-                                  } catch (error) {
-                                    console.error("Error marking as half day:", error);
-                                    toast.error("Failed to update attendance");
-                                  }
-                                }}
-                                className="h-7 text-xs px-2"
-                                title="Mark as half day"
-                              >
-                                <CircleDot className="h-3 w-3 mr-1" />
-                                Half Day
-                              </Button>
-                              <Button
-                                type="button"
-                                variant={status === AttendanceStatus.ABSENT ? "destructive" : "outline"}
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  try {
-                                    const existingRecord = attendanceRecords.find(
-                                      r => r.workerId === worker.id && r.date === selectedDate
-                                    );
-
-                                    const updatedRecord: AttendanceRecord = {
-                                      ...(existingRecord || {
-                                        id: `attendance-${Date.now()}`,
-                                        workerId: worker.id,
-                                        workerName: worker.name,
-                                        date: selectedDate,
-                                        createdAt: new Date().toISOString()
-                                      }),
-                                      status: AttendanceStatus.ABSENT,
-                                      overtime: 'no', // No overtime for absent
-                                      updatedAt: new Date().toISOString()
-                                    };
-
-                                    const success = await saveAttendance(updatedRecord);
-                                    if (success) {
-                                      // Update local state instead of full reload
-                                      const updatedRecords = attendanceRecords.filter(r =>
-                                        !(r.workerId === worker.id && r.date === selectedDate)
-                                      );
-                                      updatedRecords.push(updatedRecord);
-                                      setAttendanceRecords(updatedRecords);
-
-                                      // Also update overtime status since absent means no overtime
-                                      setOvertimeStatus(prev => ({ ...prev, [worker.id]: false }));
-
-                                      toast.success(`${worker.name} marked as absent`);
-                                      // Only trigger dashboard refresh, don't remount this component
-                                      if (onAttendanceUpdate) {
-                                        setTimeout(() => onAttendanceUpdate(), 100);
-                                      }
-                                    } else {
-                                      toast.error("Failed to update attendance");
-                                    }
-                                  } catch (error) {
-                                    console.error("Error marking as absent:", error);
-                                    toast.error("Failed to update attendance");
-                                  }
-                                }}
-                                className="h-7 text-xs px-2"
-                                title="Mark as absent"
-                              >
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Absent
+                                <Lock className="h-3 w-3" />
                               </Button>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              variant={hasOvertime ? "default" : "outline"}
-                              size="sm"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (status !== AttendanceStatus.ABSENT) {
-                                  handleOvertimeToggle(worker.id);
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">
+                                {worker.advanceCurrentMonth ? `₹${worker.advanceCurrentMonth.toLocaleString()}` : '₹0'}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setAdvanceEditState({
+                                    workerId: worker.id,
+                                    advanceCurrentMonth: worker.advanceCurrentMonth?.toString() || "",
+                                    advanceLastMonth: worker.advanceLastMonth?.toString() || "",
+                                    advanceDeduction: worker.advanceDeduction?.toString() || "",
+                                    showDialog: true
+                                  });
+                                }}
+                                className="h-6 w-6 p-0"
+                                title="Edit advance payments"
+                              >
+                                <Lock className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium text-sm">
+                              {worker.advanceLastMonth ? `₹${worker.advanceLastMonth.toLocaleString()}` : '₹0'}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium text-sm text-red-600">
+                              {worker.advanceDeduction ? `₹${worker.advanceDeduction.toLocaleString()}` : '₹0'}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={worker.isPacker || false}
+                                onCheckedChange={() => handlePackerToggle(worker.id)}
+                              />
+                              <span className="text-sm text-muted-foreground">
+                                {worker.isPacker ? '📦 Packer' : 'Not Packer'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={worker.isCleaner || false}
+                                onCheckedChange={() => handleCleanerToggle(worker.id)}
+                                disabled={formLoading}
+                              />
+                              <span className="text-sm text-muted-foreground">
+                                {worker.isCleaner ? '🧹 Cleaner' : 'Not Cleaner'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Switch
+                              checked={workerDefaultOvertime[worker.id] || false}
+                              onCheckedChange={async (checked) => {
+                                try {
+                                  await saveWorkerDefaultOvertimeSetting(worker.id, checked);
+                                  setWorkerDefaultOvertime(prev => ({
+                                    ...prev,
+                                    [worker.id]: checked
+                                  }));
+                                  toast.success(`Default overtime ${checked ? 'enabled' : 'disabled'} for ${worker.name}`);
+                                } catch (error) {
+                                  console.error('Error saving worker default overtime:', error);
+                                  toast.error('Failed to save default overtime setting');
                                 }
                               }}
-                              disabled={status === AttendanceStatus.ABSENT}
-                              className="h-7 text-xs px-2"
-                              title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime" : "Add overtime"}
-                            >
-                              <Clock className="h-3 w-3 mr-1" />
-                              {hasOvertime ? 'Overtime' : 'No OT'}
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleMarkInactive(worker)}
-                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                              title="Mark as inactive (left company)"
-                            >
-                              <UserMinus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDeleteConfirmation({ isOpen: true, worker })}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Delete worker permanently"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <Badge
+                                variant={
+                                  status === AttendanceStatus.PRESENT ? "default" :
+                                    status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
+                                }
+                                className="mr-1"
+                              >
+                                {status}
+                              </Badge>
+                              <div className="flex gap-1">
+                                <Button
+                                  type="button"
+                                  variant={status === AttendanceStatus.PRESENT ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    try {
+                                      const existingRecord = attendanceRecords.find(
+                                        r => r.workerId === worker.id && r.date === selectedDate
+                                      );
+
+                                      const updatedRecord: AttendanceRecord = {
+                                        ...(existingRecord || {
+                                          id: `attendance-${Date.now()}`,
+                                          workerId: worker.id,
+                                          workerName: worker.name,
+                                          date: selectedDate,
+                                          createdAt: new Date().toISOString()
+                                        }),
+                                        status: AttendanceStatus.PRESENT,
+                                        overtime: existingRecord?.overtime || (workerDefaultOvertime[worker.id] ? 'yes' : 'no'),
+                                        updatedAt: new Date().toISOString()
+                                      };
+
+                                      const success = await saveAttendance(updatedRecord);
+                                      if (success) {
+                                        // Update local state instead of full reload
+                                        const updatedRecords = attendanceRecords.filter(r =>
+                                          !(r.workerId === worker.id && r.date === selectedDate)
+                                        );
+                                        updatedRecords.push(updatedRecord);
+                                        setAttendanceRecords(updatedRecords);
+
+                                        toast.success(`${worker.name} marked as present`);
+                                        // Only trigger dashboard refresh, don't remount this component
+                                        if (onAttendanceUpdate) {
+                                          setTimeout(() => onAttendanceUpdate(), 100);
+                                        }
+                                      } else {
+                                        toast.error("Failed to update attendance");
+                                      }
+                                    } catch (error) {
+                                      console.error("Error marking as present:", error);
+                                      toast.error("Failed to update attendance");
+                                    }
+                                  }}
+                                  className="h-7 text-xs px-2"
+                                  title="Mark as present"
+                                >
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Present
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant={status === AttendanceStatus.HALF_DAY ? "secondary" : "outline"}
+                                  size="sm"
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    try {
+                                      const existingRecord = attendanceRecords.find(
+                                        r => r.workerId === worker.id && r.date === selectedDate
+                                      );
+
+                                      const updatedRecord: AttendanceRecord = {
+                                        ...(existingRecord || {
+                                          id: `attendance-${Date.now()}`,
+                                          workerId: worker.id,
+                                          workerName: worker.name,
+                                          date: selectedDate,
+                                          createdAt: new Date().toISOString()
+                                        }),
+                                        status: AttendanceStatus.HALF_DAY,
+                                        overtime: existingRecord?.overtime || 'no',
+                                        updatedAt: new Date().toISOString()
+                                      };
+
+                                      const success = await saveAttendance(updatedRecord);
+                                      if (success) {
+                                        // Update local state instead of full reload
+                                        const updatedRecords = attendanceRecords.filter(r =>
+                                          !(r.workerId === worker.id && r.date === selectedDate)
+                                        );
+                                        updatedRecords.push(updatedRecord);
+                                        setAttendanceRecords(updatedRecords);
+
+                                        toast.success(`${worker.name} marked as half day`);
+                                        // Only trigger dashboard refresh, don't remount this component
+                                        if (onAttendanceUpdate) {
+                                          setTimeout(() => onAttendanceUpdate(), 100);
+                                        }
+                                      } else {
+                                        toast.error("Failed to update attendance");
+                                      }
+                                    } catch (error) {
+                                      console.error("Error marking as half day:", error);
+                                      toast.error("Failed to update attendance");
+                                    }
+                                  }}
+                                  className="h-7 text-xs px-2"
+                                  title="Mark as half day"
+                                >
+                                  <CircleDot className="h-3 w-3 mr-1" />
+                                  Half Day
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant={status === AttendanceStatus.ABSENT ? "destructive" : "outline"}
+                                  size="sm"
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    try {
+                                      const existingRecord = attendanceRecords.find(
+                                        r => r.workerId === worker.id && r.date === selectedDate
+                                      );
+
+                                      const updatedRecord: AttendanceRecord = {
+                                        ...(existingRecord || {
+                                          id: `attendance-${Date.now()}`,
+                                          workerId: worker.id,
+                                          workerName: worker.name,
+                                          date: selectedDate,
+                                          createdAt: new Date().toISOString()
+                                        }),
+                                        status: AttendanceStatus.ABSENT,
+                                        overtime: 'no', // No overtime for absent
+                                        updatedAt: new Date().toISOString()
+                                      };
+
+                                      const success = await saveAttendance(updatedRecord);
+                                      if (success) {
+                                        // Update local state instead of full reload
+                                        const updatedRecords = attendanceRecords.filter(r =>
+                                          !(r.workerId === worker.id && r.date === selectedDate)
+                                        );
+                                        updatedRecords.push(updatedRecord);
+                                        setAttendanceRecords(updatedRecords);
+
+                                        // Also update overtime status since absent means no overtime
+                                        setOvertimeStatus(prev => ({ ...prev, [worker.id]: false }));
+
+                                        toast.success(`${worker.name} marked as absent`);
+                                        // Only trigger dashboard refresh, don't remount this component
+                                        if (onAttendanceUpdate) {
+                                          setTimeout(() => onAttendanceUpdate(), 100);
+                                        }
+                                      } else {
+                                        toast.error("Failed to update attendance");
+                                      }
+                                    } catch (error) {
+                                      console.error("Error marking as absent:", error);
+                                      toast.error("Failed to update attendance");
+                                    }
+                                  }}
+                                  className="h-7 text-xs px-2"
+                                  title="Mark as absent"
+                                >
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Absent
+                                </Button>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant={hasOvertime ? "default" : "outline"}
+                                size="sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (status !== AttendanceStatus.ABSENT) {
+                                    handleOvertimeToggle(worker.id);
+                                  }
+                                }}
+                                disabled={status === AttendanceStatus.ABSENT}
+                                className="h-7 text-xs px-2"
+                                title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime" : "Add overtime"}
+                              >
+                                <Clock className="h-3 w-3 mr-1" />
+                                {hasOvertime ? 'Overtime' : 'No OT'}
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleMarkInactive(worker)}
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                title="Mark as inactive (left company)"
+                              >
+                                <UserMinus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDeleteConfirmation({ isOpen: true, worker })}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                title="Delete worker permanently"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           ) : (
