@@ -41,32 +41,39 @@ export async function saveWorkerDefaultOvertimeSetting(workerId: string, value: 
   try {
     const settingKey = `worker_${workerId}_default_overtime`;
 
-    // Try to update existing setting
-    const { error: updateError } = await supabase
+    console.log('🔄 Saving worker default overtime setting:', { workerId, settingKey, value });
+
+    // Use upsert to insert or update the setting
+    // The table has a UNIQUE constraint on (user_id, key), so upsert will work
+    const { data, error } = await supabase
       .from(SETTINGS_TABLE)
-      .update({ value: value })
-      .eq('user_id', FIXED_USER_ID)
-      .eq('key', settingKey);
+      .upsert({
+        user_id: FIXED_USER_ID,
+        key: settingKey,
+        value: value
+      }, {
+        onConflict: 'user_id,key'
+      })
+      .select();
 
-    // If update failed (no existing record), insert new one
-    if (updateError) {
-      const { error: insertError } = await supabase
-        .from(SETTINGS_TABLE)
-        .insert({
-          user_id: FIXED_USER_ID,
-          key: settingKey,
-          value: value
-        });
-
-      if (insertError) {
-        console.error('Error saving worker default overtime setting:', insertError);
-        return false;
-      }
+    if (error) {
+      console.error('❌ Error saving worker default overtime setting:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      return false;
     }
 
+    console.log('✅ Worker default overtime setting saved successfully:', data);
     return true;
   } catch (error) {
-    console.error('Error in saveWorkerDefaultOvertimeSetting:', error);
+    console.error('❌ UNEXPECTED ERROR in saveWorkerDefaultOvertimeSetting:', error);
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 }
@@ -76,6 +83,8 @@ export async function saveWorkerDefaultOvertimeSetting(workerId: string, value: 
  */
 export async function getAllWorkerDefaultOvertimeSettings(): Promise<Record<string, boolean>> {
   try {
+    console.log('🔄 Loading all worker default overtime settings from Supabase...');
+    
     const { data, error } = await supabase
       .from(SETTINGS_TABLE)
       .select('key, value')
@@ -83,9 +92,17 @@ export async function getAllWorkerDefaultOvertimeSettings(): Promise<Record<stri
       .like('key', 'worker_%_default_overtime');
 
     if (error) {
-      console.error('Error fetching worker default overtime settings:', error);
+      console.error('❌ Error fetching worker default overtime settings:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       return {};
     }
+
+    console.log('📋 Raw settings data from Supabase:', data);
 
     const settings: Record<string, boolean> = {};
     data?.forEach((item: any) => {
@@ -93,13 +110,20 @@ export async function getAllWorkerDefaultOvertimeSettings(): Promise<Record<stri
       const match = item.key.match(/^worker_(.+)_default_overtime$/);
       if (match) {
         const workerId = match[1];
-        settings[workerId] = item.value === true || item.value === 'true';
+        // Handle both boolean and string values (Supabase TEXT column may store as string)
+        const boolValue = item.value === true || item.value === 'true';
+        settings[workerId] = boolValue;
+        console.log(`✅ Loaded setting for worker ${workerId}: ${boolValue} (raw value: ${item.value}, type: ${typeof item.value})`);
       }
     });
 
+    console.log('✅ Final settings object:', settings);
     return settings;
   } catch (error) {
-    console.error('Error in getAllWorkerDefaultOvertimeSettings:', error);
+    console.error('❌ UNEXPECTED ERROR in getAllWorkerDefaultOvertimeSettings:', error);
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack);
+    }
     return {};
   }
 }
