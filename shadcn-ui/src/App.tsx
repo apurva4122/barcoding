@@ -42,7 +42,7 @@ function App() {
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
-  return (
+        return (
           <PasswordProtection sectionName="dashboard">
             <Dashboard key={refreshTrigger} />
           </PasswordProtection>
@@ -50,9 +50,9 @@ function App() {
       case "generator":
         return (
           <PasswordProtection sectionName="generator">
-            <BarcodeGenerator 
+            <BarcodeGenerator
               key={refreshTrigger}
-              onBarcodesGenerated={handleBarcodesUpdated} 
+              onBarcodesGenerated={handleBarcodesUpdated}
             />
           </PasswordProtection>
         )
@@ -61,28 +61,28 @@ function App() {
           <PasswordProtection sectionName="list">
             <div className="space-y-6">
               <ListsDashboard key={refreshTrigger} />
-              <BarcodeList 
+              <BarcodeList
                 key={refreshTrigger}
-                onBarcodeUpdated={handleBarcodesUpdated} 
+                onBarcodeUpdated={handleBarcodesUpdated}
               />
             </div>
           </PasswordProtection>
         )
       case "scanner":
         return (
-            <div className="space-y-6">
-              <DualStatusScanner 
-                key={refreshTrigger}
-                onBarcodesUpdated={handleBarcodesUpdated} 
-              />
-              <ScanOnlyDashboard key={refreshTrigger} />
-            </div>
+          <div className="space-y-6">
+            <DualStatusScanner
+              key={refreshTrigger}
+              onBarcodesUpdated={handleBarcodesUpdated}
+            />
+            <ScanOnlyDashboard key={refreshTrigger} />
+          </div>
         )
       case "attendance":
         return (
           <PasswordProtection sectionName="attendance">
-            <AttendanceManagement 
-              onAttendanceUpdate={handleAttendanceUpdated} 
+            <AttendanceManagement
+              onAttendanceUpdate={handleAttendanceUpdated}
             />
           </PasswordProtection>
         )

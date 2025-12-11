@@ -1,4 +1,7 @@
 -- Create lab_tests table
+-- IMPORTANT: Run this script in your Supabase SQL Editor to create the table
+-- The table name matches what's used in the code: app_f79f105891_lab_tests
+
 CREATE TABLE IF NOT EXISTS app_f79f105891_lab_tests (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID DEFAULT '00000000-0000-0000-0000-000000000000'::uuid,
