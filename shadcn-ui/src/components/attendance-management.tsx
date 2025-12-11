@@ -1333,11 +1333,12 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           {workers.length > 0 ? (
             <div className="w-full overflow-x-auto">
               <div className="min-w-[1200px]">
-                <Table className="relative">
+                <div className="[&>div]:overflow-visible">
+                  <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="sticky left-0 z-50 bg-white dark:bg-gray-950 border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Employee ID</TableHead>
-                      <TableHead className="sticky left-[120px] z-50 bg-white dark:bg-gray-950 border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Name</TableHead>
+                      <TableHead className="sticky left-0 z-[100] bg-white dark:bg-gray-950 border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Employee ID</TableHead>
+                      <TableHead className="sticky left-[120px] z-[100] bg-white dark:bg-gray-950 border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Name</TableHead>
                       <TableHead>Gender</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Position</TableHead>
@@ -1360,8 +1361,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
                       return (
                         <TableRow key={worker.id}>
-                          <TableCell className="font-mono sticky left-0 z-40 bg-white dark:bg-gray-950 border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.employeeId}</TableCell>
-                          <TableCell className="font-medium sticky left-[120px] z-40 bg-white dark:bg-gray-950 border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.name}</TableCell>
+                          <TableCell className="font-mono sticky left-0 z-[90] bg-white dark:bg-gray-950 border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.employeeId}</TableCell>
+                          <TableCell className="font-medium sticky left-[120px] z-[90] bg-white dark:bg-gray-950 border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.name}</TableCell>
                           <TableCell>
                             <Badge variant={(worker.gender || Gender.MALE) === Gender.MALE ? "default" : "secondary"}>
                               {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}
@@ -1695,6 +1696,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             </div>
           ) : (

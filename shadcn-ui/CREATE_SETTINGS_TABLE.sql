@@ -1,4 +1,7 @@
 -- Create settings table for storing user preferences
+-- IMPORTANT: Run this script in your Supabase SQL Editor to create the table
+-- This table is required for saving Default OT toggle states
+
 CREATE TABLE IF NOT EXISTS app_070c516bb6_settings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID DEFAULT '00000000-0000-0000-0000-000000000000'::uuid,
