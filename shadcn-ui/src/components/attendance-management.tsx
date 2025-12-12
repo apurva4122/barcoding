@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Worker, AttendanceRecord, AttendanceStatus, Gender } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
 import { getWorkerDefaultOvertimeSetting, saveWorkerDefaultOvertimeSetting, getAllWorkerDefaultOvertimeSettings } from "@/lib/supabase-service";
-import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus, XCircle, CircleDot, Sparkles } from "lucide-react";
+import { Plus, Users, UserCheck, UserX, Clock, Download, AlertCircle, UserPlus, Package, Trash2, AlertTriangle, CheckCircle2, Lock, DollarSign, UserMinus, XCircle, CircleDot, Sparkles, Search } from "lucide-react";
 import { toast } from "sonner";
 
 interface AttendanceManagementProps {
@@ -72,6 +72,21 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     noOTWorkers: [] as string[], // Array of worker IDs for no OT
     notes: ""
   });
+
+  // Search states for each section
+  const [absentSearch, setAbsentSearch] = useState("");
+  const [halfDaySearch, setHalfDaySearch] = useState("");
+  const [noOTSearch, setNoOTSearch] = useState("");
+
+  // Filter workers based on search term
+  const filterWorkers = (workers: Worker[], searchTerm: string) => {
+    if (!searchTerm.trim()) return workers;
+    const term = searchTerm.toLowerCase();
+    return workers.filter(worker => 
+      worker.name.toLowerCase().includes(term) || 
+      worker.employeeId.toLowerCase().includes(term)
+    );
+  };
 
   // Delete confirmation
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -377,7 +392,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   // Bulk mark attendance (can be present, absent, or half-day)
   const markAttendance = async () => {
     const { absentWorkers, halfDayWorkers, noOTWorkers, notes } = attendanceForm;
-    
+
     if (absentWorkers.length === 0 && halfDayWorkers.length === 0 && noOTWorkers.length === 0) {
       setError("Please select at least one worker to update");
       return;
@@ -385,7 +400,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
     setFormLoading(true);
     setError(null);
-    
+
     try {
       const updates: Promise<boolean>[] = [];
       const updatedWorkers: string[] = [];
@@ -498,6 +513,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           noOTWorkers: [],
           notes: ""
         });
+        setAbsentSearch("");
+        setHalfDaySearch("");
+        setNoOTSearch("");
         setAttendanceDialogOpen(false);
         setError(null);
 
@@ -1163,8 +1181,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                         if (attendanceForm.absentWorkers.length === workers.length) {
                           setAttendanceForm({ ...attendanceForm, absentWorkers: [] });
                         } else {
-                          setAttendanceForm({ 
-                            ...attendanceForm, 
+                          setAttendanceForm({
+                            ...attendanceForm,
                             absentWorkers: workers.map(w => w.id),
                             halfDayWorkers: [],
                             noOTWorkers: []
@@ -1242,8 +1260,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                         if (attendanceForm.halfDayWorkers.length === workers.length) {
                           setAttendanceForm({ ...attendanceForm, halfDayWorkers: [] });
                         } else {
-                          setAttendanceForm({ 
-                            ...attendanceForm, 
+                          setAttendanceForm({
+                            ...attendanceForm,
                             halfDayWorkers: workers.map(w => w.id),
                             absentWorkers: [],
                             noOTWorkers: []
@@ -1256,11 +1274,22 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     </Button>
                   </div>
                 </div>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or employee ID..."
+                    value={halfDaySearch}
+                    onChange={(e) => setHalfDaySearch(e.target.value)}
+                    className="pl-8 mb-2"
+                  />
+                </div>
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                   {workers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers available</p>
+                  ) : filterWorkers(workers, halfDaySearch).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No workers found matching "{halfDaySearch}"</p>
                   ) : (
-                    workers.map((worker) => {
+                    filterWorkers(workers, halfDaySearch).map((worker) => {
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
@@ -1321,8 +1350,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                         if (attendanceForm.noOTWorkers.length === workers.length) {
                           setAttendanceForm({ ...attendanceForm, noOTWorkers: [] });
                         } else {
-                          setAttendanceForm({ 
-                            ...attendanceForm, 
+                          setAttendanceForm({
+                            ...attendanceForm,
                             noOTWorkers: workers.map(w => w.id),
                             absentWorkers: [],
                             halfDayWorkers: []
@@ -1335,11 +1364,22 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     </Button>
                   </div>
                 </div>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or employee ID..."
+                    value={noOTSearch}
+                    onChange={(e) => setNoOTSearch(e.target.value)}
+                    className="pl-8 mb-2"
+                  />
+                </div>
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                   {workers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers available</p>
+                  ) : filterWorkers(workers, noOTSearch).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No workers found matching "{noOTSearch}"</p>
                   ) : (
-                    workers.map((worker) => {
+                    filterWorkers(workers, noOTSearch).map((worker) => {
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
@@ -1421,13 +1461,16 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     noOTWorkers: [],
                     notes: ""
                   });
+                  setAbsentSearch("");
+                  setHalfDaySearch("");
+                  setNoOTSearch("");
                   setError(null);
                 }}
               >
                 Cancel
               </Button>
-              <Button 
-                onClick={markAttendance} 
+              <Button
+                onClick={markAttendance}
                 disabled={formLoading || (attendanceForm.absentWorkers.length === 0 && attendanceForm.halfDayWorkers.length === 0 && attendanceForm.noOTWorkers.length === 0)}
               >
                 {formLoading ? "Saving..." : `Update ${attendanceForm.absentWorkers.length + attendanceForm.halfDayWorkers.length + attendanceForm.noOTWorkers.length} Worker(s)`}
