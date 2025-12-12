@@ -730,13 +730,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       }
     });
 
-    return { 
-      total, 
-      present, 
-      absent, 
-      halfDay, 
-      overtime, 
-      packers, 
+    return {
+      total,
+      present,
+      absent,
+      halfDay,
+      overtime,
+      packers,
       presentPackers: presentPackerIds,
       defaultOTButNoOT,
       absentWorkers,
@@ -900,13 +900,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               )}
 
               {/* Show message if no special cases */}
-              {summary.defaultOTButNoOT.length === 0 && 
-               summary.absentWorkers.length === 0 && 
-               summary.halfDayWorkers.length === 0 && (
-                <div className="text-sm text-muted-foreground text-center py-2">
-                  No special cases for this date
-                </div>
-              )}
+              {summary.defaultOTButNoOT.length === 0 &&
+                summary.absentWorkers.length === 0 &&
+                summary.halfDayWorkers.length === 0 && (
+                  <div className="text-sm text-muted-foreground text-center py-2">
+                    No special cases for this date
+                  </div>
+                )}
             </div>
           </CardContent>
         </Card>
