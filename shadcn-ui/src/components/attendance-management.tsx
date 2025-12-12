@@ -671,7 +671,24 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     const absent = dateRecords.filter(r => r.status === AttendanceStatus.ABSENT).length;
     const halfDay = dateRecords.filter(r => r.status === AttendanceStatus.HALF_DAY).length;
     const present = total - absent - halfDay; // Default present unless marked otherwise
-    const overtime = dateRecords.filter(r => r.overtime === 'yes').length;
+    
+    // Count overtime: includes records with explicit overtime='yes' AND workers without records but with default OT enabled
+    let overtime = 0;
+    workers.forEach(worker => {
+      const record = dateRecords.find(r => r.workerId === worker.id);
+      if (record) {
+        // If record exists, use its explicit overtime status
+        if (record.overtime === 'yes') {
+          overtime++;
+        }
+      } else {
+        // If no record exists, check if worker has default OT enabled
+        if (workerDefaultOvertime[worker.id]) {
+          overtime++;
+        }
+      }
+    });
+    
     const packers = workers.filter(w => w.isPacker).length;
 
     // Calculate present packers

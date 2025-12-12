@@ -115,7 +115,7 @@ export async function saveWorkerDefaultOvertimeSetting(workerId: string, value: 
       const newOvertimeValue = value ? 'yes' : 'no';
 
       const recordsToUpdate = futureRecords.filter(r => r.overtime === oldDefaultValue);
-      
+
       if (recordsToUpdate.length > 0) {
         const idsToUpdate = recordsToUpdate.map(r => r.id);
 
