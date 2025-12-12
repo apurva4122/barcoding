@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Worker, AttendanceRecord, AttendanceStatus, Gender } from "@/types";
 import { getAllWorkers, getAllAttendance, saveWorker, saveAttendance, toggleOvertimeForWorker, deleteWorker } from "@/lib/attendance-utils";
 import { getWorkerDefaultOvertimeSetting, saveWorkerDefaultOvertimeSetting, getAllWorkerDefaultOvertimeSettings } from "@/lib/supabase-service";
@@ -64,10 +65,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     showDialog: false
   });
 
-  // Attendance form
+  // Attendance form - bulk update with multi-select
   const [attendanceForm, setAttendanceForm] = useState({
-    workerId: "",
-    status: AttendanceStatus.ABSENT, // Can be present, absent, or half-day
+    absentWorkers: [] as string[], // Array of worker IDs for absent
+    halfDayWorkers: [] as string[], // Array of worker IDs for half day
+    noOTWorkers: [] as string[], // Array of worker IDs for no OT
     notes: ""
   });
 
@@ -372,77 +374,144 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     }
   };
 
-  // Mark attendance (can be present, absent, or half-day)
+  // Bulk mark attendance (can be present, absent, or half-day)
   const markAttendance = async () => {
-    if (!attendanceForm.workerId) {
-      setError("Please select a worker");
+    const { absentWorkers, halfDayWorkers, noOTWorkers, notes } = attendanceForm;
+    
+    if (absentWorkers.length === 0 && halfDayWorkers.length === 0 && noOTWorkers.length === 0) {
+      setError("Please select at least one worker to update");
       return;
     }
 
     setFormLoading(true);
+    setError(null);
+    
     try {
-      // Check if attendance already exists for this worker and date
-      const existingRecord = attendanceRecords.find(
-        r => r.workerId === attendanceForm.workerId && r.date === selectedDate
-      );
+      const updates: Promise<boolean>[] = [];
+      const updatedWorkers: string[] = [];
 
-      const worker = workers.find(w => w.id === attendanceForm.workerId);
-      if (!worker) {
-        setError("Worker not found");
-        return;
-      }
+      // Process absent workers
+      for (const workerId of absentWorkers) {
+        const worker = workers.find(w => w.id === workerId);
+        if (!worker) continue;
 
-      let newRecord: AttendanceRecord;
+        const existingRecord = attendanceRecords.find(
+          r => r.workerId === workerId && r.date === selectedDate
+        );
 
-      if (existingRecord) {
-        // Update existing record
-        newRecord = {
-          ...existingRecord,
-          status: attendanceForm.status,
-          notes: attendanceForm.notes.trim() || undefined,
+        const newRecord: AttendanceRecord = {
+          ...(existingRecord || {
+            id: `attendance-${Date.now()}-${workerId}`,
+            workerId: workerId,
+            workerName: worker.name,
+            date: selectedDate,
+            createdAt: new Date().toISOString()
+          }),
+          status: AttendanceStatus.ABSENT,
+          overtime: 'no', // No overtime for absent
+          notes: notes.trim() || existingRecord?.notes || undefined,
           updatedAt: new Date().toISOString()
         };
 
-        // If changing to present, reset overtime if it was set (can be toggled separately)
-        if (attendanceForm.status === AttendanceStatus.PRESENT && existingRecord.status === AttendanceStatus.ABSENT) {
-          // Keep existing overtime status when changing from absent to present
-        }
-
-        toast.success(`Attendance updated to ${attendanceForm.status}`);
-      } else {
-        // Create new record
-        newRecord = {
-          id: `attendance-${Date.now()}`,
-          workerId: attendanceForm.workerId,
-          workerName: worker.name,
-          date: selectedDate,
-          status: attendanceForm.status,
-          overtime: 'yes', // Default to 'yes' (overtime on by default)
-          notes: attendanceForm.notes.trim() || undefined,
-          createdAt: new Date().toISOString()
-        };
-        toast.success(`Attendance marked as ${attendanceForm.status}`);
+        updates.push(saveAttendance(newRecord));
+        updatedWorkers.push(worker.name);
       }
 
-      const success = await saveAttendance(newRecord);
+      // Process half day workers
+      for (const workerId of halfDayWorkers) {
+        const worker = workers.find(w => w.id === workerId);
+        if (!worker) continue;
 
-      if (success) {
+        const existingRecord = attendanceRecords.find(
+          r => r.workerId === workerId && r.date === selectedDate
+        );
+
+        // Use default OT or existing overtime status
+        const defaultOT = workerDefaultOvertime[workerId] || false;
+        const overtimeStatus = existingRecord?.overtime || (defaultOT ? 'yes' : 'no');
+
+        const newRecord: AttendanceRecord = {
+          ...(existingRecord || {
+            id: `attendance-${Date.now()}-${workerId}`,
+            workerId: workerId,
+            workerName: worker.name,
+            date: selectedDate,
+            createdAt: new Date().toISOString()
+          }),
+          status: AttendanceStatus.HALF_DAY,
+          overtime: overtimeStatus,
+          notes: notes.trim() || existingRecord?.notes || undefined,
+          updatedAt: new Date().toISOString()
+        };
+
+        updates.push(saveAttendance(newRecord));
+        updatedWorkers.push(worker.name);
+      }
+
+      // Process no OT workers (update overtime to 'no' but keep status)
+      for (const workerId of noOTWorkers) {
+        const worker = workers.find(w => w.id === workerId);
+        if (!worker) continue;
+
+        const existingRecord = attendanceRecords.find(
+          r => r.workerId === workerId && r.date === selectedDate
+        );
+
+        if (existingRecord) {
+          // Update existing record to set overtime to 'no'
+          const newRecord: AttendanceRecord = {
+            ...existingRecord,
+            overtime: 'no',
+            notes: notes.trim() || existingRecord.notes || undefined,
+            updatedAt: new Date().toISOString()
+          };
+          updates.push(saveAttendance(newRecord));
+          updatedWorkers.push(worker.name);
+        } else {
+          // Create new record with present status but no OT
+          const newRecord: AttendanceRecord = {
+            id: `attendance-${Date.now()}-${workerId}`,
+            workerId: workerId,
+            workerName: worker.name,
+            date: selectedDate,
+            status: AttendanceStatus.PRESENT,
+            overtime: 'no',
+            notes: notes.trim() || undefined,
+            createdAt: new Date().toISOString()
+          };
+          updates.push(saveAttendance(newRecord));
+          updatedWorkers.push(worker.name);
+        }
+      }
+
+      const results = await Promise.all(updates);
+      const successCount = results.filter(r => r).length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
         await loadData(); // Refresh data
 
         // Reset form
         setAttendanceForm({
-          workerId: "",
-          status: AttendanceStatus.PRESENT, // Default to present for next time
+          absentWorkers: [],
+          halfDayWorkers: [],
+          noOTWorkers: [],
           notes: ""
         });
         setAttendanceDialogOpen(false);
         setError(null);
 
+        if (failCount === 0) {
+          toast.success(`Successfully updated ${successCount} worker(s)`);
+        } else {
+          toast.warning(`Updated ${successCount} worker(s), ${failCount} failed`);
+        }
+
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
       } else {
-        setError("Failed to mark attendance");
+        setError("Failed to update attendance for all selected workers");
       }
     } catch (error) {
       console.error("Error marking attendance:", error);
@@ -1075,74 +1144,260 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             <DialogHeader>
               <DialogTitle>Mark/Change Attendance</DialogTitle>
               <DialogDescription>
-                Set or change attendance status for {selectedDate}. Workers are present by default unless marked otherwise.
+                Bulk update attendance status for {selectedDate}. Select multiple workers for Absent, Half Day, or No OT. Workers are present by default unless marked otherwise.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="attendance-worker">Select Worker *</Label>
-                <Select
-                  value={attendanceForm.workerId}
-                  onValueChange={(value) => {
-                    const worker = workers.find(w => w.id === value);
-                    const existingRecord = attendanceRecords.find(
-                      r => r.workerId === value && r.date === selectedDate
-                    );
-                    setAttendanceForm({
-                      ...attendanceForm,
-                      workerId: value,
-                      status: existingRecord?.status || AttendanceStatus.PRESENT
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a worker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workers.map((worker) => {
+            <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto">
+              {/* Absent Workers Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold text-red-600">Mark as Absent</Label>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="destructive">{attendanceForm.absentWorkers.length} selected</Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (attendanceForm.absentWorkers.length === workers.length) {
+                          setAttendanceForm({ ...attendanceForm, absentWorkers: [] });
+                        } else {
+                          setAttendanceForm({ 
+                            ...attendanceForm, 
+                            absentWorkers: workers.map(w => w.id),
+                            halfDayWorkers: [],
+                            noOTWorkers: []
+                          });
+                        }
+                      }}
+                      className="h-6 text-xs"
+                    >
+                      {attendanceForm.absentWorkers.length === workers.length ? 'Clear All' : 'Select All'}
+                    </Button>
+                  </div>
+                </div>
+                <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                  {workers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No workers available</p>
+                  ) : (
+                    workers.map((worker) => {
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
-                      const currentStatus = record?.status || AttendanceStatus.PRESENT;
+                      const isChecked = attendanceForm.absentWorkers.includes(worker.id);
                       return (
-                        <SelectItem key={worker.id} value={worker.id}>
-                          {worker.name} ({worker.employeeId}) {worker.isPacker && '📦'}
-                          {record && ` - Currently: ${currentStatus}`}
-                        </SelectItem>
+                        <div key={worker.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`absent-${worker.id}`}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setAttendanceForm({
+                                  ...attendanceForm,
+                                  absentWorkers: [...attendanceForm.absentWorkers, worker.id],
+                                  // Remove from other lists if selected
+                                  halfDayWorkers: attendanceForm.halfDayWorkers.filter(id => id !== worker.id),
+                                  noOTWorkers: attendanceForm.noOTWorkers.filter(id => id !== worker.id)
+                                });
+                              } else {
+                                setAttendanceForm({
+                                  ...attendanceForm,
+                                  absentWorkers: attendanceForm.absentWorkers.filter(id => id !== worker.id)
+                                });
+                              }
+                            }}
+                          />
+                          <Label
+                            htmlFor={`absent-${worker.id}`}
+                            className="text-sm cursor-pointer flex-1 flex items-center gap-2"
+                          >
+                            <span>{worker.name}</span>
+                            <span className="text-muted-foreground">({worker.employeeId})</span>
+                            {worker.isPacker && <span>📦</span>}
+                            {record && (
+                              <Badge variant="outline" className="ml-auto">
+                                {record.status}
+                              </Badge>
+                            )}
+                          </Label>
+                        </div>
                       );
-                    })}
-                  </SelectContent>
-                </Select>
+                    })
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="attendance-status">Status *</Label>
-                <Select
-                  value={attendanceForm.status}
-                  onValueChange={(value) => setAttendanceForm({ ...attendanceForm, status: value as AttendanceStatus })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={AttendanceStatus.PRESENT}>Present</SelectItem>
-                    <SelectItem value={AttendanceStatus.ABSENT}>Absent</SelectItem>
-                    <SelectItem value={AttendanceStatus.HALF_DAY}>Half Day</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Select Present to mark someone as present (e.g., if marked absent by mistake)
-                </p>
+              {/* Half Day Workers Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold text-purple-600">Mark as Half Day</Label>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{attendanceForm.halfDayWorkers.length} selected</Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (attendanceForm.halfDayWorkers.length === workers.length) {
+                          setAttendanceForm({ ...attendanceForm, halfDayWorkers: [] });
+                        } else {
+                          setAttendanceForm({ 
+                            ...attendanceForm, 
+                            halfDayWorkers: workers.map(w => w.id),
+                            absentWorkers: [],
+                            noOTWorkers: []
+                          });
+                        }
+                      }}
+                      className="h-6 text-xs"
+                    >
+                      {attendanceForm.halfDayWorkers.length === workers.length ? 'Clear All' : 'Select All'}
+                    </Button>
+                  </div>
+                </div>
+                <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                  {workers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No workers available</p>
+                  ) : (
+                    workers.map((worker) => {
+                      const record = attendanceRecords.find(
+                        r => r.workerId === worker.id && r.date === selectedDate
+                      );
+                      const isChecked = attendanceForm.halfDayWorkers.includes(worker.id);
+                      return (
+                        <div key={worker.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`halfday-${worker.id}`}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setAttendanceForm({
+                                  ...attendanceForm,
+                                  halfDayWorkers: [...attendanceForm.halfDayWorkers, worker.id],
+                                  // Remove from other lists if selected
+                                  absentWorkers: attendanceForm.absentWorkers.filter(id => id !== worker.id),
+                                  noOTWorkers: attendanceForm.noOTWorkers.filter(id => id !== worker.id)
+                                });
+                              } else {
+                                setAttendanceForm({
+                                  ...attendanceForm,
+                                  halfDayWorkers: attendanceForm.halfDayWorkers.filter(id => id !== worker.id)
+                                });
+                              }
+                            }}
+                          />
+                          <Label
+                            htmlFor={`halfday-${worker.id}`}
+                            className="text-sm cursor-pointer flex-1 flex items-center gap-2"
+                          >
+                            <span>{worker.name}</span>
+                            <span className="text-muted-foreground">({worker.employeeId})</span>
+                            {worker.isPacker && <span>📦</span>}
+                            {record && (
+                              <Badge variant="outline" className="ml-auto">
+                                {record.status}
+                              </Badge>
+                            )}
+                          </Label>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
+              {/* No OT Workers Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold text-orange-600">Mark as No Overtime</Label>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{attendanceForm.noOTWorkers.length} selected</Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (attendanceForm.noOTWorkers.length === workers.length) {
+                          setAttendanceForm({ ...attendanceForm, noOTWorkers: [] });
+                        } else {
+                          setAttendanceForm({ 
+                            ...attendanceForm, 
+                            noOTWorkers: workers.map(w => w.id),
+                            absentWorkers: [],
+                            halfDayWorkers: []
+                          });
+                        }
+                      }}
+                      className="h-6 text-xs"
+                    >
+                      {attendanceForm.noOTWorkers.length === workers.length ? 'Clear All' : 'Select All'}
+                    </Button>
+                  </div>
+                </div>
+                <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                  {workers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No workers available</p>
+                  ) : (
+                    workers.map((worker) => {
+                      const record = attendanceRecords.find(
+                        r => r.workerId === worker.id && r.date === selectedDate
+                      );
+                      const isChecked = attendanceForm.noOTWorkers.includes(worker.id);
+                      const hasDefaultOT = workerDefaultOvertime[worker.id] || false;
+                      return (
+                        <div key={worker.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`noot-${worker.id}`}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setAttendanceForm({
+                                  ...attendanceForm,
+                                  noOTWorkers: [...attendanceForm.noOTWorkers, worker.id],
+                                  // Remove from absent/halfday lists if selected
+                                  absentWorkers: attendanceForm.absentWorkers.filter(id => id !== worker.id),
+                                  halfDayWorkers: attendanceForm.halfDayWorkers.filter(id => id !== worker.id)
+                                });
+                              } else {
+                                setAttendanceForm({
+                                  ...attendanceForm,
+                                  noOTWorkers: attendanceForm.noOTWorkers.filter(id => id !== worker.id)
+                                });
+                              }
+                            }}
+                          />
+                          <Label
+                            htmlFor={`noot-${worker.id}`}
+                            className="text-sm cursor-pointer flex-1 flex items-center gap-2"
+                          >
+                            <span>{worker.name}</span>
+                            <span className="text-muted-foreground">({worker.employeeId})</span>
+                            {worker.isPacker && <span>📦</span>}
+                            {hasDefaultOT && (
+                              <Badge variant="secondary" className="text-xs">Default OT</Badge>
+                            )}
+                            {record && (
+                              <Badge variant="outline" className="ml-auto">
+                                OT: {record.overtime === 'yes' ? 'Yes' : 'No'}
+                              </Badge>
+                            )}
+                          </Label>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Notes Section */}
               <div className="space-y-2">
-                <Label htmlFor="attendance-notes">Notes</Label>
+                <Label htmlFor="attendance-notes">Notes (Optional - applies to all selected workers)</Label>
                 <Textarea
                   id="attendance-notes"
                   value={attendanceForm.notes}
                   onChange={(e) => setAttendanceForm({ ...attendanceForm, notes: e.target.value })}
-                  placeholder="Optional notes"
+                  placeholder="Optional notes for all updates"
                   rows={3}
                 />
               </div>
@@ -1156,11 +1411,26 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAttendanceDialogOpen(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setAttendanceDialogOpen(false);
+                  setAttendanceForm({
+                    absentWorkers: [],
+                    halfDayWorkers: [],
+                    noOTWorkers: [],
+                    notes: ""
+                  });
+                  setError(null);
+                }}
+              >
                 Cancel
               </Button>
-              <Button onClick={markAttendance} disabled={formLoading}>
-                {formLoading ? "Saving..." : "Save Attendance"}
+              <Button 
+                onClick={markAttendance} 
+                disabled={formLoading || (attendanceForm.absentWorkers.length === 0 && attendanceForm.halfDayWorkers.length === 0 && attendanceForm.noOTWorkers.length === 0)}
+              >
+                {formLoading ? "Saving..." : `Update ${attendanceForm.absentWorkers.length + attendanceForm.halfDayWorkers.length + attendanceForm.noOTWorkers.length} Worker(s)`}
               </Button>
             </DialogFooter>
           </DialogContent>
