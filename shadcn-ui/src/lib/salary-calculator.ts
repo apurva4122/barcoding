@@ -23,7 +23,8 @@ export function calculateMonthlySalary(
   worker: Worker,
   attendanceRecords: AttendanceRecord[],
   month: number,
-  year: number
+  year: number,
+  defaultOvertime?: boolean // Optional: worker's default OT setting
 ): SalaryCalculationResult {
   if (!worker.baseSalary || worker.baseSalary <= 0) {
     return { baseSalary: 0, bonus: 0, totalSalary: 0, hasBonus: false };
@@ -39,9 +40,9 @@ export function calculateMonthlySalary(
   });
 
   if (worker.gender === Gender.MALE) {
-    return calculateMaleSalary(worker, monthRecords, month, year);
+    return calculateMaleSalary(worker, monthRecords, month, year, defaultOvertime);
   } else {
-    return calculateFemaleSalary(worker, monthRecords, month, year);
+    return calculateFemaleSalary(worker, monthRecords, month, year, defaultOvertime);
   }
 }
 
@@ -95,7 +96,8 @@ function calculateMaleSalary(
   worker: Worker,
   records: AttendanceRecord[],
   month: number,
-  year: number
+  year: number,
+  defaultOvertime?: boolean
 ): SalaryCalculationResult {
   const monthlySalary = worker.baseSalary || 0;
 
@@ -126,33 +128,55 @@ function calculateMaleSalary(
   let halfDays = 0;
   let overtimeHours = 0;
 
+  // Create a map of records by date for quick lookup
+  const recordsByDate = new Map<string, AttendanceRecord>();
   records.forEach(record => {
-    const date = new Date(record.date);
+    recordsByDate.set(record.date, record);
+  });
+
+  // Process each day in the month
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(year, month, day);
+    const dateStr = date.toISOString().split('T')[0];
     const dayOfWeek = date.getDay();
     const isTuesday = dayOfWeek === 2;
 
-    if (record.status === AttendanceStatus.PRESENT) {
+    const record = recordsByDate.get(dateStr);
+
+    if (record) {
+      // Record exists - use explicit status
+      if (record.status === AttendanceStatus.PRESENT) {
+        presentDays++;
+        // Men get paid for Tuesday
+        baseSalary += dailyRate;
+
+        // Check for overtime (explicit record overwrites default)
+        if (record.overtime === 'yes') {
+          overtimeHours += 1; // 1 hour extra
+        }
+      } else if (record.status === AttendanceStatus.HALF_DAY) {
+        halfDays++;
+        // Half day = half of daily rate
+        baseSalary += dailyRate * 0.5;
+
+        // Check for overtime (can still have overtime on half day)
+        if (record.overtime === 'yes') {
+          overtimeHours += 1;
+        }
+      } else if (record.status === AttendanceStatus.ABSENT) {
+        absentDays++;
+      }
+    } else {
+      // No record exists - default to present and check default OT
       presentDays++;
-      // Men get paid for Tuesday
       baseSalary += dailyRate;
 
-      // Check for overtime
-      if (record.overtime === 'yes') {
-        overtimeHours += 1; // 1 hour extra
-      }
-    } else if (record.status === AttendanceStatus.HALF_DAY) {
-      halfDays++;
-      // Half day = half of daily rate
-      baseSalary += dailyRate * 0.5;
-
-      // Check for overtime (can still have overtime on half day)
-      if (record.overtime === 'yes') {
+      // If default OT is enabled, count overtime
+      if (defaultOvertime === true) {
         overtimeHours += 1;
       }
-    } else if (record.status === AttendanceStatus.ABSENT) {
-      absentDays++;
     }
-  });
+  }
 
   // Add overtime pay (double hourly rate)
   const overtimePay = overtimeHours * hourlyRate * 2;
@@ -183,7 +207,8 @@ function calculateFemaleSalary(
   worker: Worker,
   records: AttendanceRecord[],
   month: number,
-  year: number
+  year: number,
+  defaultOvertime?: boolean
 ): SalaryCalculationResult {
   const dailyWage = worker.baseSalary || 0;
 
@@ -195,36 +220,58 @@ function calculateFemaleSalary(
   let halfDays = 0;
   let overtimeHours = 0;
 
+  // Create a map of records by date for quick lookup
+  const recordsByDate = new Map<string, AttendanceRecord>();
   records.forEach(record => {
-    const date = new Date(record.date);
+    recordsByDate.set(record.date, record);
+  });
+
+  // Process each day in the month
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(year, month, day);
+    const dateStr = date.toISOString().split('T')[0];
     const dayOfWeek = date.getDay();
     const isTuesday = dayOfWeek === 2;
 
     // Women don't get paid for Tuesday off
     if (isTuesday) {
-      return; // Skip Tuesday
+      continue; // Skip Tuesday
     }
 
-    if (record.status === AttendanceStatus.PRESENT) {
+    const record = recordsByDate.get(dateStr);
+
+    if (record) {
+      // Record exists - use explicit status
+      if (record.status === AttendanceStatus.PRESENT) {
+        baseSalary += dailyWage;
+
+        // Check for overtime (explicit record overwrites default)
+        if (record.overtime === 'yes') {
+          overtimeHours += 1; // 1 hour extra
+        }
+      } else if (record.status === AttendanceStatus.HALF_DAY) {
+        halfDays++;
+        // Half day = half of daily wage
+        baseSalary += dailyWage * 0.5;
+
+        // Check for overtime
+        if (record.overtime === 'yes') {
+          overtimeHours += 1;
+        }
+      } else if (record.status === AttendanceStatus.ABSENT) {
+        absentDays++;
+      }
+    } else {
+      // No record exists - default to present and check default OT
       baseSalary += dailyWage;
 
-      // Check for overtime
-      if (record.overtime === 'yes') {
-        overtimeHours += 1; // 1 hour extra
-      }
-    } else if (record.status === AttendanceStatus.HALF_DAY) {
-      halfDays++;
-      // Half day = half of daily wage
-      baseSalary += dailyWage * 0.5;
-
-      // Check for overtime
-      if (record.overtime === 'yes') {
+      // If default OT is enabled, count overtime
+      if (defaultOvertime === true) {
         overtimeHours += 1;
       }
-    } else if (record.status === AttendanceStatus.ABSENT) {
-      absentDays++;
     }
-  });
+  }
 
   // Add overtime pay (double hourly rate)
   const overtimePay = overtimeHours * hourlyRate * 2;

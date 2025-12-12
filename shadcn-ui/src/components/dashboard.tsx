@@ -8,6 +8,7 @@ import { BarChart } from "./dashboard/BarChart";
 import { getAllWorkers, getAllAttendance } from "@/lib/attendance-utils";
 import { getAllBarcodes } from "@/lib/storage";
 import { getAllHygieneRecords, getHygieneRecordsByDate } from "@/lib/hygiene-storage";
+import { getAllWorkerDefaultOvertimeSettings } from "@/lib/supabase-service";
 import { Worker, AttendanceRecord, AttendanceStatus, Barcode, PackingStatus, HygieneRecord, HygieneArea } from "@/types";
 import { calculateMonthlySalary, getCurrentMonthYear, type SalaryCalculationResult } from "@/lib/salary-calculator";
 import { TrendingDown, TrendingUp, DollarSign, Calendar, Sparkles, Package, Users, CheckCircle2, XCircle } from "lucide-react";
@@ -29,6 +30,7 @@ export function Dashboard() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [barcodes, setBarcodes] = useState<Barcode[]>([]);
   const [hygieneRecords, setHygieneRecords] = useState<HygieneRecord[]>([]);
+  const [workerDefaultOvertime, setWorkerDefaultOvertime] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -49,14 +51,16 @@ export function Dashboard() {
     try {
       setLoading(true);
       // Include inactive workers for salary calculations in dashboard
-      const [workersData, attendanceData, barcodesData] = await Promise.all([
+      const [workersData, attendanceData, barcodesData, defaultOTSettings] = await Promise.all([
         getAllWorkers(true), // true = include inactive workers
         getAllAttendance(),
-        getAllBarcodes()
+        getAllBarcodes(),
+        getAllWorkerDefaultOvertimeSettings()
       ]);
       setWorkers(workersData);
       setAttendanceRecords(attendanceData);
       setBarcodes(barcodesData);
+      setWorkerDefaultOvertime(defaultOTSettings);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -112,7 +116,8 @@ export function Dashboard() {
 
     // Initialize all workers with last month salary
     workers.forEach(worker => {
-      const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear);
+      const defaultOT = workerDefaultOvertime[worker.id] || false;
+      const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear, defaultOT);
 
       statsMap.set(worker.id, {
         workerId: worker.id,
@@ -160,8 +165,9 @@ export function Dashboard() {
 
     // Initialize all workers
     workers.forEach(worker => {
-      // Calculate salary for this worker
-      const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, month, year);
+      // Calculate salary for this worker (include default OT setting)
+      const defaultOT = workerDefaultOvertime[worker.id] || false;
+      const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, month, year, defaultOT);
 
       statsMap.set(worker.id, {
         workerId: worker.id,
