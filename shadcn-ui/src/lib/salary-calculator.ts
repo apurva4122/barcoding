@@ -134,8 +134,14 @@ function calculateMaleSalary(
     recordsByDate.set(record.date, record);
   });
 
-  // Process each day in the month
-  for (let day = 1; day <= totalDays; day++) {
+  // Get today's date to only process days up to today (including today)
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
+  const daysToProcess = isCurrentMonth ? today.getDate() : totalDays;
+
+  // Process each day up to today (including today)
+  for (let day = 1; day <= daysToProcess; day++) {
     const date = new Date(year, month, day);
     const dateStr = date.toISOString().split('T')[0];
     const dayOfWeek = date.getDay();
@@ -151,7 +157,8 @@ function calculateMaleSalary(
         baseSalary += dailyRate;
 
         // Check for overtime (explicit record overwrites default)
-        if (record.overtime === 'yes') {
+        // Men don't get OT on Tuesday
+        if (record.overtime === 'yes' && !isTuesday) {
           overtimeHours += 1; // 1 hour extra
         }
       } else if (record.status === AttendanceStatus.HALF_DAY) {
@@ -159,8 +166,8 @@ function calculateMaleSalary(
         // Half day = half of daily rate
         baseSalary += dailyRate * 0.5;
 
-        // Check for overtime (can still have overtime on half day)
-        if (record.overtime === 'yes') {
+        // Check for overtime (can still have overtime on half day, but not on Tuesday)
+        if (record.overtime === 'yes' && !isTuesday) {
           overtimeHours += 1;
         }
       } else if (record.status === AttendanceStatus.ABSENT) {
@@ -171,8 +178,8 @@ function calculateMaleSalary(
       presentDays++;
       baseSalary += dailyRate;
 
-      // If default OT is enabled, count overtime
-      if (defaultOvertime === true) {
+      // If default OT is enabled, count overtime (but not on Tuesday for men)
+      if (defaultOvertime === true && !isTuesday) {
         overtimeHours += 1;
       }
     }
@@ -226,17 +233,23 @@ function calculateFemaleSalary(
     recordsByDate.set(record.date, record);
   });
 
-  // Process each day in the month
+  // Get today's date to only process days up to today (including today)
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
   const totalDays = new Date(year, month + 1, 0).getDate();
-  for (let day = 1; day <= totalDays; day++) {
+  const daysToProcess = isCurrentMonth ? today.getDate() : totalDays;
+
+  // Process each day up to today (including today)
+  for (let day = 1; day <= daysToProcess; day++) {
     const date = new Date(year, month, day);
     const dateStr = date.toISOString().split('T')[0];
     const dayOfWeek = date.getDay();
     const isTuesday = dayOfWeek === 2;
 
-    // Women don't get paid for Tuesday off
+    // Women don't get paid for Tuesday off (no attendance pay, no OT)
     if (isTuesday) {
-      continue; // Skip Tuesday
+      continue; // Skip Tuesday completely for women
     }
 
     const record = recordsByDate.get(dateStr);
