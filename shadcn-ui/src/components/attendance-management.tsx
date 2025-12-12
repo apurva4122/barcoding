@@ -82,8 +82,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const filterWorkers = (workers: Worker[], searchTerm: string) => {
     if (!searchTerm.trim()) return workers;
     const term = searchTerm.toLowerCase();
-    return workers.filter(worker => 
-      worker.name.toLowerCase().includes(term) || 
+    return workers.filter(worker =>
+      worker.name.toLowerCase().includes(term) ||
       worker.employeeId.toLowerCase().includes(term)
     );
   };
@@ -1195,11 +1195,22 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     </Button>
                   </div>
                 </div>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or employee ID..."
+                    value={absentSearch}
+                    onChange={(e) => setAbsentSearch(e.target.value)}
+                    className="pl-8 mb-2"
+                  />
+                </div>
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                   {workers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers available</p>
+                  ) : filterWorkers(workers, absentSearch).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No workers found matching "{absentSearch}"</p>
                   ) : (
-                    workers.map((worker) => {
+                    filterWorkers(workers, absentSearch).map((worker) => {
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
@@ -1451,8 +1462,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             </div>
 
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setAttendanceDialogOpen(false);
                   setAttendanceForm({
