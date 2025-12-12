@@ -634,6 +634,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   }, [workers, selectedDate, attendanceRecords]);
 
   // Check if worker has overtime for selected date
+  // If a record exists, use its overtime (overwrites default)
+  // If no record exists, use the worker's default OT setting
   const checkHasOvertime = (workerId: string) => {
     // First check the state map (from Supabase)
     if (overtimeStatus[workerId] !== undefined) {
@@ -653,8 +655,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       return workerMatch && r.date === selectedDate;
     });
 
-    // Default to 'yes' if no record found (overtime on by default)
-    return record ? record.overtime === 'yes' : true;
+    // If record exists, use its overtime status (overwrites default)
+    if (record) {
+      return record.overtime === 'yes';
+    }
+
+    // If no record exists, use the worker's default OT setting
+    return workerDefaultOvertime[workerId] || false;
   };
 
   // Get attendance summary
@@ -1662,7 +1669,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                   }}
                                   disabled={status === AttendanceStatus.ABSENT}
                                   className="h-7 text-xs px-2"
-                                  title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime" : "Add overtime"}
+                                  title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime (will affect this day and all future days)" : "Add overtime (will affect this day and all future days)"}
                                 >
                                   <Clock className="h-3 w-3 mr-1" />
                                   {hasOvertime ? 'Overtime' : 'No OT'}
