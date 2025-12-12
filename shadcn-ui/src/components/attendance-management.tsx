@@ -699,7 +699,49 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         return !record || (record.status !== AttendanceStatus.ABSENT && record.status !== AttendanceStatus.HALF_DAY);
       }).length;
 
-    return { total, present, absent, halfDay, overtime, packers, presentPackers: presentPackerIds };
+    // Get list of workers with default OT but explicitly marked "No Overtime"
+    const defaultOTButNoOT: string[] = [];
+    workers.forEach(worker => {
+      const record = dateRecords.find(r => r.workerId === worker.id);
+      if (record && workerDefaultOvertime[worker.id] && record.overtime === 'no') {
+        defaultOTButNoOT.push(worker.name);
+      }
+    });
+
+    // Get list of absent workers
+    const absentWorkers: string[] = [];
+    dateRecords.forEach(record => {
+      if (record.status === AttendanceStatus.ABSENT) {
+        const worker = workers.find(w => w.id === record.workerId);
+        if (worker) {
+          absentWorkers.push(worker.name);
+        }
+      }
+    });
+
+    // Get list of half day workers
+    const halfDayWorkers: string[] = [];
+    dateRecords.forEach(record => {
+      if (record.status === AttendanceStatus.HALF_DAY) {
+        const worker = workers.find(w => w.id === record.workerId);
+        if (worker) {
+          halfDayWorkers.push(worker.name);
+        }
+      }
+    });
+
+    return { 
+      total, 
+      present, 
+      absent, 
+      halfDay, 
+      overtime, 
+      packers, 
+      presentPackers: presentPackerIds,
+      defaultOTButNoOT,
+      absentWorkers,
+      halfDayWorkers
+    };
   };
 
   // Download attendance report
@@ -800,7 +842,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">{summary.total}</div>
                 <div className="text-sm text-muted-foreground">Total Workers</div>
@@ -817,6 +859,54 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 <div className="text-2xl font-bold text-orange-600">{summary.overtime}</div>
                 <div className="text-sm text-muted-foreground">Overtime</div>
               </div>
+            </div>
+
+            {/* Lists Section */}
+            <div className="space-y-4 border-t pt-4">
+              {/* Default OT but No OT List */}
+              {summary.defaultOTButNoOT.length > 0 && (
+                <div>
+                  <div className="text-sm font-semibold text-muted-foreground mb-2">
+                    Default OT but No Overtime ({summary.defaultOTButNoOT.length}):
+                  </div>
+                  <div className="text-sm text-amber-600">
+                    {summary.defaultOTButNoOT.join(', ')}
+                  </div>
+                </div>
+              )}
+
+              {/* Absent Workers List */}
+              {summary.absentWorkers.length > 0 && (
+                <div>
+                  <div className="text-sm font-semibold text-muted-foreground mb-2">
+                    Absent ({summary.absentWorkers.length}):
+                  </div>
+                  <div className="text-sm text-red-600">
+                    {summary.absentWorkers.join(', ')}
+                  </div>
+                </div>
+              )}
+
+              {/* Half Day Workers List */}
+              {summary.halfDayWorkers.length > 0 && (
+                <div>
+                  <div className="text-sm font-semibold text-muted-foreground mb-2">
+                    Half Day ({summary.halfDayWorkers.length}):
+                  </div>
+                  <div className="text-sm text-purple-600">
+                    {summary.halfDayWorkers.join(', ')}
+                  </div>
+                </div>
+              )}
+
+              {/* Show message if no special cases */}
+              {summary.defaultOTButNoOT.length === 0 && 
+               summary.absentWorkers.length === 0 && 
+               summary.halfDayWorkers.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  No special cases for this date
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
