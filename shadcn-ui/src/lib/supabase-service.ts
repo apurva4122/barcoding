@@ -68,6 +68,73 @@ export async function saveWorkerDefaultOvertimeSetting(workerId: string, value: 
     }
 
     console.log('✅ Worker default overtime setting saved successfully:', data);
+
+    // Update future attendance records that don't have explicit overtime set
+    // (i.e., records that would be using the default)
+    // First, resolve the actual worker UUID if workerId is not a UUID
+    let actualWorkerId = workerId;
+    const isWorkerIdUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId);
+
+    if (!isWorkerIdUUID) {
+      // Try to find worker by employee_id
+      const { data: workerData } = await supabase
+        .from('workers')
+        .select('id')
+        .eq('employee_id', workerId)
+        .maybeSingle();
+
+      if (workerData) {
+        actualWorkerId = workerData.id;
+      } else {
+        console.warn('⚠️ Cannot find worker UUID for default OT update:', workerId);
+        return true; // Still return true as the setting was saved
+      }
+    }
+
+    // Get today's date to only update future dates
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get all future attendance records for this worker
+    const { data: futureRecords, error: futureError } = await supabase
+      .from('attendance_records')
+      .select('id, date, overtime')
+      .eq('worker_id', actualWorkerId)
+      .gte('date', today); // Today and future dates
+
+    if (futureError && futureError.code !== 'PGRST116') {
+      console.warn('⚠️ Error fetching future records for default OT update (continuing anyway):', futureError);
+      return true; // Still return true as the setting was saved
+    }
+
+    if (futureRecords && futureRecords.length > 0) {
+      // Update future records that don't have explicit overtime set
+      // We'll update records where overtime matches the old default (opposite of new value)
+      // This is a heuristic - ideally we'd track which records use default vs explicit
+      // For now, we'll update records that match the opposite of the new default
+      const oldDefaultValue = value ? 'no' : 'yes';
+      const newOvertimeValue = value ? 'yes' : 'no';
+
+      const recordsToUpdate = futureRecords.filter(r => r.overtime === oldDefaultValue);
+      
+      if (recordsToUpdate.length > 0) {
+        const idsToUpdate = recordsToUpdate.map(r => r.id);
+
+        // Update in batches if needed
+        for (const recordId of idsToUpdate) {
+          const { error: updateError } = await supabase
+            .from('attendance_records')
+            .update({ overtime: newOvertimeValue })
+            .eq('id', recordId);
+
+          if (updateError) {
+            console.warn('⚠️ Error updating future record for default OT:', updateError);
+          }
+        }
+
+        console.log(`✅ Updated ${idsToUpdate.length} future records with new default OT: ${newOvertimeValue}`);
+      }
+    }
+
     return true;
   } catch (error) {
     console.error('❌ UNEXPECTED ERROR in saveWorkerDefaultOvertimeSetting:', error);
@@ -713,7 +780,8 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
       return false;
     }
 
-    // Update or create record for the selected date
+    // Update or create record for the selected date ONLY (day-specific)
+    // Overtime column should only affect the specific day, not future dates
     if (existingRecord) {
       const { error } = await supabase
         .from('attendance_records')
@@ -725,7 +793,7 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
         return false;
       }
     } else {
-      // Create new record with the new overtime status
+      // Create new record with the new overtime status for this specific date only
       const { error } = await supabase
         .from('attendance_records')
         .insert([{
@@ -742,38 +810,7 @@ export async function toggleOvertimeInSupabase(workerId: string, date: string): 
       }
     }
 
-    // Update all future dates with the same overtime status (cascade to future days)
-    // Get all future attendance records for this worker
-    const { data: futureRecords, error: futureError } = await supabase
-      .from('attendance_records')
-      .select('id, date')
-      .eq('worker_id', actualWorkerId)
-      .gt('date', date); // Only future dates (not including current date)
-
-    if (futureError && futureError.code !== 'PGRST116') {
-      console.warn('⚠️ Error fetching future records (continuing anyway):', futureError);
-    }
-
-    if (futureRecords && futureRecords.length > 0) {
-      // Update all future records to match the new overtime status
-      const futureIds = futureRecords.map(r => r.id);
-
-      // Update in batches if needed (Supabase has limits)
-      for (const recordId of futureIds) {
-        const { error: updateError } = await supabase
-          .from('attendance_records')
-          .update({ overtime: newOvertimeStatus })
-          .eq('id', recordId);
-
-        if (updateError) {
-          console.warn('⚠️ Error updating future record:', updateError);
-        }
-      }
-
-      console.log(`✅ Updated ${futureIds.length} future records with overtime status: ${newOvertimeStatus}`);
-    }
-
-    console.log('✅ Overtime toggled successfully:', newOvertimeStatus, 'for date:', date, 'and all future dates');
+    console.log('✅ Overtime toggled successfully:', newOvertimeStatus, 'for date:', date, '(day-specific only)');
     return true;
   } catch (error) {
     console.error('❌ UNEXPECTED ERROR in toggleOvertimeInSupabase:', error);

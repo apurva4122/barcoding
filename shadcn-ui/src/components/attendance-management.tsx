@@ -1469,7 +1469,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                       ...prev,
                                       [worker.id]: checked
                                     }));
-                                    toast.success(`Default overtime ${checked ? 'enabled' : 'disabled'} for ${worker.name}`);
+                                    // Reload attendance data to reflect changes in future dates
+                                    await loadData();
+                                    toast.success(`Default overtime ${checked ? 'enabled' : 'disabled'} for ${worker.name} (affects future dates)`);
                                   } catch (error) {
                                     console.error('Error saving worker default overtime:', error);
                                     toast.error('Failed to save default overtime setting');
@@ -1669,7 +1671,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                   }}
                                   disabled={status === AttendanceStatus.ABSENT}
                                   className="h-7 text-xs px-2"
-                                  title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime (will affect this day and all future days)" : "Add overtime (will affect this day and all future days)"}
+                                  title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime for this day only" : "Add overtime for this day only"}
                                 >
                                   <Clock className="h-3 w-3 mr-1" />
                                   {hasOvertime ? 'Overtime' : 'No OT'}
