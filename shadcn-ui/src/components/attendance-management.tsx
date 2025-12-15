@@ -413,8 +413,13 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const markAttendance = async () => {
     const { absentWorkers, halfDayWorkers, noOTWorkers, lateMinutes, notes } = attendanceForm;
 
-    if (absentWorkers.length === 0 && halfDayWorkers.length === 0 && noOTWorkers.length === 0) {
-      setError("Please select at least one worker to update");
+    // Check if there are any changes to save
+    const hasStatusChanges = absentWorkers.length > 0 || halfDayWorkers.length > 0 || noOTWorkers.length > 0;
+    const hasLateMinutesChanges = Object.keys(lateMinutes).length > 0 && 
+      Object.values(lateMinutes).some((minutes: number | undefined) => (minutes ?? 0) > 0);
+
+    if (!hasStatusChanges && !hasLateMinutesChanges) {
+      setError("Please select at least one worker to update or enter late minutes");
       return;
     }
 
@@ -518,6 +523,46 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             notes: notes.trim() || undefined,
             createdAt: new Date().toISOString()
           };
+          updates.push(saveAttendance(newRecord));
+          updatedWorkers.push(worker.name);
+        }
+      }
+
+      // Process present workers with late minutes (not in any status change list)
+      const presentWorkersWithLateMinutes = getFilteredWorkers.filter(worker => {
+        const hasLateMinutes = lateMinutes[worker.id] !== undefined && lateMinutes[worker.id] !== null;
+        const isNotInStatusChange = !absentWorkers.includes(worker.id) && 
+                                     !halfDayWorkers.includes(worker.id) && 
+                                     !noOTWorkers.includes(worker.id);
+        return hasLateMinutes && isNotInStatusChange;
+      });
+
+      for (const worker of presentWorkersWithLateMinutes) {
+        const existingRecord = attendanceRecords.find(
+          r => r.workerId === worker.id && r.date === selectedDate
+        );
+
+        // Only update if late minutes actually changed
+        const newLateMinutes = lateMinutes[worker.id] || 0;
+        if (existingRecord?.lateMinutes !== newLateMinutes) {
+          const defaultOT = workerDefaultOvertime[worker.id] || false;
+          const overtimeStatus = existingRecord?.overtime || (defaultOT ? 'yes' : 'no');
+
+          const newRecord: AttendanceRecord = {
+            ...(existingRecord || {
+              id: `attendance-${Date.now()}-${worker.id}`,
+              workerId: worker.id,
+              workerName: worker.name,
+              date: selectedDate,
+              createdAt: new Date().toISOString()
+            }),
+            status: existingRecord?.status || AttendanceStatus.PRESENT,
+            overtime: overtimeStatus,
+            lateMinutes: newLateMinutes,
+            notes: notes.trim() || existingRecord?.notes || undefined,
+            updatedAt: new Date().toISOString()
+          };
+
           updates.push(saveAttendance(newRecord));
           updatedWorkers.push(worker.name);
         }
@@ -1608,9 +1653,26 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               </Button>
               <Button
                 onClick={markAttendance}
-                disabled={formLoading || (attendanceForm.absentWorkers.length === 0 && attendanceForm.halfDayWorkers.length === 0 && attendanceForm.noOTWorkers.length === 0)}
+                disabled={formLoading || (
+                  attendanceForm.absentWorkers.length === 0 && 
+                  attendanceForm.halfDayWorkers.length === 0 && 
+                  attendanceForm.noOTWorkers.length === 0 &&
+                  Object.keys(attendanceForm.lateMinutes).length === 0
+                )}
               >
-                {formLoading ? "Saving..." : `Update ${attendanceForm.absentWorkers.length + attendanceForm.halfDayWorkers.length + attendanceForm.noOTWorkers.length} Worker(s)`}
+                {formLoading ? "Saving..." : (() => {
+                  const statusChanges = attendanceForm.absentWorkers.length + 
+                                       attendanceForm.halfDayWorkers.length + 
+                                       attendanceForm.noOTWorkers.length;
+                  const lateMinutesChanges = Object.keys(attendanceForm.lateMinutes).filter(
+                    id => attendanceForm.lateMinutes[id] !== undefined && 
+                          !attendanceForm.absentWorkers.includes(id) &&
+                          !attendanceForm.halfDayWorkers.includes(id) &&
+                          !attendanceForm.noOTWorkers.includes(id)
+                  ).length;
+                  const totalChanges = statusChanges + lateMinutesChanges;
+                  return `Update ${totalChanges} Worker(s)`;
+                })()}
               </Button>
             </DialogFooter>
           </DialogContent>
