@@ -147,7 +147,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const getFilteredWorkers = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     const isPastDate = selectedDate < today;
-    
+
     return workers.filter(worker => {
       // Always show active workers
       if (worker.isActive !== false) {
@@ -361,6 +361,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               ...existingRecord,
               status: AttendanceStatus.PRESENT,
               overtime: existingRecord.overtime || (workerDefaultOT ? 'yes' : 'no'),
+              lateMinutes: existingRecord.lateMinutes || 0,
               updatedAt: new Date().toISOString()
             };
           } else {
@@ -372,6 +373,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               date: selectedDate,
               status: AttendanceStatus.PRESENT,
               overtime: overtimeStatus,
+              lateMinutes: 0,
               createdAt: new Date().toISOString()
             };
           }
@@ -1202,8 +1204,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       size="sm"
                       onClick={() => {
                         const filteredIds = getFilteredWorkers.map(w => w.id);
-                        if (attendanceForm.absentWorkers.length === filteredIds.length && 
-                            filteredIds.every(id => attendanceForm.absentWorkers.includes(id))) {
+                        if (attendanceForm.absentWorkers.length === filteredIds.length &&
+                          filteredIds.every(id => attendanceForm.absentWorkers.includes(id))) {
                           setAttendanceForm({ ...attendanceForm, absentWorkers: [] });
                         } else {
                           setAttendanceForm({
@@ -1218,7 +1220,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     >
                       {(() => {
                         const filteredIds = getFilteredWorkers.map(w => w.id);
-                        const allSelected = filteredIds.length > 0 && 
+                        const allSelected = filteredIds.length > 0 &&
                           filteredIds.every(id => attendanceForm.absentWorkers.includes(id));
                         return allSelected ? 'Clear All' : 'Select All';
                       })()}
@@ -1304,8 +1306,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       size="sm"
                       onClick={() => {
                         const filteredIds = getFilteredWorkers.map(w => w.id);
-                        if (attendanceForm.halfDayWorkers.length === filteredIds.length && 
-                            filteredIds.every(id => attendanceForm.halfDayWorkers.includes(id))) {
+                        if (attendanceForm.halfDayWorkers.length === filteredIds.length &&
+                          filteredIds.every(id => attendanceForm.halfDayWorkers.includes(id))) {
                           setAttendanceForm({ ...attendanceForm, halfDayWorkers: [] });
                         } else {
                           setAttendanceForm({
@@ -1320,7 +1322,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     >
                       {(() => {
                         const filteredIds = getFilteredWorkers.map(w => w.id);
-                        const allSelected = filteredIds.length > 0 && 
+                        const allSelected = filteredIds.length > 0 &&
                           filteredIds.every(id => attendanceForm.halfDayWorkers.includes(id));
                         return allSelected ? 'Clear All' : 'Select All';
                       })()}
@@ -1406,8 +1408,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       size="sm"
                       onClick={() => {
                         const filteredIds = getFilteredWorkers.map(w => w.id);
-                        if (attendanceForm.noOTWorkers.length === filteredIds.length && 
-                            filteredIds.every(id => attendanceForm.noOTWorkers.includes(id))) {
+                        if (attendanceForm.noOTWorkers.length === filteredIds.length &&
+                          filteredIds.every(id => attendanceForm.noOTWorkers.includes(id))) {
                           setAttendanceForm({ ...attendanceForm, noOTWorkers: [] });
                         } else {
                           setAttendanceForm({
@@ -1422,7 +1424,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     >
                       {(() => {
                         const filteredIds = getFilteredWorkers.map(w => w.id);
-                        const allSelected = filteredIds.length > 0 && 
+                        const allSelected = filteredIds.length > 0 &&
                           filteredIds.every(id => attendanceForm.noOTWorkers.includes(id));
                         return allSelected ? 'Clear All' : 'Select All';
                       })()}
@@ -1514,15 +1516,15 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
-                      const isPresent = !attendanceForm.absentWorkers.includes(worker.id) && 
-                                       !attendanceForm.halfDayWorkers.includes(worker.id);
-                      const currentLateMinutes = attendanceForm.lateMinutes[worker.id] || 
-                                                 record?.lateMinutes || 0;
+                      const isPresent = !attendanceForm.absentWorkers.includes(worker.id) &&
+                        !attendanceForm.halfDayWorkers.includes(worker.id);
+                      const currentLateMinutes = attendanceForm.lateMinutes[worker.id] ||
+                        record?.lateMinutes || 0;
                       const isInactive = worker.isActive === false;
                       const today = new Date().toISOString().split('T')[0];
                       const isPastDate = selectedDate < today;
                       const canEditAttendance = !isInactive || isPastDate;
-                      
+
                       // Only show for present workers
                       if (!isPresent) return null;
 
@@ -2082,6 +2084,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                           }),
                                           status: AttendanceStatus.PRESENT,
                                           overtime: existingRecord?.overtime || (workerDefaultOvertime[worker.id] ? 'yes' : 'no'),
+                                          lateMinutes: existingRecord?.lateMinutes || 0,
                                           updatedAt: new Date().toISOString()
                                         };
 
@@ -2136,6 +2139,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                           }),
                                           status: AttendanceStatus.HALF_DAY,
                                           overtime: existingRecord?.overtime || (workerDefaultOvertime[worker.id] ? 'yes' : 'no'),
+                                          lateMinutes: existingRecord?.lateMinutes || 0,
                                           updatedAt: new Date().toISOString()
                                         };
 
@@ -2190,6 +2194,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                           }),
                                           status: AttendanceStatus.ABSENT,
                                           overtime: 'no', // No overtime for absent
+                                          lateMinutes: 0, // No late minutes for absent
                                           updatedAt: new Date().toISOString()
                                         };
 
@@ -2240,7 +2245,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                       handleOvertimeToggle(worker.id);
                                     }
                                   }}
-                            disabled={status === AttendanceStatus.ABSENT || !canEditAttendance}
+                                  disabled={status === AttendanceStatus.ABSENT || !canEditAttendance}
                                   className="h-7 text-xs px-2"
                                   title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime for this day only" : "Add overtime for this day only"}
                                 >

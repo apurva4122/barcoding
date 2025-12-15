@@ -442,7 +442,7 @@ export async function getAllAttendanceFromSupabase(): Promise<AttendanceRecord[]
       date: record.date,
       status: record.status as AttendanceStatus,
       overtime: record.overtime,
-      lateMinutes: record.late_minutes || undefined,
+      lateMinutes: record.late_minutes !== null && record.late_minutes !== undefined ? record.late_minutes : 0,
       notes: record.notes || undefined,
       createdAt: record.created_at,
       updatedAt: record.updated_at || undefined
