@@ -126,9 +126,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
   const loadData = async () => {
     try {
-      // Get only active workers for attendance management
+      // Get all workers (including inactive) - we'll filter by date in the component
       const [workersData, attendanceData] = await Promise.all([
-        getAllWorkers(false), // false = only active workers
+        getAllWorkers(true), // true = include inactive workers
         getAllAttendance()
       ]);
 
@@ -140,6 +140,23 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       setLoading(false);
     }
   };
+
+  // Filter workers based on selected date
+  // - Active workers: shown for all dates
+  // - Inactive workers: shown only for past dates (not future dates)
+  const getFilteredWorkers = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const isPastDate = selectedDate < today;
+    
+    return workers.filter(worker => {
+      // Always show active workers
+      if (worker.isActive !== false) {
+        return true;
+      }
+      // Show inactive workers only for past dates
+      return isPastDate;
+    });
+  }, [workers, selectedDate]);
 
   // Auto-save attendance as "present" for workers without records when date changes
   useEffect(() => {
@@ -314,7 +331,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
   // Mark all workers as present for selected date
   const markAllPresent = async () => {
-    if (workers.length === 0) {
+    if (getFilteredWorkers.length === 0) {
       toast.error("No workers to mark");
       return;
     }
@@ -324,7 +341,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       let successCount = 0;
       let failCount = 0;
 
-      for (const worker of workers) {
+      for (const worker of getFilteredWorkers) {
         try {
           // Check if attendance already exists
           const existingRecord = attendanceRecords.find(
@@ -1184,12 +1201,14 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (attendanceForm.absentWorkers.length === workers.length) {
+                        const filteredIds = getFilteredWorkers.map(w => w.id);
+                        if (attendanceForm.absentWorkers.length === filteredIds.length && 
+                            filteredIds.every(id => attendanceForm.absentWorkers.includes(id))) {
                           setAttendanceForm({ ...attendanceForm, absentWorkers: [] });
                         } else {
                           setAttendanceForm({
                             ...attendanceForm,
-                            absentWorkers: workers.map(w => w.id),
+                            absentWorkers: filteredIds,
                             halfDayWorkers: [],
                             noOTWorkers: []
                           });
@@ -1197,7 +1216,12 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       }}
                       className="h-6 text-xs"
                     >
-                      {attendanceForm.absentWorkers.length === workers.length ? 'Clear All' : 'Select All'}
+                      {(() => {
+                        const filteredIds = getFilteredWorkers.map(w => w.id);
+                        const allSelected = filteredIds.length > 0 && 
+                          filteredIds.every(id => attendanceForm.absentWorkers.includes(id));
+                        return allSelected ? 'Clear All' : 'Select All';
+                      })()}
                     </Button>
                   </div>
                 </div>
@@ -1211,12 +1235,16 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   />
                 </div>
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-                  {workers.length === 0 ? (
+                  {getFilteredWorkers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers available</p>
-                  ) : filterWorkers(workers, absentSearch).length === 0 ? (
+                  ) : filterWorkers(getFilteredWorkers, absentSearch).length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers found matching "{absentSearch}"</p>
                   ) : (
-                    filterWorkers(workers, absentSearch).map((worker) => {
+                    filterWorkers(getFilteredWorkers, absentSearch).map((worker) => {
+                      const isInactive = worker.isActive === false;
+                      const today = new Date().toISOString().split('T')[0];
+                      const isPastDate = selectedDate < today;
+                      const canEditAttendance = !isInactive || isPastDate;
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
@@ -1226,6 +1254,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                           <Checkbox
                             id={`absent-${worker.id}`}
                             checked={isChecked}
+                            disabled={!canEditAttendance}
                             onCheckedChange={(checked) => {
                               if (checked) {
                                 setAttendanceForm({
@@ -1274,12 +1303,14 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (attendanceForm.halfDayWorkers.length === workers.length) {
+                        const filteredIds = getFilteredWorkers.map(w => w.id);
+                        if (attendanceForm.halfDayWorkers.length === filteredIds.length && 
+                            filteredIds.every(id => attendanceForm.halfDayWorkers.includes(id))) {
                           setAttendanceForm({ ...attendanceForm, halfDayWorkers: [] });
                         } else {
                           setAttendanceForm({
                             ...attendanceForm,
-                            halfDayWorkers: workers.map(w => w.id),
+                            halfDayWorkers: filteredIds,
                             absentWorkers: [],
                             noOTWorkers: []
                           });
@@ -1287,7 +1318,12 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       }}
                       className="h-6 text-xs"
                     >
-                      {attendanceForm.halfDayWorkers.length === workers.length ? 'Clear All' : 'Select All'}
+                      {(() => {
+                        const filteredIds = getFilteredWorkers.map(w => w.id);
+                        const allSelected = filteredIds.length > 0 && 
+                          filteredIds.every(id => attendanceForm.halfDayWorkers.includes(id));
+                        return allSelected ? 'Clear All' : 'Select All';
+                      })()}
                     </Button>
                   </div>
                 </div>
@@ -1301,12 +1337,16 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   />
                 </div>
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-                  {workers.length === 0 ? (
+                  {getFilteredWorkers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers available</p>
-                  ) : filterWorkers(workers, halfDaySearch).length === 0 ? (
+                  ) : filterWorkers(getFilteredWorkers, halfDaySearch).length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers found matching "{halfDaySearch}"</p>
                   ) : (
-                    filterWorkers(workers, halfDaySearch).map((worker) => {
+                    filterWorkers(getFilteredWorkers, halfDaySearch).map((worker) => {
+                      const isInactive = worker.isActive === false;
+                      const today = new Date().toISOString().split('T')[0];
+                      const isPastDate = selectedDate < today;
+                      const canEditAttendance = !isInactive || isPastDate;
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
@@ -1316,6 +1356,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                           <Checkbox
                             id={`halfday-${worker.id}`}
                             checked={isChecked}
+                            disabled={!canEditAttendance}
                             onCheckedChange={(checked) => {
                               if (checked) {
                                 setAttendanceForm({
@@ -1364,12 +1405,14 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (attendanceForm.noOTWorkers.length === workers.length) {
+                        const filteredIds = getFilteredWorkers.map(w => w.id);
+                        if (attendanceForm.noOTWorkers.length === filteredIds.length && 
+                            filteredIds.every(id => attendanceForm.noOTWorkers.includes(id))) {
                           setAttendanceForm({ ...attendanceForm, noOTWorkers: [] });
                         } else {
                           setAttendanceForm({
                             ...attendanceForm,
-                            noOTWorkers: workers.map(w => w.id),
+                            noOTWorkers: filteredIds,
                             absentWorkers: [],
                             halfDayWorkers: []
                           });
@@ -1377,7 +1420,12 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       }}
                       className="h-6 text-xs"
                     >
-                      {attendanceForm.noOTWorkers.length === workers.length ? 'Clear All' : 'Select All'}
+                      {(() => {
+                        const filteredIds = getFilteredWorkers.map(w => w.id);
+                        const allSelected = filteredIds.length > 0 && 
+                          filteredIds.every(id => attendanceForm.noOTWorkers.includes(id));
+                        return allSelected ? 'Clear All' : 'Select All';
+                      })()}
                     </Button>
                   </div>
                 </div>
@@ -1391,12 +1439,16 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   />
                 </div>
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-                  {workers.length === 0 ? (
+                  {getFilteredWorkers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers available</p>
-                  ) : filterWorkers(workers, noOTSearch).length === 0 ? (
+                  ) : filterWorkers(getFilteredWorkers, noOTSearch).length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers found matching "{noOTSearch}"</p>
                   ) : (
-                    filterWorkers(workers, noOTSearch).map((worker) => {
+                    filterWorkers(getFilteredWorkers, noOTSearch).map((worker) => {
+                      const isInactive = worker.isActive === false;
+                      const today = new Date().toISOString().split('T')[0];
+                      const isPastDate = selectedDate < today;
+                      const canEditAttendance = !isInactive || isPastDate;
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
@@ -1407,6 +1459,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                           <Checkbox
                             id={`noot-${worker.id}`}
                             checked={isChecked}
+                            disabled={!canEditAttendance}
                             onCheckedChange={(checked) => {
                               if (checked) {
                                 setAttendanceForm({
@@ -1454,18 +1507,22 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   Enter minutes late for workers. These minutes will be deducted from their overtime compensation.
                 </p>
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-                  {workers.length === 0 ? (
+                  {getFilteredWorkers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No workers available</p>
                   ) : (
-                    workers.map((worker) => {
+                    getFilteredWorkers.map((worker) => {
                       const record = attendanceRecords.find(
                         r => r.workerId === worker.id && r.date === selectedDate
                       );
-                      const isPresent = !attendanceForm.absentWorkers.includes(worker.id) &&
-                        !attendanceForm.halfDayWorkers.includes(worker.id);
-                      const currentLateMinutes = attendanceForm.lateMinutes[worker.id] ||
-                        record?.lateMinutes || 0;
-
+                      const isPresent = !attendanceForm.absentWorkers.includes(worker.id) && 
+                                       !attendanceForm.halfDayWorkers.includes(worker.id);
+                      const currentLateMinutes = attendanceForm.lateMinutes[worker.id] || 
+                                                 record?.lateMinutes || 0;
+                      const isInactive = worker.isActive === false;
+                      const today = new Date().toISOString().split('T')[0];
+                      const isPastDate = selectedDate < today;
+                      const canEditAttendance = !isInactive || isPastDate;
+                      
                       // Only show for present workers
                       if (!isPresent) return null;
 
@@ -1490,6 +1547,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                 }
                               });
                             }}
+                            disabled={!canEditAttendance}
                             placeholder="0"
                             className="w-24"
                           />
@@ -1860,14 +1918,26 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {workers.map((worker) => {
+                      {getFilteredWorkers.map((worker) => {
                         const status = getWorkerStatus(worker.id);
                         const hasOvertime = checkHasOvertime(worker.id);
+                        const isInactive = worker.isActive === false;
+                        const today = new Date().toISOString().split('T')[0];
+                        const isPastDate = selectedDate < today;
+                        const canEditAttendance = !isInactive || isPastDate; // Can edit if active OR (inactive AND past date)
 
                         return (
                           <TableRow key={worker.id}>
-                            <TableCell className="font-mono sticky left-0 z-[90] bg-white dark:bg-gray-950 border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.employeeId}</TableCell>
-                            <TableCell className="font-medium sticky left-[120px] z-[90] bg-white dark:bg-gray-950 border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">{worker.name}</TableCell>
+                            <TableCell className="font-mono sticky left-0 z-[90] bg-white dark:bg-gray-950 border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">
+                              {worker.employeeId}
+                              {isInactive && <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>}
+                            </TableCell>
+                            <TableCell className="font-medium sticky left-[120px] z-[90] bg-white dark:bg-gray-950 border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">
+                              {worker.name}
+                              {isInactive && !isPastDate && (
+                                <span className="text-xs text-muted-foreground ml-2">(Future dates disabled)</span>
+                              )}
+                            </TableCell>
                             <TableCell>
                               <Badge variant={(worker.gender || Gender.MALE) === Gender.MALE ? "default" : "secondary"}>
                                 {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}
@@ -1993,6 +2063,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                     type="button"
                                     variant={status === AttendanceStatus.PRESENT ? "default" : "outline"}
                                     size="sm"
+                                    disabled={!canEditAttendance}
                                     onClick={async (e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
@@ -2046,6 +2117,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                     type="button"
                                     variant={status === AttendanceStatus.HALF_DAY ? "secondary" : "outline"}
                                     size="sm"
+                                    disabled={!canEditAttendance}
                                     onClick={async (e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
@@ -2099,6 +2171,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                     type="button"
                                     variant={status === AttendanceStatus.ABSENT ? "destructive" : "outline"}
                                     size="sm"
+                                    disabled={!canEditAttendance}
                                     onClick={async (e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
@@ -2167,7 +2240,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                       handleOvertimeToggle(worker.id);
                                     }
                                   }}
-                                  disabled={status === AttendanceStatus.ABSENT}
+                            disabled={status === AttendanceStatus.ABSENT || !canEditAttendance}
                                   className="h-7 text-xs px-2"
                                   title={status === AttendanceStatus.ABSENT ? "Cannot set overtime for absent" : hasOvertime ? "Remove overtime for this day only" : "Add overtime for this day only"}
                                 >
