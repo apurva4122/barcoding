@@ -11,7 +11,8 @@ import { getAllHygieneRecords, getHygieneRecordsByDate } from "@/lib/hygiene-sto
 import { getAllWorkerDefaultOvertimeSettings } from "@/lib/supabase-service";
 import { Worker, AttendanceRecord, AttendanceStatus, Barcode, PackingStatus, HygieneRecord, HygieneArea } from "@/types";
 import { calculateMonthlySalary, getCurrentMonthYear, type SalaryCalculationResult } from "@/lib/salary-calculator";
-import { TrendingDown, TrendingUp, DollarSign, Calendar, Sparkles, Package, Users, CheckCircle2, XCircle } from "lucide-react";
+import { TrendingDown, TrendingUp, DollarSign, Calendar, Sparkles, Package, Users, CheckCircle2, XCircle, Activity } from "lucide-react";
+import { BatchCounterWidget } from "./batch-counter-widget";
 
 interface WorkerAbsenteeStats {
   workerId: string;
@@ -311,6 +312,10 @@ export function Dashboard() {
             <Package className="h-4 w-4" />
             Barcode Scanning
           </TabsTrigger>
+          <TabsTrigger value="batch-counter" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Batch Counter
+          </TabsTrigger>
         </TabsList>
 
         {/* Attendance Tab */}
@@ -341,6 +346,7 @@ export function Dashboard() {
                       const hasBonus = stat.salaryDetails?.hasBonus || false;
                       const bonus = stat.salaryDetails?.bonus || 0;
                       const baseSalary = stat.salaryDetails?.baseSalary || 0;
+                      const overtimeCompensation = stat.salaryDetails?.overtimeCompensation || 0;
                       return (
                         <div key={stat.workerId} className="flex items-center justify-between py-3 border-b">
                           <div className="flex-1">
@@ -357,9 +363,17 @@ export function Dashboard() {
                                   (+₹{bonus.toLocaleString()} bonus)
                                 </span>
                               )}
+                              {overtimeCompensation > 0 && (
+                                <span className="text-blue-600 text-sm font-normal ml-1">
+                                  (+₹{overtimeCompensation.toLocaleString()} OT)
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Base: ₹{baseSalary.toLocaleString()}
+                              {overtimeCompensation > 0 && (
+                                <span className="ml-2">OT: ₹{overtimeCompensation.toLocaleString()}</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -414,6 +428,7 @@ export function Dashboard() {
                           const stat = top5Highest.find(s => s.workerName === item.label);
                           const hasBonus = stat?.salaryDetails?.hasBonus || false;
                           const bonus = stat?.salaryDetails?.bonus || 0;
+                          const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
                           return (
                             <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
                               <span className="font-medium">{item.label}</span>
@@ -422,6 +437,11 @@ export function Dashboard() {
                                 {hasBonus && (
                                   <span className="text-green-600 ml-1">
                                     (+₹{bonus.toLocaleString()} bonus)
+                                  </span>
+                                )}
+                                {overtimeCompensation > 0 && (
+                                  <span className="text-blue-600 ml-1">
+                                    (+₹{overtimeCompensation.toLocaleString()} OT)
                                   </span>
                                 )}
                               </span>
@@ -477,6 +497,7 @@ export function Dashboard() {
                           const stat = top5Minimum.find(s => s.workerName === item.label);
                           const hasBonus = stat?.salaryDetails?.hasBonus || false;
                           const bonus = stat?.salaryDetails?.bonus || 0;
+                          const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
                           return (
                             <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
                               <span className="font-medium">{item.label}</span>
@@ -485,6 +506,11 @@ export function Dashboard() {
                                 {hasBonus && (
                                   <span className="text-green-600 ml-1">
                                     (+₹{bonus.toLocaleString()} bonus)
+                                  </span>
+                                )}
+                                {overtimeCompensation > 0 && (
+                                  <span className="text-blue-600 ml-1">
+                                    (+₹{overtimeCompensation.toLocaleString()} OT)
                                   </span>
                                 )}
                               </span>
@@ -802,6 +828,17 @@ export function Dashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Batch Counter Tab */}
+        <TabsContent value="batch-counter" className="space-y-6">
+          <div>
+            <h3 className="text-2xl font-bold tracking-tight">Batch Counter Monitoring</h3>
+            <p className="text-muted-foreground mt-2">
+              Real-time production data from industrial batch counter machines
+            </p>
+          </div>
+          <BatchCounterWidget autoRefresh={true} refreshInterval={5000} />
         </TabsContent>
       </Tabs>
     </div>

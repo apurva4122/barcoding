@@ -168,3 +168,4 @@ export async function uploadHygienePhoto(file: File, workerId: string, area: str
     }
 }
 
+

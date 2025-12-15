@@ -39,3 +39,5 @@ ADD COLUMN IF NOT EXISTS is_cleaner BOOLEAN DEFAULT false;
 -- Create index for cleaner workers
 CREATE INDEX IF NOT EXISTS idx_workers_is_cleaner ON app_f79f105891_workers(is_cleaner);
 
+
+

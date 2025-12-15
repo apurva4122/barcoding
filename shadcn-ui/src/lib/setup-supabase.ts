@@ -31,6 +31,7 @@ export async function initializeSupabaseTables(): Promise<boolean> {
             date DATE NOT NULL,
             status VARCHAR(20) NOT NULL CHECK (status IN ('present', 'absent', 'half_day')),
             overtime VARCHAR(10) DEFAULT 'no' CHECK (overtime IN ('yes', 'no')),
+            late_minutes INTEGER DEFAULT 0,
             notes TEXT,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),

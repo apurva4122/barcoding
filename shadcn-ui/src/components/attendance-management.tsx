@@ -70,6 +70,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     absentWorkers: [] as string[], // Array of worker IDs for absent
     halfDayWorkers: [] as string[], // Array of worker IDs for half day
     noOTWorkers: [] as string[], // Array of worker IDs for no OT
+    lateMinutes: {} as Record<string, number>, // Map of workerId -> late minutes
     notes: ""
   });
 
@@ -391,7 +392,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
   // Bulk mark attendance (can be present, absent, or half-day)
   const markAttendance = async () => {
-    const { absentWorkers, halfDayWorkers, noOTWorkers, notes } = attendanceForm;
+    const { absentWorkers, halfDayWorkers, noOTWorkers, lateMinutes, notes } = attendanceForm;
 
     if (absentWorkers.length === 0 && halfDayWorkers.length === 0 && noOTWorkers.length === 0) {
       setError("Please select at least one worker to update");
@@ -424,6 +425,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           }),
           status: AttendanceStatus.ABSENT,
           overtime: 'no', // No overtime for absent
+          lateMinutes: 0, // No late minutes for absent
           notes: notes.trim() || existingRecord?.notes || undefined,
           updatedAt: new Date().toISOString()
         };
@@ -455,6 +457,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           }),
           status: AttendanceStatus.HALF_DAY,
           overtime: overtimeStatus,
+          lateMinutes: lateMinutes[workerId] || existingRecord?.lateMinutes || 0,
           notes: notes.trim() || existingRecord?.notes || undefined,
           updatedAt: new Date().toISOString()
         };
@@ -477,6 +480,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           const newRecord: AttendanceRecord = {
             ...existingRecord,
             overtime: 'no',
+            lateMinutes: lateMinutes[workerId] !== undefined ? lateMinutes[workerId] : existingRecord.lateMinutes || 0,
             notes: notes.trim() || existingRecord.notes || undefined,
             updatedAt: new Date().toISOString()
           };
@@ -491,6 +495,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             date: selectedDate,
             status: AttendanceStatus.PRESENT,
             overtime: 'no',
+            lateMinutes: lateMinutes[workerId] || 0,
             notes: notes.trim() || undefined,
             createdAt: new Date().toISOString()
           };
@@ -511,6 +516,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           absentWorkers: [],
           halfDayWorkers: [],
           noOTWorkers: [],
+          lateMinutes: {},
           notes: ""
         });
         setAbsentSearch("");
@@ -1441,6 +1447,65 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 </div>
               </div>
 
+              {/* Late Minutes Section */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold text-blue-600">Late Minutes (Optional)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Enter minutes late for workers. These minutes will be deducted from their overtime compensation.
+                </p>
+                <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                  {workers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No workers available</p>
+                  ) : (
+                    workers.map((worker) => {
+                      const record = attendanceRecords.find(
+                        r => r.workerId === worker.id && r.date === selectedDate
+                      );
+                      const isPresent = !attendanceForm.absentWorkers.includes(worker.id) &&
+                        !attendanceForm.halfDayWorkers.includes(worker.id);
+                      const currentLateMinutes = attendanceForm.lateMinutes[worker.id] ||
+                        record?.lateMinutes || 0;
+
+                      // Only show for present workers
+                      if (!isPresent) return null;
+
+                      return (
+                        <div key={worker.id} className="flex items-center gap-3">
+                          <Label htmlFor={`late-${worker.id}`} className="text-sm w-32 flex-shrink-0">
+                            {worker.name}
+                          </Label>
+                          <Input
+                            id={`late-${worker.id}`}
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={currentLateMinutes || ""}
+                            onChange={(e) => {
+                              const minutes = parseInt(e.target.value) || 0;
+                              setAttendanceForm({
+                                ...attendanceForm,
+                                lateMinutes: {
+                                  ...attendanceForm.lateMinutes,
+                                  [worker.id]: minutes
+                                }
+                              });
+                            }}
+                            placeholder="0"
+                            className="w-24"
+                          />
+                          <span className="text-sm text-muted-foreground">minutes</span>
+                          {record?.lateMinutes && record.lateMinutes > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              Current: {record.lateMinutes} min
+                            </Badge>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
               {/* Notes Section */}
               <div className="space-y-2">
                 <Label htmlFor="attendance-notes">Notes (Optional - applies to all selected workers)</Label>
@@ -1470,6 +1535,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                     absentWorkers: [],
                     halfDayWorkers: [],
                     noOTWorkers: [],
+                    lateMinutes: {},
                     notes: ""
                   });
                   setAbsentSearch("");
@@ -1789,6 +1855,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                         <TableHead>Default OT</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Overtime</TableHead>
+                        <TableHead>Late Minutes</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -2108,6 +2175,21 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                   {hasOvertime ? 'Overtime' : 'No OT'}
                                 </Button>
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const record = attendanceRecords.find(
+                                  r => r.workerId === worker.id && r.date === selectedDate
+                                );
+                                const lateMinutes = record?.lateMinutes || 0;
+                                return lateMinutes > 0 ? (
+                                  <Badge variant="outline" className="text-orange-600">
+                                    {lateMinutes} min
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">-</span>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">

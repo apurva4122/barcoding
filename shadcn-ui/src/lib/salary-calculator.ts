@@ -3,6 +3,7 @@ import { Worker, AttendanceRecord, Gender, AttendanceStatus } from "@/types";
 export interface SalaryCalculationResult {
   baseSalary: number;
   bonus: number;
+  overtimeCompensation: number; // Overtime pay after late minutes deduction
   totalSalary: number;
   hasBonus: boolean;
 }
@@ -27,7 +28,7 @@ export function calculateMonthlySalary(
   defaultOvertime?: boolean // Optional: worker's default OT setting
 ): SalaryCalculationResult {
   if (!worker.baseSalary || worker.baseSalary <= 0) {
-    return { baseSalary: 0, bonus: 0, totalSalary: 0, hasBonus: false };
+    return { baseSalary: 0, bonus: 0, overtimeCompensation: 0, totalSalary: 0, hasBonus: false };
   }
 
   // Get date range for the month
@@ -127,6 +128,7 @@ function calculateMaleSalary(
   let absentDays = 0;
   let halfDays = 0;
   let overtimeHours = 0;
+  let totalLateMinutes = 0; // Track total late minutes for overtime deduction
 
   // Create a map of records by date for quick lookup
   const recordsByDate = new Map<string, AttendanceRecord>();
@@ -160,6 +162,10 @@ function calculateMaleSalary(
         // Men don't get OT on Tuesday
         if (record.overtime === 'yes' && !isTuesday) {
           overtimeHours += 1; // 1 hour extra
+          // Deduct late minutes from overtime
+          if (record.lateMinutes && record.lateMinutes > 0) {
+            totalLateMinutes += record.lateMinutes;
+          }
         }
       } else if (record.status === AttendanceStatus.HALF_DAY) {
         halfDays++;
@@ -169,6 +175,10 @@ function calculateMaleSalary(
         // Check for overtime (can still have overtime on half day, but not on Tuesday)
         if (record.overtime === 'yes' && !isTuesday) {
           overtimeHours += 1;
+          // Deduct late minutes from overtime
+          if (record.lateMinutes && record.lateMinutes > 0) {
+            totalLateMinutes += record.lateMinutes;
+          }
         }
       } else if (record.status === AttendanceStatus.ABSENT) {
         absentDays++;
@@ -185,8 +195,12 @@ function calculateMaleSalary(
     }
   }
 
-  // Add overtime pay (double hourly rate)
-  const overtimePay = overtimeHours * hourlyRate * 2;
+  // Calculate overtime pay (double hourly rate)
+  // Deduct late minutes from overtime hours (convert minutes to hours)
+  const lateHoursDeduction = totalLateMinutes / 60;
+  const effectiveOvertimeHours = Math.max(0, overtimeHours - lateHoursDeduction);
+  const overtimePay = effectiveOvertimeHours * hourlyRate * 2;
+  const baseSalaryWithoutOT = baseSalary;
   baseSalary += overtimePay;
   baseSalary = Math.round(baseSalary * 100) / 100; // Round to 2 decimal places
 
@@ -195,8 +209,9 @@ function calculateMaleSalary(
   const totalSalary = baseSalary + bonus;
 
   return {
-    baseSalary,
+    baseSalary: Math.round(baseSalaryWithoutOT * 100) / 100,
     bonus,
+    overtimeCompensation: Math.round(overtimePay * 100) / 100,
     totalSalary: Math.round(totalSalary * 100) / 100,
     hasBonus: bonus > 0
   };
@@ -226,6 +241,7 @@ function calculateFemaleSalary(
   let absentDays = 0;
   let halfDays = 0;
   let overtimeHours = 0;
+  let totalLateMinutes = 0; // Track total late minutes for overtime deduction
 
   // Create a map of records by date for quick lookup
   const recordsByDate = new Map<string, AttendanceRecord>();
@@ -262,6 +278,10 @@ function calculateFemaleSalary(
         // Check for overtime (explicit record overwrites default)
         if (record.overtime === 'yes') {
           overtimeHours += 1; // 1 hour extra
+          // Deduct late minutes from overtime
+          if (record.lateMinutes && record.lateMinutes > 0) {
+            totalLateMinutes += record.lateMinutes;
+          }
         }
       } else if (record.status === AttendanceStatus.HALF_DAY) {
         halfDays++;
@@ -286,8 +306,12 @@ function calculateFemaleSalary(
     }
   }
 
-  // Add overtime pay (double hourly rate)
-  const overtimePay = overtimeHours * hourlyRate * 2;
+  // Calculate overtime pay (double hourly rate)
+  // Deduct late minutes from overtime hours (convert minutes to hours)
+  const lateHoursDeduction = totalLateMinutes / 60;
+  const effectiveOvertimeHours = Math.max(0, overtimeHours - lateHoursDeduction);
+  const overtimePay = effectiveOvertimeHours * hourlyRate * 2;
+  const baseSalaryWithoutOT = baseSalary;
   baseSalary += overtimePay;
   baseSalary = Math.round(baseSalary * 100) / 100; // Round to 2 decimal places
 
@@ -296,8 +320,9 @@ function calculateFemaleSalary(
   const totalSalary = baseSalary + bonus;
 
   return {
-    baseSalary,
+    baseSalary: Math.round(baseSalaryWithoutOT * 100) / 100,
     bonus,
+    overtimeCompensation: Math.round(overtimePay * 100) / 100,
     totalSalary: Math.round(totalSalary * 100) / 100,
     hasBonus: bonus > 0
   };

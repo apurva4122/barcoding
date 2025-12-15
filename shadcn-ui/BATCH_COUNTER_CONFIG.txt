@@ -1,0 +1,78 @@
+================================================================================
+BATCH COUNTER CONFIGURATION DETAILS
+================================================================================
+
+ENDPOINT INFORMATION
+--------------------
+Full URL: https://orsdqaeqqobltrmpvtmj.supabase.co/functions/v1/receive-batch-data
+Protocol: HTTPS
+Port: 443
+Method: POST
+Content-Type: application/json
+
+SEPARATE FIELDS (for batch counter configuration)
+--------------------------------------------------
+Server/Host: orsdqaeqqobltrmpvtmj.supabase.co
+Port: 443
+Path/Endpoint: /functions/v1/receive-batch-data
+Protocol: HTTPS
+Method: POST
+Content-Type: application/json
+
+REQUEST FORMAT
+--------------
+POST https://orsdqaeqqobltrmpvtmj.supabase.co/functions/v1/receive-batch-data
+Content-Type: application/json
+
+{
+  "machine_id": "MACHINE-001",
+  "batch_count": 1250,
+  "production_rate": 150.5,
+  "status": "running",
+  "metadata": {},
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+
+REQUIRED FIELDS
+---------------
+- machine_id (string): Unique machine identifier
+- batch_count (integer): Current batch count
+
+OPTIONAL FIELDS
+---------------
+- production_rate (number): Items per hour
+- status (string): "running", "stopped", "error"
+- metadata (object): Additional data
+- timestamp (string): ISO 8601 format
+
+TEST COMMAND
+------------
+curl -X POST https://orsdqaeqqobltrmpvtmj.supabase.co/functions/v1/receive-batch-data \
+  -H "Content-Type: application/json" \
+  -d '{"machine_id":"TEST","batch_count":100,"production_rate":50.0,"status":"running"}'
+
+EXPECTED RESPONSE
+-----------------
+{
+  "success": true,
+  "message": "Batch data received successfully",
+  "data": { ... }
+}
+
+NETWORK REQUIREMENTS
+--------------------
+- Outbound HTTPS (port 443) must be allowed
+- DNS resolution must work (for hostname lookup)
+- No VPN or firewall blocking required
+- Standard WiFi connection sufficient
+
+NOTES
+-----
+- URL is permanent and will not change
+- HTTPS encryption is automatic
+- No authentication headers required
+- Rate limit: Recommended max 1 request per second per machine
+
+================================================================================
+
+

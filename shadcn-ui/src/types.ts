@@ -95,6 +95,7 @@ export interface AttendanceRecord {
   date: string; // YYYY-MM-DD format
   status: AttendanceStatus;
   overtime: 'yes' | 'no';
+  lateMinutes?: number; // Minutes late - will be deducted from overtime
   checkInTime?: string;
   checkOutTime?: string;
   notes?: string;
