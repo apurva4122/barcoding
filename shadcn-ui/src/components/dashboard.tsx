@@ -113,11 +113,14 @@ export function Dashboard() {
       return record.date >= startDate && record.date <= endDate;
     });
 
-    // Calculate stats for all workers (active and inactive)
+    // Filter to only active workers
+    const activeWorkers = workers.filter(w => w.isActive !== false);
+
+    // Calculate stats for each active worker only
     const statsMap = new Map<string, WorkerAbsenteeStats>();
 
-    // Initialize all workers with last month salary
-    workers.forEach(worker => {
+    // Initialize only active workers with last month salary
+    activeWorkers.forEach(worker => {
       const defaultOT = workerDefaultOvertime[worker.id] || false;
       const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear, defaultOT);
 
@@ -134,17 +137,10 @@ export function Dashboard() {
       });
     });
 
-    // Count attendance for all workers in last month
-    // For inactive workers, only count up to inactive date
+    // Count attendance for each active worker in last month only
     lastMonthRecords.forEach(record => {
       const stats = statsMap.get(record.workerId);
       if (stats) {
-        const worker = workers.find(w => w.id === record.workerId);
-        // Skip attendance records after inactive date
-        if (worker?.isActive === false && worker?.inactiveDate && record.date > worker.inactiveDate) {
-          return; // Don't count attendance after inactive date
-        }
-        
         stats.totalDays++;
         if (record.status === AttendanceStatus.ABSENT) {
           stats.absentCount++;
@@ -203,7 +199,7 @@ export function Dashboard() {
         if (worker?.isActive === false && worker?.inactiveDate && record.date > worker.inactiveDate) {
           return; // Don't count attendance after inactive date
         }
-        
+
         stats.totalDays++;
         if (record.status === AttendanceStatus.ABSENT) {
           stats.absentCount++;
