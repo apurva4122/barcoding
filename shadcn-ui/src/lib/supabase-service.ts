@@ -232,6 +232,7 @@ export async function getAllWorkersFromSupabase(includeInactive: boolean = true)
       advanceLastMonth: worker.advance_last_month || undefined,
       advanceDeduction: worker.advance_deduction || undefined,
       isActive: worker.is_active !== undefined ? worker.is_active : true, // Default to true for backward compatibility
+      inactiveDate: worker.inactive_date || undefined,
       createdAt: worker.created_at
     }));
   } catch (error) {
@@ -273,6 +274,7 @@ export async function saveWorkerToSupabase(worker: Worker): Promise<boolean> {
       advance_last_month: worker.advanceLastMonth || null,
       advance_deduction: worker.advanceDeduction || null,
       is_active: worker.isActive !== undefined ? worker.isActive : true,
+      inactive_date: worker.inactiveDate || null,
     };
 
     // If worker exists, update it
@@ -481,10 +483,10 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
         // If not found, try to find by name
         const { data: workerByName } = await supabase
           .from('workers')
-          .select('id')
+      .select('id')
           .eq('name', attendance.workerName)
           .limit(1)
-          .single();
+      .single();
 
         if (workerByName) {
           actualWorkerId = workerByName.id;
@@ -557,21 +559,21 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
           .from('attendance_records')
           .update(updateData)
           .eq('worker_id', actualWorkerId)
-          .eq('date', attendance.date);
+        .eq('date', attendance.date);
 
         if (updateError) {
           console.error('❌ Error updating attendance in Supabase:', updateError);
-          return false;
-        }
+        return false;
+      }
         console.log('✅ Attendance updated in Supabase successfully');
         return true;
-      } else {
+    } else {
         // Insert new record - don't include id, let DB generate UUID
         const insertData = { ...attendanceData };
         delete insertData.id; // Remove id from insert
 
         const { error: insertError } = await supabase
-          .from('attendance_records')
+        .from('attendance_records')
           .insert([insertData]);
 
         if (insertError) {
@@ -589,7 +591,7 @@ export async function saveAttendanceToSupabase(attendance: AttendanceRecord): Pr
             console.error('📋 Run the SQL from supabase-tables.sql in your Supabase SQL editor.');
           }
 
-          return false;
+        return false;
         }
         console.log('✅ Attendance inserted in Supabase successfully');
         return true;

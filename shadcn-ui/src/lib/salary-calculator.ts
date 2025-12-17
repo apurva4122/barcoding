@@ -4,6 +4,8 @@ export interface SalaryCalculationResult {
   baseSalary: number;
   bonus: number;
   overtimeCompensation: number; // Overtime pay after late minutes deduction
+  lateMinutesDeduction: number; // Amount deducted due to late minutes (in rupees)
+  totalLateMinutes: number; // Total late minutes for the month
   totalSalary: number;
   hasBonus: boolean;
 }
@@ -28,16 +30,33 @@ export function calculateMonthlySalary(
   defaultOvertime?: boolean // Optional: worker's default OT setting
 ): SalaryCalculationResult {
   if (!worker.baseSalary || worker.baseSalary <= 0) {
-    return { baseSalary: 0, bonus: 0, overtimeCompensation: 0, totalSalary: 0, hasBonus: false };
+    return { 
+      baseSalary: 0, 
+      bonus: 0, 
+      overtimeCompensation: 0, 
+      lateMinutesDeduction: 0,
+      totalLateMinutes: 0,
+      totalSalary: 0, 
+      hasBonus: false 
+    };
   }
 
   // Get date range for the month
   const startDate = new Date(year, month, 1).toISOString().split('T')[0];
   const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
 
-  // Filter attendance records for this month
+  // If worker is inactive, stop calculations from inactive date
+  let effectiveEndDate = endDate;
+  if (worker.isActive === false && worker.inactiveDate) {
+    // Use the earlier of: inactive date or end of month
+    effectiveEndDate = worker.inactiveDate < endDate ? worker.inactiveDate : endDate;
+  }
+
+  // Filter attendance records for this month up to inactive date
   const monthRecords = attendanceRecords.filter(record => {
-    return record.date >= startDate && record.date <= endDate && record.workerId === worker.id;
+    return record.date >= startDate && 
+           record.date <= effectiveEndDate && 
+           record.workerId === worker.id;
   });
 
   if (worker.gender === Gender.MALE) {
@@ -137,10 +156,24 @@ function calculateMaleSalary(
   });
 
   // Get today's date to only process days up to today (including today)
+  // But if worker is inactive, stop at inactive date
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
-  const daysToProcess = isCurrentMonth ? today.getDate() : totalDays;
+  
+  // Determine the last day to process
+  let lastProcessDate = isCurrentMonth ? todayStr : endDate;
+  if (worker.isActive === false && worker.inactiveDate) {
+    // Use the earlier of: inactive date, today, or end of month
+    const inactiveDateStr = worker.inactiveDate;
+    if (inactiveDateStr < lastProcessDate) {
+      lastProcessDate = inactiveDateStr;
+    }
+  }
+  
+  const daysToProcess = isCurrentMonth && lastProcessDate === todayStr 
+    ? today.getDate() 
+    : new Date(lastProcessDate).getDate();
 
   // Process each day up to today (including today)
   for (let day = 1; day <= daysToProcess; day++) {
@@ -202,6 +235,10 @@ function calculateMaleSalary(
   const lateHoursDeduction = totalLateMinutes / 60;
   const effectiveOvertimeHours = Math.max(0, overtimeHours - lateHoursDeduction);
   const overtimePay = effectiveOvertimeHours * hourlyRate * 2;
+  
+  // Calculate the deduction amount (what would have been paid if not for late minutes)
+  const lateMinutesDeductionAmount = (lateHoursDeduction * hourlyRate * 2);
+  
   const baseSalaryWithoutOT = baseSalary;
   baseSalary += overtimePay;
   baseSalary = Math.round(baseSalary * 100) / 100; // Round to 2 decimal places
@@ -214,6 +251,8 @@ function calculateMaleSalary(
     baseSalary: Math.round(baseSalaryWithoutOT * 100) / 100,
     bonus,
     overtimeCompensation: Math.round(overtimePay * 100) / 100,
+    lateMinutesDeduction: Math.round(lateMinutesDeductionAmount * 100) / 100,
+    totalLateMinutes: totalLateMinutes,
     totalSalary: Math.round(totalSalary * 100) / 100,
     hasBonus: bonus > 0
   };
@@ -252,11 +291,25 @@ function calculateFemaleSalary(
   });
 
   // Get today's date to only process days up to today (including today)
+  // But if worker is inactive, stop at inactive date
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
   const totalDays = new Date(year, month + 1, 0).getDate();
-  const daysToProcess = isCurrentMonth ? today.getDate() : totalDays;
+  
+  // Determine the last day to process
+  let lastProcessDate = isCurrentMonth ? todayStr : endDate;
+  if (worker.isActive === false && worker.inactiveDate) {
+    // Use the earlier of: inactive date, today, or end of month
+    const inactiveDateStr = worker.inactiveDate;
+    if (inactiveDateStr < lastProcessDate) {
+      lastProcessDate = inactiveDateStr;
+    }
+  }
+  
+  const daysToProcess = isCurrentMonth && lastProcessDate === todayStr 
+    ? today.getDate() 
+    : new Date(lastProcessDate).getDate();
 
   // Process each day up to today (including today)
   for (let day = 1; day <= daysToProcess; day++) {
@@ -319,6 +372,10 @@ function calculateFemaleSalary(
   const lateHoursDeduction = totalLateMinutes / 60;
   const effectiveOvertimeHours = Math.max(0, overtimeHours - lateHoursDeduction);
   const overtimePay = effectiveOvertimeHours * hourlyRate * 2;
+  
+  // Calculate the deduction amount (what would have been paid if not for late minutes)
+  const lateMinutesDeductionAmount = (lateHoursDeduction * hourlyRate * 2);
+  
   const baseSalaryWithoutOT = baseSalary;
   baseSalary += overtimePay;
   baseSalary = Math.round(baseSalary * 100) / 100; // Round to 2 decimal places
@@ -331,6 +388,8 @@ function calculateFemaleSalary(
     baseSalary: Math.round(baseSalaryWithoutOT * 100) / 100,
     bonus,
     overtimeCompensation: Math.round(overtimePay * 100) / 100,
+    lateMinutesDeduction: Math.round(lateMinutesDeductionAmount * 100) / 100,
+    totalLateMinutes: totalLateMinutes,
     totalSalary: Math.round(totalSalary * 100) / 100,
     hasBonus: bonus > 0
   };

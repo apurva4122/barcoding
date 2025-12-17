@@ -39,6 +39,7 @@ export interface Worker {
   advanceLastMonth?: number; // Advance payment for last month
   advanceDeduction?: number; // Deduction for advance payment from salary
   isActive?: boolean; // Whether worker is still active (not left company). Defaults to true
+  inactiveDate?: string; // Date when worker was marked inactive (YYYY-MM-DD format)
   createdAt: string;
 }
 

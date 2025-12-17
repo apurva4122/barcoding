@@ -51,16 +51,15 @@ export function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      // Load all workers but filter inactive ones for dashboard calculations
+      // Load all workers including inactive (they'll be shown but with frozen salaries)
       const [workersData, attendanceData, barcodesData, defaultOTSettings] = await Promise.all([
-        getAllWorkers(true), // Load all to get inactive status
+        getAllWorkers(true), // Load all including inactive
         getAllAttendance(),
         getAllBarcodes(),
         getAllWorkerDefaultOvertimeSettings()
       ]);
-      // Filter out inactive workers for dashboard
-      const activeWorkers = workersData.filter(w => w.isActive !== false);
-      setWorkers(activeWorkers);
+      // Show all workers (active and inactive) - inactive workers will have frozen salaries
+      setWorkers(workersData);
       setAttendanceRecords(attendanceData);
       setBarcodes(barcodesData);
       setWorkerDefaultOvertime(defaultOTSettings);
@@ -114,14 +113,11 @@ export function Dashboard() {
       return record.date >= startDate && record.date <= endDate;
     });
 
-    // Filter to only active workers
-    const activeWorkers = workers.filter(w => w.isActive !== false);
-
-    // Calculate stats for each active worker only
+    // Calculate stats for all workers (active and inactive)
     const statsMap = new Map<string, WorkerAbsenteeStats>();
 
-    // Initialize only active workers with last month salary
-    activeWorkers.forEach(worker => {
+    // Initialize all workers with last month salary
+    workers.forEach(worker => {
       const defaultOT = workerDefaultOvertime[worker.id] || false;
       const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear, defaultOT);
 
@@ -138,10 +134,17 @@ export function Dashboard() {
       });
     });
 
-    // Count attendance for each active worker in last month only
+    // Count attendance for all workers in last month
+    // For inactive workers, only count up to inactive date
     lastMonthRecords.forEach(record => {
       const stats = statsMap.get(record.workerId);
       if (stats) {
+        const worker = workers.find(w => w.id === record.workerId);
+        // Skip attendance records after inactive date
+        if (worker?.isActive === false && worker?.inactiveDate && record.date > worker.inactiveDate) {
+          return; // Don't count attendance after inactive date
+        }
+        
         stats.totalDays++;
         if (record.status === AttendanceStatus.ABSENT) {
           stats.absentCount++;
@@ -157,7 +160,7 @@ export function Dashboard() {
   };
 
   // Calculate absentee stats for each worker for current month
-  // Only includes active workers - inactive workers are excluded
+  // Includes all workers - inactive workers have frozen salaries from inactive date
   const calculateAbsenteeStats = (): WorkerAbsenteeStats[] => {
     const { startDate, endDate } = getCurrentMonthRange();
     const { month, year } = getCurrentMonthYear();
@@ -167,15 +170,13 @@ export function Dashboard() {
       return record.date >= startDate && record.date <= endDate;
     });
 
-    // Filter to only active workers
-    const activeWorkers = workers.filter(w => w.isActive !== false);
-
-    // Calculate stats for each active worker only
+    // Calculate stats for all workers (active and inactive)
     const statsMap = new Map<string, WorkerAbsenteeStats>();
 
-    // Initialize only active workers
-    activeWorkers.forEach(worker => {
+    // Initialize all workers
+    workers.forEach(worker => {
       // Calculate salary for this worker (include default OT setting)
+      // For inactive workers, salary calculation stops at inactive date
       const defaultOT = workerDefaultOvertime[worker.id] || false;
       const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, month, year, defaultOT);
 
@@ -192,10 +193,17 @@ export function Dashboard() {
       });
     });
 
-    // Count attendance for each active worker only
+    // Count attendance for all workers
+    // For inactive workers, only count up to inactive date
     monthRecords.forEach(record => {
       const stats = statsMap.get(record.workerId);
       if (stats) {
+        const worker = workers.find(w => w.id === record.workerId);
+        // Skip attendance records after inactive date
+        if (worker?.isActive === false && worker?.inactiveDate && record.date > worker.inactiveDate) {
+          return; // Don't count attendance after inactive date
+        }
+        
         stats.totalDays++;
         if (record.status === AttendanceStatus.ABSENT) {
           stats.absentCount++;
@@ -356,10 +364,18 @@ export function Dashboard() {
                       const bonus = stat.salaryDetails?.bonus || 0;
                       const baseSalary = stat.salaryDetails?.baseSalary || 0;
                       const overtimeCompensation = stat.salaryDetails?.overtimeCompensation || 0;
+                      const lateMinutesDeduction = stat.salaryDetails?.lateMinutesDeduction || 0;
+                      const totalLateMinutes = stat.salaryDetails?.totalLateMinutes || 0;
+                      const isInactive = worker?.isActive === false;
                       return (
                         <div key={stat.workerId} className="flex items-center justify-between py-3 border-b">
                           <div className="flex-1">
-                            <div className="font-medium">{stat.workerName}</div>
+                            <div className="font-medium flex items-center gap-2">
+                              {stat.workerName}
+                              {isInactive && (
+                                <span className="text-xs text-muted-foreground">(Inactive{worker?.inactiveDate ? ` from ${new Date(worker.inactiveDate).toLocaleDateString()}` : ''})</span>
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground">
                               {stat.employeeId} • {stat.presentCount} present, {stat.absentCount} absent, {stat.halfDayCount} half day
                             </div>
@@ -377,11 +393,19 @@ export function Dashboard() {
                                   (+₹{overtimeCompensation.toLocaleString()} OT)
                                 </span>
                               )}
+                              {lateMinutesDeduction > 0 && (
+                                <span className="text-red-600 text-sm font-normal ml-1">
+                                  (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Base: ₹{baseSalary.toLocaleString()}
                               {overtimeCompensation > 0 && (
                                 <span className="ml-2">OT: ₹{overtimeCompensation.toLocaleString()}</span>
+                              )}
+                              {lateMinutesDeduction > 0 && (
+                                <span className="ml-2 text-red-600">Late Deduct: ₹{lateMinutesDeduction.toLocaleString()}</span>
                               )}
                             </div>
                           </div>
@@ -541,7 +565,14 @@ export function Dashboard() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Workers</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{workers.length}</div>
+                <div className="text-2xl font-bold">
+                  {workers.filter(w => w.isActive !== false).length}
+                  {workers.filter(w => w.isActive === false).length > 0 && (
+                    <span className="text-sm text-muted-foreground font-normal ml-1">
+                      ({workers.filter(w => w.isActive === false).length} inactive)
+                    </span>
+                  )}
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -550,7 +581,10 @@ export function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-500">
-                  {calculateAbsenteeStats().filter(s => s.absentCount > 0).length}
+                  {calculateAbsenteeStats().filter(s => {
+                    const worker = workers.find(w => w.id === s.workerId);
+                    return s.absentCount > 0 && worker?.isActive !== false;
+                  }).length}
                 </div>
               </CardContent>
             </Card>
@@ -560,7 +594,10 @@ export function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-500">
-                  {calculateAbsenteeStats().filter(s => s.absentCount === 0 && s.presentCount > 0).length}
+                  {calculateAbsenteeStats().filter(s => {
+                    const worker = workers.find(w => w.id === s.workerId);
+                    return s.absentCount === 0 && s.presentCount > 0 && worker?.isActive !== false;
+                  }).length}
                 </div>
               </CardContent>
             </Card>
@@ -586,18 +623,39 @@ export function Dashboard() {
                 <div className="space-y-2">
                   {calculateLastMonthSalaries().map((stat) => {
                     const worker = workers.find(w => w.id === stat.workerId);
+                    const hasBonus = stat.salaryDetails?.hasBonus || false;
+                    const bonus = stat.salaryDetails?.bonus || 0;
+                    const overtimeCompensation = stat.salaryDetails?.overtimeCompensation || 0;
+                    const lateMinutesDeduction = stat.salaryDetails?.lateMinutesDeduction || 0;
+                    const totalLateMinutes = stat.salaryDetails?.totalLateMinutes || 0;
+                    const isInactive = worker?.isActive === false;
                     return (
                       <div key={stat.workerId} className="flex items-center justify-between py-2 border-b">
                         <div className="flex-1">
-                          <div className="font-medium">{stat.workerName}</div>
+                          <div className="font-medium flex items-center gap-2">
+                            {stat.workerName}
+                            {isInactive && (
+                              <span className="text-xs text-muted-foreground">(Inactive{worker?.inactiveDate ? ` from ${new Date(worker.inactiveDate).toLocaleDateString()}` : ''})</span>
+                            )}
+                          </div>
                           <div className="text-sm text-muted-foreground">{stat.employeeId}</div>
                         </div>
                         <div className="text-right">
                           <div className="font-bold text-lg">
                             ₹{stat.salary.toLocaleString()}
-                            {stat.salaryDetails?.hasBonus && (
+                            {hasBonus && (
                               <span className="text-green-600 text-sm font-normal ml-1">
-                                (+₹{stat.salaryDetails.bonus.toLocaleString()} bonus)
+                                (+₹{bonus.toLocaleString()} bonus)
+                              </span>
+                            )}
+                            {overtimeCompensation > 0 && (
+                              <span className="text-blue-600 text-sm font-normal ml-1">
+                                (+₹{overtimeCompensation.toLocaleString()} OT)
+                              </span>
+                            )}
+                            {lateMinutesDeduction > 0 && (
+                              <span className="text-red-600 text-sm font-normal ml-1">
+                                (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
                               </span>
                             )}
                           </div>

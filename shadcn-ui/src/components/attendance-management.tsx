@@ -26,7 +26,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
-
+  
   // Worker form
   const [workerForm, setWorkerForm] = useState({
     name: "",
@@ -88,7 +88,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       worker.employeeId.toLowerCase().includes(term)
     );
   };
-
+  
   // Delete confirmation
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
@@ -97,11 +97,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     isOpen: false,
     worker: null
   });
-
+  
   // Dialog states
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
-
+  
   const [error, setError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -131,7 +131,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         getAllWorkers(true), // true = include inactive workers
         getAllAttendance()
       ]);
-
+      
       setWorkers(workersData);
       setAttendanceRecords(attendanceData);
     } catch (error) {
@@ -240,10 +240,10 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       };
 
       const success = await saveWorker(newWorker);
-
+      
       if (success) {
         await loadData(); // Refresh data
-
+        
         // Reset form
         setWorkerForm({
           name: "",
@@ -257,9 +257,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         });
         setWorkerDialogOpen(false);
         setError(null);
-
+        
         toast.success("Worker added successfully");
-
+        
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
@@ -281,11 +281,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     setFormLoading(true);
     try {
       const success = await deleteWorker(deleteConfirmation.worker.id);
-
+      
       if (success) {
         await loadData(); // Refresh data
         toast.success(`Worker ${deleteConfirmation.worker.name} deleted successfully`);
-
+        
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
@@ -305,9 +305,11 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
   const handleMarkInactive = async (worker: Worker) => {
     setFormLoading(true);
     try {
+      const today = new Date().toISOString().split('T')[0];
       const updatedWorker: Worker = {
         ...worker,
-        isActive: false
+        isActive: false,
+        inactiveDate: today // Set inactive date to today
       };
 
       const success = await saveWorker(updatedWorker);
@@ -344,7 +346,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       for (const worker of getFilteredWorkers) {
         try {
           // Check if attendance already exists
-          const existingRecord = attendanceRecords.find(
+      const existingRecord = attendanceRecords.find(
             r => r.workerId === worker.id && r.date === selectedDate
           );
 
@@ -352,34 +354,34 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
           const workerDefaultOT = workerDefaultOvertime[worker.id] || false;
           const overtimeStatus = existingRecord?.overtime || (workerDefaultOT ? 'yes' : 'no');
 
-          let newRecord: AttendanceRecord;
+      let newRecord: AttendanceRecord;
 
-          if (existingRecord) {
+      if (existingRecord) {
             // Update existing record to present, use worker's default overtime if not already set
             const workerDefaultOT = workerDefaultOvertime[worker.id] || false;
-            newRecord = {
-              ...existingRecord,
+        newRecord = {
+          ...existingRecord,
               status: AttendanceStatus.PRESENT,
               overtime: existingRecord.overtime || (workerDefaultOT ? 'yes' : 'no'),
               lateMinutes: existingRecord.lateMinutes || 0,
-              updatedAt: new Date().toISOString()
-            };
-          } else {
+          updatedAt: new Date().toISOString()
+        };
+      } else {
             // Create new record with worker's default overtime
-            newRecord = {
+        newRecord = {
               id: `attendance-${Date.now()}-${worker.id}`,
               workerId: worker.id,
-              workerName: worker.name,
-              date: selectedDate,
+          workerName: worker.name,
+          date: selectedDate,
               status: AttendanceStatus.PRESENT,
               overtime: overtimeStatus,
               lateMinutes: 0,
-              createdAt: new Date().toISOString()
-            };
-          }
+          createdAt: new Date().toISOString()
+        };
+      }
 
-          const success = await saveAttendance(newRecord);
-          if (success) {
+      const success = await saveAttendance(newRecord);
+      if (success) {
             successCount++;
           } else {
             failCount++;
@@ -574,7 +576,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
       if (successCount > 0) {
         await loadData(); // Refresh data
-
+        
         // Reset form
         setAttendanceForm({
           absentWorkers: [],
@@ -594,7 +596,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         } else {
           toast.warning(`Updated ${successCount} worker(s), ${failCount} failed`);
         }
-
+        
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
@@ -681,7 +683,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
 
       // Don't show toast for auto-saves to avoid spam
       // toast.success(`Overtime ${newStatus ? 'enabled' : 'disabled'} for this date and future dates`);
-
+      
       if (onAttendanceUpdate) {
         onAttendanceUpdate();
       }
@@ -709,7 +711,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       if (success) {
         await loadData(); // Refresh data
         toast.success("Packer status updated");
-
+        
         if (onAttendanceUpdate) {
           onAttendanceUpdate();
         }
@@ -847,7 +849,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     });
 
     const packers = workers.filter(w => w.isPacker).length;
-
+    
     // Calculate present packers
     const presentPackerIds = workers
       .filter(w => w.isPacker)
@@ -855,7 +857,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
         const record = dateRecords.find(r => r.workerId === w.id);
         return !record || (record.status !== AttendanceStatus.ABSENT && record.status !== AttendanceStatus.HALF_DAY);
       }).length;
-
+    
     // Get list of workers with default OT but explicitly marked "No Overtime"
     const defaultOTButNoOT: string[] = [];
     workers.forEach(worker => {
@@ -926,7 +928,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
     a.download = `attendance-${selectedDate}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-
+    
     toast.success("Attendance report downloaded");
   };
 
@@ -1093,7 +1095,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 Register a new worker to track their attendance.
               </DialogDescription>
             </DialogHeader>
-
+            
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1115,7 +1117,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   />
                 </div>
               </div>
-
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="worker-department">Department</Label>
@@ -1170,16 +1172,16 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is-packer"
-                    checked={workerForm.isPacker}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is-packer"
+                  checked={workerForm.isPacker}
                     onCheckedChange={(checked) => setWorkerForm({ ...workerForm, isPacker: checked })}
-                  />
-                  <Label htmlFor="is-packer" className="flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Designate as Packer (can be assigned barcodes)
-                  </Label>
+                />
+                <Label htmlFor="is-packer" className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Designate as Packer (can be assigned barcodes)
+                </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Switch
@@ -1193,7 +1195,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   </Label>
                 </div>
               </div>
-
+              
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -1201,7 +1203,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 </Alert>
               )}
             </div>
-
+            
             <DialogFooter>
               <Button variant="outline" onClick={() => setWorkerDialogOpen(false)}>
                 Cancel
@@ -1235,7 +1237,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 Bulk update attendance status for {selectedDate}. Select multiple workers for Absent, Half Day, or No OT. Workers are present by default unless marked otherwise.
               </DialogDescription>
             </DialogHeader>
-
+            
             <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto">
               {/* Absent Workers Section */}
               <div className="space-y-3">
@@ -1338,7 +1340,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   )}
                 </div>
               </div>
-
+              
               {/* Half Day Workers Section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1440,7 +1442,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   )}
                 </div>
               </div>
-
+              
               {/* No OT Workers Section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1622,7 +1624,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                   rows={3}
                 />
               </div>
-
+              
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -1630,7 +1632,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                 </Alert>
               )}
             </div>
-
+            
             <DialogFooter>
               <Button
                 variant="outline"
@@ -1691,7 +1693,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               Are you sure you want to delete {deleteConfirmation.worker?.name}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-
+          
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
@@ -1703,7 +1705,7 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
               </ul>
             </AlertDescription>
           </Alert>
-
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmation({ isOpen: false, worker: null })}>
               Cancel
@@ -1960,38 +1962,38 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
             <div className="w-full overflow-x-auto">
               <div className="min-w-[1200px]">
                 <div className="[&>div]:overflow-visible">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
+            <Table>
+              <TableHeader>
+                <TableRow>
                         <TableHead className="sticky left-0 z-[100] bg-white dark:bg-gray-950 border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Employee ID</TableHead>
                         <TableHead className="sticky left-[120px] z-[100] bg-white dark:bg-gray-950 border-r min-w-[150px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">Name</TableHead>
                         <TableHead>Gender</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Position</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Position</TableHead>
                         <TableHead>Base Salary</TableHead>
                         <TableHead>Adv. This Mo</TableHead>
                         <TableHead>Adv. Last Mo</TableHead>
                         <TableHead>Adv. Deduct</TableHead>
-                        <TableHead>Packer</TableHead>
+                  <TableHead>Packer</TableHead>
                         <TableHead>Cleaner</TableHead>
                         <TableHead>Default OT</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Overtime</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Overtime</TableHead>
                         <TableHead>Late Minutes</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                       {getFilteredWorkers.map((worker) => {
-                        const status = getWorkerStatus(worker.id);
-                        const hasOvertime = checkHasOvertime(worker.id);
+                  const status = getWorkerStatus(worker.id);
+                  const hasOvertime = checkHasOvertime(worker.id);
                         const isInactive = worker.isActive === false;
                         const today = new Date().toISOString().split('T')[0];
                         const isPastDate = selectedDate < today;
                         const canEditAttendance = !isInactive || isPastDate; // Can edit if active OR (inactive AND past date)
-
-                        return (
-                          <TableRow key={worker.id}>
+                  
+                  return (
+                    <TableRow key={worker.id}>
                             <TableCell className="font-mono sticky left-0 z-[90] bg-white dark:bg-gray-950 border-r min-w-[120px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] whitespace-nowrap">
                               {worker.employeeId}
                               {isInactive && <Badge variant="outline" className="ml-2 text-xs">Inactive</Badge>}
@@ -2007,8 +2009,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                 {(worker.gender || Gender.MALE) === Gender.MALE ? "Male" : "Female"}
                               </Badge>
                             </TableCell>
-                            <TableCell>{worker.department || '-'}</TableCell>
-                            <TableCell>{worker.position || '-'}</TableCell>
+                      <TableCell>{worker.department || '-'}</TableCell>
+                      <TableCell>{worker.position || '-'}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">
@@ -2068,18 +2070,18 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                 {worker.advanceDeduction ? `₹${worker.advanceDeduction.toLocaleString()}` : '₹0'}
                               </span>
                             </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Switch
-                                  checked={worker.isPacker || false}
-                                  onCheckedChange={() => handlePackerToggle(worker.id)}
-                                />
-                                <span className="text-sm text-muted-foreground">
-                                  {worker.isPacker ? '📦 Packer' : 'Not Packer'}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={worker.isPacker || false}
+                            onCheckedChange={() => handlePackerToggle(worker.id)}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {worker.isPacker ? '📦 Packer' : 'Not Packer'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
                               <div className="flex items-center gap-2">
                                 <Switch
                                   checked={worker.isCleaner || false}
@@ -2113,15 +2115,15 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1 flex-wrap">
-                                <Badge
-                                  variant={
-                                    status === AttendanceStatus.PRESENT ? "default" :
-                                      status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
-                                  }
+                        <Badge 
+                          variant={
+                            status === AttendanceStatus.PRESENT ? "default" :
+                            status === AttendanceStatus.HALF_DAY ? "secondary" : "destructive"
+                          }
                                   className="mr-1"
-                                >
-                                  {status}
-                                </Badge>
+                        >
+                          {status}
+                        </Badge>
                                 <div className="flex gap-1">
                                   <Button
                                     type="button"
@@ -2293,8 +2295,8 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                   </Button>
                                 </div>
                               </div>
-                            </TableCell>
-                            <TableCell>
+                      </TableCell>
+                      <TableCell>
                               <div className="flex items-center gap-1">
                                 <Button
                                   type="button"
@@ -2314,9 +2316,9 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                   <Clock className="h-3 w-3 mr-1" />
                                   {hasOvertime ? 'Overtime' : 'No OT'}
                                 </Button>
-                              </div>
-                            </TableCell>
-                            <TableCell>
+                        </div>
+                      </TableCell>
+                      <TableCell>
                               {(() => {
                                 const record = attendanceRecords.find(
                                   r => r.workerId === worker.id && r.date === selectedDate
@@ -2342,22 +2344,22 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
                                 >
                                   <UserMinus className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setDeleteConfirmation({ isOpen: true, worker })}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirmation({ isOpen: true, worker })}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                   title="Delete worker permanently"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                               </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
                 </div>
               </div>
             </div>
