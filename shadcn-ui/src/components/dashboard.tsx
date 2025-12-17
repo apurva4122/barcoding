@@ -51,14 +51,16 @@ export function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      // Include inactive workers for salary calculations in dashboard
+      // Load all workers but filter inactive ones for dashboard calculations
       const [workersData, attendanceData, barcodesData, defaultOTSettings] = await Promise.all([
-        getAllWorkers(true), // true = include inactive workers
+        getAllWorkers(true), // Load all to get inactive status
         getAllAttendance(),
         getAllBarcodes(),
         getAllWorkerDefaultOvertimeSettings()
       ]);
-      setWorkers(workersData);
+      // Filter out inactive workers for dashboard
+      const activeWorkers = workersData.filter(w => w.isActive !== false);
+      setWorkers(activeWorkers);
       setAttendanceRecords(attendanceData);
       setBarcodes(barcodesData);
       setWorkerDefaultOvertime(defaultOTSettings);
@@ -152,6 +154,7 @@ export function Dashboard() {
   };
 
   // Calculate absentee stats for each worker for current month
+  // Only includes active workers - inactive workers are excluded
   const calculateAbsenteeStats = (): WorkerAbsenteeStats[] => {
     const { startDate, endDate } = getCurrentMonthRange();
     const { month, year } = getCurrentMonthYear();
@@ -161,11 +164,14 @@ export function Dashboard() {
       return record.date >= startDate && record.date <= endDate;
     });
 
-    // Calculate stats for each worker
+    // Filter to only active workers
+    const activeWorkers = workers.filter(w => w.isActive !== false);
+
+    // Calculate stats for each active worker only
     const statsMap = new Map<string, WorkerAbsenteeStats>();
 
-    // Initialize all workers
-    workers.forEach(worker => {
+    // Initialize only active workers
+    activeWorkers.forEach(worker => {
       // Calculate salary for this worker (include default OT setting)
       const defaultOT = workerDefaultOvertime[worker.id] || false;
       const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, month, year, defaultOT);
@@ -183,7 +189,7 @@ export function Dashboard() {
       });
     });
 
-    // Count attendance for each worker
+    // Count attendance for each active worker only
     monthRecords.forEach(record => {
       const stats = statsMap.get(record.workerId);
       if (stats) {
