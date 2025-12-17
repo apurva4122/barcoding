@@ -163,8 +163,9 @@ function calculateMaleSalary(
         if (record.overtime === 'yes' && !isTuesday) {
           overtimeHours += 1; // 1 hour extra
           // Deduct late minutes from overtime
-          if (record.lateMinutes && record.lateMinutes > 0) {
-            totalLateMinutes += record.lateMinutes;
+          const lateMins = typeof record.lateMinutes === 'number' ? record.lateMinutes : (record.lateMinutes ? parseInt(String(record.lateMinutes)) : 0);
+          if (lateMins > 0) {
+            totalLateMinutes += lateMins;
           }
         }
       } else if (record.status === AttendanceStatus.HALF_DAY) {
@@ -176,8 +177,9 @@ function calculateMaleSalary(
         if (record.overtime === 'yes' && !isTuesday) {
           overtimeHours += 1;
           // Deduct late minutes from overtime
-          if (record.lateMinutes && record.lateMinutes > 0) {
-            totalLateMinutes += record.lateMinutes;
+          const lateMins = typeof record.lateMinutes === 'number' ? record.lateMinutes : (record.lateMinutes ? parseInt(String(record.lateMinutes)) : 0);
+          if (lateMins > 0) {
+            totalLateMinutes += lateMins;
           }
         }
       } else if (record.status === AttendanceStatus.ABSENT) {
@@ -279,8 +281,9 @@ function calculateFemaleSalary(
         if (record.overtime === 'yes') {
           overtimeHours += 1; // 1 hour extra
           // Deduct late minutes from overtime
-          if (record.lateMinutes && record.lateMinutes > 0) {
-            totalLateMinutes += record.lateMinutes;
+          const lateMins = typeof record.lateMinutes === 'number' ? record.lateMinutes : (record.lateMinutes ? parseInt(String(record.lateMinutes)) : 0);
+          if (lateMins > 0) {
+            totalLateMinutes += lateMins;
           }
         }
       } else if (record.status === AttendanceStatus.HALF_DAY) {
@@ -291,6 +294,11 @@ function calculateFemaleSalary(
         // Check for overtime
         if (record.overtime === 'yes') {
           overtimeHours += 1;
+          // Deduct late minutes from overtime
+          const lateMins = typeof record.lateMinutes === 'number' ? record.lateMinutes : (record.lateMinutes ? parseInt(String(record.lateMinutes)) : 0);
+          if (lateMins > 0) {
+            totalLateMinutes += lateMins;
+          }
         }
       } else if (record.status === AttendanceStatus.ABSENT) {
         absentDays++;
