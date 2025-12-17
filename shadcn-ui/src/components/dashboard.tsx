@@ -114,11 +114,14 @@ export function Dashboard() {
       return record.date >= startDate && record.date <= endDate;
     });
 
-    // Calculate stats for each worker
+    // Filter to only active workers
+    const activeWorkers = workers.filter(w => w.isActive !== false);
+
+    // Calculate stats for each active worker only
     const statsMap = new Map<string, WorkerAbsenteeStats>();
 
-    // Initialize all workers with last month salary
-    workers.forEach(worker => {
+    // Initialize only active workers with last month salary
+    activeWorkers.forEach(worker => {
       const defaultOT = workerDefaultOvertime[worker.id] || false;
       const salaryDetails = calculateMonthlySalary(worker, attendanceRecords, lastMonth, lastMonthYear, defaultOT);
 
@@ -135,7 +138,7 @@ export function Dashboard() {
       });
     });
 
-    // Count attendance for each worker in last month
+    // Count attendance for each active worker in last month only
     lastMonthRecords.forEach(record => {
       const stats = statsMap.get(record.workerId);
       if (stats) {
