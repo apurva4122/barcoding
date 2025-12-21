@@ -183,6 +183,11 @@ function calculateMaleSalary(
     const dayOfWeek = date.getDay();
     const isTuesday = dayOfWeek === 2;
 
+    // Skip days after inactive date for inactive workers
+    if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
+      continue; // Don't process days after inactive date
+    }
+
     const record = recordsByDate.get(dateStr);
 
     if (record) {
@@ -221,6 +226,12 @@ function calculateMaleSalary(
       }
     } else {
       // No record exists - default to present and check default OT
+      // BUT: For inactive workers, don't default to present after inactive date
+      // (This case is already handled by the continue statement above, but keeping for safety)
+      if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
+        continue; // Don't count days after inactive date
+      }
+      
       presentDays++;
       baseSalary += dailyRate;
 
@@ -320,6 +331,11 @@ function calculateFemaleSalary(
     const dayOfWeek = date.getDay();
     const isTuesday = dayOfWeek === 2;
 
+    // Skip days after inactive date for inactive workers
+    if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
+      continue; // Don't process days after inactive date
+    }
+
     // Women don't get paid for Tuesday off (no attendance pay, no OT)
     if (isTuesday) {
       continue; // Skip Tuesday completely for women
@@ -360,6 +376,12 @@ function calculateFemaleSalary(
       }
     } else {
       // No record exists - default to present and check default OT
+      // BUT: For inactive workers, don't default to present after inactive date
+      // (This case is already handled by the continue statement above, but keeping for safety)
+      if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
+        continue; // Don't count days after inactive date
+      }
+      
       baseSalary += dailyWage;
 
       // If default OT is enabled, count overtime
