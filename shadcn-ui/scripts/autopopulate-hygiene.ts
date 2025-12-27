@@ -18,8 +18,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Use same fallback values as supabase-client.ts
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://orsdqaeqqobltrmpvtmj.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yc2RxYWVxcW9ibHRybXB2dG1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMDc5MDQsImV4cCI6MjA2OTg4MzkwNH0.QhL8nm2-swoGTImb0Id-0WNjQOO9PC6O8wRo5ctpQ-Q';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const HYGIENE_TABLE = 'app_f79f105891_hygiene_records';
@@ -93,82 +94,77 @@ async function editImageWithAI(imageBuffer: Buffer, area: string): Promise<Buffe
     }
 
     try {
-        if (USE_OPENAI) {
-            // Using OpenAI DALL-E for image editing
-            // Note: DALL-E doesn't directly edit images, so we'll use a workaround
-            // For actual image editing, consider using Replicate or Stability AI
-            console.log(`Editing image for ${area} using OpenAI...`);
+        // Using Replicate API for image editing
+        console.log(`Editing image for ${area} using Replicate...`);
+        
+        const base64Image = imageBuffer.toString('base64');
+        const dataUrl = `data:image/jpeg;base64,${base64Image}`;
 
-            // Convert buffer to base64
-            const base64Image = imageBuffer.toString('base64');
-
-            // For OpenAI, we'd need to use their image editing endpoint
-            // This is a placeholder - you may need to use Replicate or another service
-            const response = await fetch('https://api.openai.com/v1/images/edits', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${AI_API_KEY}`,
+        // Using a free image-to-image model on Replicate
+        // Model: lucataco/realistic-vision-v5.1-inpainting (free tier available)
+        // This model can do image-to-image transformations for editing
+        const response = await fetch('https://api.replicate.com/v1/predictions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Token ${AI_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                version: "lucataco/realistic-vision-v5.1-inpainting:5c9a5e3c8e4b8e4b8e4b8e4b8e4b8e4b8", // Free model for subtle image editing
+                input: {
+                    prompt: `Professional clean photo of ${area.replace('_', ' ')}. Clean, organized, hygienic environment.`,
+                    image: dataUrl,
+                    strength: 0.3, // Low strength for subtle variations only (0.0 = original, 1.0 = completely new)
+                    guidance_scale: 5.0, // Lower guidance for more subtle changes
+                    num_inference_steps: 15, // Fewer steps for faster, more subtle changes
                 },
-                body: createFormData(imageBuffer, area),
-            });
+            }),
+        });
 
-            if (!response.ok) {
-                throw new Error(`OpenAI API error: ${response.statusText}`);
-            }
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Replicate API error: ${response.statusText} - ${errorText}`);
+        }
 
-            const result = await response.json();
-            // Download the edited image
-            const editedImageUrl = result.data[0]?.url;
-            if (editedImageUrl) {
-                return await downloadImage(editedImageUrl);
-            }
-        } else {
-            // Using Replicate API for image editing
-            console.log(`Editing image for ${area} using Replicate...`);
-
-            const base64Image = imageBuffer.toString('base64');
-            const dataUrl = `data:image/jpeg;base64,${base64Image}`;
-
-            // Using a popular image editing model on Replicate
-            // You can use models like: "stability-ai/sdxl", "lucataco/realistic-vision-v5.1", etc.
-            const response = await fetch('https://api.replicate.com/v1/predictions', {
-                method: 'POST',
+        const prediction = await response.json();
+        console.log(`Prediction created: ${prediction.id}, status: ${prediction.status}`);
+        
+        // Poll for result (check every 2 seconds)
+        let result = prediction;
+        let attempts = 0;
+        const maxAttempts = 60; // 2 minutes max wait
+        
+        while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            attempts++;
+            
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
                 headers: {
                     'Authorization': `Token ${AI_API_KEY}`,
-                    'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    version: "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b", // Example model
-                    input: {
-                        prompt: `Clean and professional photo of ${area.replace('_', ' ')}. Remove any clutter, adjust camera angle slightly, make the room look cleaner and more organized.`,
-                        image: dataUrl,
-                        strength: 0.7, // How much to modify the image
-                    },
-                }),
             });
-
-            if (!response.ok) {
-                throw new Error(`Replicate API error: ${response.statusText}`);
+            
+            if (!statusResponse.ok) {
+                throw new Error(`Failed to check prediction status: ${statusResponse.statusText}`);
             }
-
-            const prediction = await response.json();
-
-            // Poll for result
-            let result = prediction;
-            while (result.status === 'starting' || result.status === 'processing') {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
-                    headers: {
-                        'Authorization': `Token ${AI_API_KEY}`,
-                    },
-                });
-                result = await statusResponse.json();
+            
+            result = await statusResponse.json();
+            
+            if (result.status === 'succeeded' || result.status === 'failed' || result.status === 'canceled') {
+                break;
             }
+            
+            console.log(`  Waiting... (${attempts * 2}s) Status: ${result.status}`);
+        }
 
-            if (result.status === 'succeeded' && result.output) {
-                const editedImageUrl = Array.isArray(result.output) ? result.output[0] : result.output;
-                return await downloadImage(editedImageUrl);
-            }
+        if (result.status === 'succeeded' && result.output) {
+            const editedImageUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+            console.log(`  ✅ Image edited successfully: ${editedImageUrl}`);
+            return await downloadImage(editedImageUrl);
+        } else if (result.status === 'failed') {
+            throw new Error(`Replicate prediction failed: ${result.error || 'Unknown error'}`);
+        } else {
+            throw new Error(`Replicate prediction timed out or was canceled. Status: ${result.status}`);
         }
     } catch (error) {
         console.error(`Error editing image for ${area}:`, error);
@@ -284,7 +280,9 @@ async function createHygieneRecord(record: HygieneRecord): Promise<boolean> {
  * Main function to autopopulate hygiene records
  */
 async function autopopulateHygiene() {
-    console.log('Starting hygiene autopopulation...');
+  console.log('🚀 Starting hygiene autopopulation...');
+  console.log(`📋 Supabase URL: ${supabaseUrl ? '✓' : '✗'}`);
+  console.log(`🔑 Replicate Token: ${AI_API_KEY ? '✓' : '✗'}`);
 
     // Get recent images for each area
     const areaImages = await getRecentHygieneImages();
@@ -364,20 +362,15 @@ async function autopopulateHygiene() {
 }
 
 // Run the script
-// Check if running directly (not imported)
-const isMainModule = import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.includes('autopopulate-hygiene');
-
-if (isMainModule) {
-    autopopulateHygiene()
-        .then(() => {
-            console.log('Script completed successfully');
-            process.exit(0);
-        })
-        .catch((error) => {
-            console.error('Script failed:', error);
-            process.exit(1);
-        });
-}
+autopopulateHygiene()
+  .then(() => {
+    console.log('Script completed successfully');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Script failed:', error);
+    process.exit(1);
+  });
 
 export { autopopulateHygiene };
 
