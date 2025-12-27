@@ -1,0 +1,21 @@
+{
+  "name": "hygiene-autopopulate-script",
+  "version": "1.0.0",
+  "description": "One-time script to autopopulate hygiene records",
+  "type": "module",
+  "scripts": {
+    "autopopulate": "tsx autopopulate-hygiene.ts",
+    "autopopulate-simple": "node simple-autopopulate.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}
+
