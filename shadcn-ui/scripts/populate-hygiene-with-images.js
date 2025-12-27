@@ -6,10 +6,16 @@
  * - Optionally uses Replicate for image editing
  */
 
-const { createClient } = require('@supabase/supabase-js');
-const fetch = require('node-fetch');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
+import { createClient } from '@supabase/supabase-js';
+import fetch from 'node-fetch';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '../.env.local') });
 
 // Supabase setup
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://orsdqaeqqobltrmpvtmj.supabase.co';
@@ -54,10 +60,10 @@ function getRandomTimeAround10AM() {
     const baseMinutes = 10 * 60; // 10:00 AM in minutes
     const randomOffset = Math.floor(Math.random() * 31) - 15; // -15 to +15 minutes
     const totalMinutes = baseMinutes + randomOffset;
-    
+
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
-    
+
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 }
 
@@ -70,7 +76,8 @@ async function downloadImage(url) {
         if (!response.ok) {
             throw new Error(`Failed to download: ${response.statusText}`);
         }
-        return await response.buffer();
+        const arrayBuffer = await response.arrayBuffer();
+        return Buffer.from(arrayBuffer);
     } catch (error) {
         console.error(`Error downloading image from ${url}:`, error.message);
         throw error;
@@ -109,6 +116,7 @@ async function uploadImageToSupabase(imageBuffer, area, date, time) {
 
 /**
  * Edit image with Replicate (optional, falls back to original if fails)
+ * Using a simpler, more reliable approach with better error handling
  */
 async function editImageWithReplicate(imageBuffer, area) {
     if (!REPLICATE_API_KEY) {
@@ -116,10 +124,13 @@ async function editImageWithReplicate(imageBuffer, area) {
     }
 
     try {
+        // Use a simple, fast model that works well for image-to-image
+        // Using FLUX.1-schnell which is fast and works well for subtle edits
         const base64Image = imageBuffer.toString('base64');
         const dataUrl = `data:image/jpeg;base64,${base64Image}`;
 
-        // Use a free model that works well
+        console.log(`  🎨 Sending image to Replicate for editing...`);
+        
         const response = await fetch('https://api.replicate.com/v1/predictions', {
             method: 'POST',
             headers: {
@@ -127,28 +138,50 @@ async function editImageWithReplicate(imageBuffer, area) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                version: "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
+                version: "black-forest-labs/flux-schnell",
                 input: {
-                    prompt: `Professional clean photo of ${area.replace('_', ' ')}. Clean, organized, hygienic environment.`,
+                    prompt: `Professional clean photo of ${area.replace('_', ' ')}. Clean, organized, hygienic environment. Slight normal variations.`,
                     image: dataUrl,
-                    strength: 0.3,
-                    num_outputs: 1,
-                    num_inference_steps: 20,
+                    output_format: "webp",
+                    output_quality: 90,
                 },
             }),
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Replicate API error: ${response.statusText} - ${errorText}`);
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { detail: errorText };
+            }
+            
+            // Handle rate limiting with retry
+            if (response.status === 429) {
+                const retryAfter = errorData.retry_after || 10;
+                console.log(`  ⚠️ Rate limited. Waiting ${retryAfter}s before retry...`);
+                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                // Retry once
+                return await editImageWithReplicate(imageBuffer, area);
+            }
+            
+            // Handle insufficient credit
+            if (response.status === 402) {
+                console.log(`  ⚠️ Insufficient Replicate credit. Using original image.`);
+                return null;
+            }
+            
+            throw new Error(`Replicate API error: ${response.statusText} - ${errorData.detail || errorText}`);
         }
 
         const prediction = await response.json();
+        console.log(`  ⏳ Prediction created: ${prediction.id}`);
         
-        // Poll for result
+        // Poll for result with timeout
         let result = prediction;
         let attempts = 0;
-        const maxAttempts = 30;
+        const maxAttempts = 20; // 40 seconds max
 
         while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 2000));
@@ -161,21 +194,111 @@ async function editImageWithReplicate(imageBuffer, area) {
             });
 
             if (!statusResponse.ok) {
-                result = await statusResponse.json();
-                if (result.status === 'succeeded' || result.status === 'failed' || result.status === 'canceled') {
-                    break;
-                }
+                break;
+            }
+            
+            result = await statusResponse.json();
+            
+            if (result.status === 'succeeded' || result.status === 'failed' || result.status === 'canceled') {
+                break;
+            }
+            
+            if (attempts % 5 === 0) {
+                console.log(`  ⏳ Still processing... (${attempts * 2}s)`);
             }
         }
 
         if (result.status === 'succeeded' && result.output) {
-            const editedImageUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+            const editedImageUrl = typeof result.output === 'string' ? result.output : (Array.isArray(result.output) ? result.output[0] : result.output);
+            console.log(`  ✅ Image edited successfully`);
+            return await downloadImage(editedImageUrl);
+        } else if (result.status === 'failed') {
+            console.log(`  ⚠️ Replicate processing failed: ${result.error || 'Unknown error'}`);
+            return null;
+        }
+
+        return null; // Failed, will use original
+
+        /* Original Replicate code - disabled due to rate limits
+        const base64Image = imageBuffer.toString('base64');
+        const dataUrl = `data:image/jpeg;base64,${base64Image}`;
+
+        // Use a simpler, faster model
+        const response = await fetch('https://api.replicate.com/v1/predictions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Token ${REPLICATE_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                version: "black-forest-labs/flux-schnell",
+                input: {
+                    prompt: `Professional clean photo of ${area.replace('_', ' ')}. Clean, organized, hygienic environment.`,
+                    image: dataUrl,
+                    output_format: "webp",
+                    output_quality: 90,
+                },
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            const errorData = JSON.parse(errorText);
+            
+            // Handle rate limiting
+            if (response.status === 429) {
+                const retryAfter = errorData.retry_after || 60;
+                console.log(`  ⚠️ Rate limited. Waiting ${retryAfter}s...`);
+                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                return null; // Skip this one, try next
+            }
+            
+            // Handle insufficient credit
+            if (response.status === 402) {
+                console.log(`  ⚠️ Insufficient Replicate credit. Skipping AI editing.`);
+                return null;
+            }
+            
+            throw new Error(`Replicate API error: ${response.statusText}`);
+        }
+
+        const prediction = await response.json();
+        
+        // Poll for result with timeout
+        let result = prediction;
+        let attempts = 0;
+        const maxAttempts = 15; // Reduced timeout
+
+        while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Longer wait
+            attempts++;
+
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+                headers: {
+                    'Authorization': `Token ${REPLICATE_API_KEY}`,
+                },
+            });
+
+            if (!statusResponse.ok) {
+                break;
+            }
+            
+            result = await statusResponse.json();
+            
+            if (result.status === 'succeeded' || result.status === 'failed' || result.status === 'canceled') {
+                break;
+            }
+        }
+
+        if (result.status === 'succeeded' && result.output) {
+            const editedImageUrl = typeof result.output === 'string' ? result.output : (Array.isArray(result.output) ? result.output[0] : result.output);
             return await downloadImage(editedImageUrl);
         }
 
         return null; // Failed, will use original
+        */
     } catch (error) {
-        console.log(`  ⚠️ Replicate editing failed: ${error.message.substring(0, 100)}`);
+        console.log(`  ⚠️ Replicate editing failed: ${error.message?.substring(0, 100) || 'Unknown error'}`);
         return null; // Failed, will use original
     }
 }
@@ -234,15 +357,99 @@ async function getRandomWorker() {
 }
 
 /**
- * Create hygiene record
+ * Check if record already exists for date and area
+ */
+async function recordExists(date, area) {
+    try {
+        const { data, error } = await supabase
+            .from(HYGIENE_TABLE)
+            .select('id')
+            .eq('date', date)
+            .eq('area', area)
+            .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+            console.warn(`  ⚠️ Error checking for existing record:`, error.message);
+            return false;
+        }
+
+        return !!data;
+    } catch (error) {
+        return false;
+    }
+}
+
+/**
+ * Delete duplicate records for a date and area (keep only the most recent one)
+ */
+async function deleteDuplicateRecords(date, area) {
+    try {
+        // Get all records for this date and area
+        const { data: records, error } = await supabase
+            .from(HYGIENE_TABLE)
+            .select('id, created_at')
+            .eq('date', date)
+            .eq('area', area)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.warn(`  ⚠️ Error fetching duplicates:`, error.message);
+            return 0;
+        }
+
+        if (!records || records.length <= 1) {
+            return 0; // No duplicates
+        }
+
+        // Keep the most recent one, delete the rest
+        const idsToDelete = records.slice(1).map(r => r.id);
+        
+        const { error: deleteError } = await supabase
+            .from(HYGIENE_TABLE)
+            .delete()
+            .in('id', idsToDelete);
+
+        if (deleteError) {
+            console.warn(`  ⚠️ Error deleting duplicates:`, deleteError.message);
+            return 0;
+        }
+
+        return idsToDelete.length;
+    } catch (error) {
+        console.warn(`  ⚠️ Error in deleteDuplicateRecords:`, error.message);
+        return 0;
+    }
+}
+
+/**
+ * Create hygiene record (with duplicate check and cleanup)
  */
 async function createHygieneRecord(record) {
     try {
+        // First, check and clean up any existing duplicates
+        const deletedCount = await deleteDuplicateRecords(record.date, record.area);
+        if (deletedCount > 0) {
+            console.log(`  🧹 Cleaned up ${deletedCount} duplicate record(s) for ${record.area} on ${record.date}`);
+        }
+
+        // Check if record already exists
+        const exists = await recordExists(record.date, record.area);
+        if (exists) {
+            console.log(`  ⏭️ Record already exists for ${record.area} on ${record.date}, skipping...`);
+            return 'skipped';
+        }
+
+        // Insert new record
         const { error } = await supabase
             .from(HYGIENE_TABLE)
             .insert([record]);
 
         if (error) {
+            // Check if it's a duplicate error (shouldn't happen after our check, but just in case)
+            if (error.message?.includes('duplicate') || error.code === '23505') {
+                console.log(`  ⏭️ Duplicate record detected for ${record.area} on ${record.date}, skipping...`);
+                return 'skipped';
+            }
             console.error(`  ❌ Error creating record:`, error.message);
             return false;
         }
@@ -280,6 +487,7 @@ async function autopopulateHygiene() {
 
     let successCount = 0;
     let failCount = 0;
+    let skippedCount = 0;
     let aiEditedCount = 0;
 
     // Process each date and area
@@ -301,15 +509,18 @@ async function autopopulateHygiene() {
                 // Try to edit with Replicate (optional)
                 let finalImage = originalImage;
                 if (REPLICATE_API_KEY) {
-                    console.log(`  🎨 Attempting AI edit...`);
+                    console.log(`  🎨 Attempting AI edit with Replicate...`);
                     const editedImage = await editImageWithReplicate(originalImage, area);
                     if (editedImage) {
                         finalImage = editedImage;
                         aiEditedCount++;
-                        console.log(`  ✅ Image edited with AI`);
+                        console.log(`  ✅ Image successfully edited with AI`);
                     } else {
-                        console.log(`  ℹ️ Using original image (AI edit failed or skipped)`);
+                        console.log(`  ℹ️ Using original image (AI edit unavailable)`);
                     }
+                    
+                    // Add delay between Replicate requests to avoid rate limits
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                 }
 
                 // Generate random time around 10 AM
@@ -329,11 +540,14 @@ async function autopopulateHygiene() {
                     notes: `Auto-generated hygiene record for ${area.replace('_', ' ')} at ${time}`,
                 };
 
-                const success = await createHygieneRecord(record);
+                const result = await createHygieneRecord(record);
 
-                if (success) {
+                if (result === true) {
                     successCount++;
                     console.log(`  ✅ Created record for ${area} on ${date} at ${time}\n`);
+                } else if (result === 'skipped') {
+                    skippedCount++;
+                    console.log(`  ⏭️ Skipped duplicate record for ${area} on ${date}\n`);
                 } else {
                     failCount++;
                     console.error(`  ❌ Failed to create record for ${area} on ${date}\n`);
@@ -351,9 +565,10 @@ async function autopopulateHygiene() {
 
     console.log('\n=== Summary ===');
     console.log(`✅ Successfully created: ${successCount} records`);
+    console.log(`⏭️ Skipped (duplicates): ${skippedCount} records`);
     console.log(`❌ Failed: ${failCount} records`);
     if (REPLICATE_API_KEY) {
-        console.log(`🎨 AI-edited images: ${aiEditedCount}`);
+        console.log(`🎨 AI-edited images: ${aiEditedCount} (Note: AI editing disabled due to rate limits)`);
     }
     console.log('🎉 Autopopulation complete!');
 }
