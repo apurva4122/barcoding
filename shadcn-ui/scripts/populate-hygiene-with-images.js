@@ -131,6 +131,8 @@ async function editImageWithReplicate(imageBuffer, area) {
 
         console.log(`  🎨 Sending image to Replicate for editing...`);
         
+        // Use a model specifically designed for image-to-image with subtle variations
+        // lucataco/realistic-vision-v5.1-inpainting works well for subtle edits
         const response = await fetch('https://api.replicate.com/v1/predictions', {
             method: 'POST',
             headers: {
@@ -138,12 +140,13 @@ async function editImageWithReplicate(imageBuffer, area) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                version: "black-forest-labs/flux-schnell",
+                version: "lucataco/realistic-vision-v5.1-inpainting",
                 input: {
-                    prompt: `Professional clean photo of ${area.replace('_', ' ')}. Clean, organized, hygienic environment. Slight normal variations.`,
+                    prompt: `Same ${area.replace('_', ' ')} from slightly different angle. Clean, professional, hygienic. Same room, different perspective.`,
                     image: dataUrl,
-                    output_format: "webp",
-                    output_quality: 90,
+                    strength: 0.2, // Very low strength for subtle changes (0.0 = original, 1.0 = completely new)
+                    guidance_scale: 3.0, // Lower guidance for more subtle changes
+                    num_inference_steps: 20, // Fewer steps for faster, more subtle changes
                 },
             }),
         });
@@ -209,8 +212,20 @@ async function editImageWithReplicate(imageBuffer, area) {
         }
 
         if (result.status === 'succeeded' && result.output) {
-            const editedImageUrl = typeof result.output === 'string' ? result.output : (Array.isArray(result.output) ? result.output[0] : result.output);
-            console.log(`  ✅ Image edited successfully`);
+            // Handle different output formats
+            let editedImageUrl;
+            if (typeof result.output === 'string') {
+                editedImageUrl = result.output;
+            } else if (Array.isArray(result.output)) {
+                editedImageUrl = result.output[0];
+            } else if (result.output && typeof result.output === 'object') {
+                // Some models return object with url property
+                editedImageUrl = result.output.url || result.output[0] || result.output;
+            } else {
+                editedImageUrl = result.output;
+            }
+            
+            console.log(`  ✅ Image edited successfully with subtle variations`);
             return await downloadImage(editedImageUrl);
         } else if (result.status === 'failed') {
             console.log(`  ⚠️ Replicate processing failed: ${result.error || 'Unknown error'}`);
