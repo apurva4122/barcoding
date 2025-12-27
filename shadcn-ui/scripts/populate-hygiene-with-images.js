@@ -130,7 +130,7 @@ async function editImageWithReplicate(imageBuffer, area) {
         const dataUrl = `data:image/jpeg;base64,${base64Image}`;
 
         console.log(`  🎨 Sending image to Replicate for editing...`);
-        
+
         // Use a model specifically designed for image-to-image with subtle variations
         // lucataco/realistic-vision-v5.1-inpainting works well for subtle edits
         const response = await fetch('https://api.replicate.com/v1/predictions', {
@@ -140,13 +140,13 @@ async function editImageWithReplicate(imageBuffer, area) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                version: "lucataco/realistic-vision-v5.1-inpainting",
+                version: "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
                 input: {
-                    prompt: `Same ${area.replace('_', ' ')} from slightly different angle. Clean, professional, hygienic. Same room, different perspective.`,
+                    prompt: `Same ${area.replace('_', ' ')} photographed from slightly different angle. Same room, same area, just different camera perspective. Clean, professional, hygienic.`,
                     image: dataUrl,
-                    strength: 0.2, // Very low strength for subtle changes (0.0 = original, 1.0 = completely new)
-                    guidance_scale: 3.0, // Lower guidance for more subtle changes
-                    num_inference_steps: 20, // Fewer steps for faster, more subtle changes
+                    strength: 0.15, // Very low strength for minimal changes (0.0 = original, 1.0 = completely new)
+                    num_outputs: 1,
+                    num_inference_steps: 15, // Fewer steps for faster, more subtle changes
                 },
             }),
         });
@@ -159,7 +159,7 @@ async function editImageWithReplicate(imageBuffer, area) {
             } catch {
                 errorData = { detail: errorText };
             }
-            
+
             // Handle rate limiting with retry
             if (response.status === 429) {
                 const retryAfter = errorData.retry_after || 10;
@@ -168,19 +168,19 @@ async function editImageWithReplicate(imageBuffer, area) {
                 // Retry once
                 return await editImageWithReplicate(imageBuffer, area);
             }
-            
+
             // Handle insufficient credit
             if (response.status === 402) {
                 console.log(`  ⚠️ Insufficient Replicate credit. Using original image.`);
                 return null;
             }
-            
+
             throw new Error(`Replicate API error: ${response.statusText} - ${errorData.detail || errorText}`);
         }
 
         const prediction = await response.json();
         console.log(`  ⏳ Prediction created: ${prediction.id}`);
-        
+
         // Poll for result with timeout
         let result = prediction;
         let attempts = 0;
@@ -199,13 +199,13 @@ async function editImageWithReplicate(imageBuffer, area) {
             if (!statusResponse.ok) {
                 break;
             }
-            
+
             result = await statusResponse.json();
-            
+
             if (result.status === 'succeeded' || result.status === 'failed' || result.status === 'canceled') {
                 break;
             }
-            
+
             if (attempts % 5 === 0) {
                 console.log(`  ⏳ Still processing... (${attempts * 2}s)`);
             }
@@ -224,7 +224,7 @@ async function editImageWithReplicate(imageBuffer, area) {
             } else {
                 editedImageUrl = result.output;
             }
-            
+
             console.log(`  ✅ Image edited successfully with subtle variations`);
             return await downloadImage(editedImageUrl);
         } else if (result.status === 'failed') {
@@ -418,7 +418,7 @@ async function deleteDuplicateRecords(date, area) {
 
         // Keep the most recent one, delete the rest
         const idsToDelete = records.slice(1).map(r => r.id);
-        
+
         const { error: deleteError } = await supabase
             .from(HYGIENE_TABLE)
             .delete()
@@ -437,7 +437,34 @@ async function deleteDuplicateRecords(date, area) {
 }
 
 /**
- * Create hygiene record (with duplicate check and cleanup)
+ * Update existing hygiene record with new image
+ */
+async function updateHygieneRecord(record) {
+    try {
+        const { error } = await supabase
+            .from(HYGIENE_TABLE)
+            .update({
+                photo_url: record.photo_url,
+                notes: record.notes,
+                updated_at: new Date().toISOString()
+            })
+            .eq('date', record.date)
+            .eq('area', record.area);
+
+        if (error) {
+            console.error(`  ❌ Error updating record:`, error.message);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error(`  ❌ Error updating record:`, error.message);
+        return false;
+    }
+}
+
+/**
+ * Create or update hygiene record (with duplicate check and cleanup)
  */
 async function createHygieneRecord(record) {
     try {
@@ -450,8 +477,13 @@ async function createHygieneRecord(record) {
         // Check if record already exists
         const exists = await recordExists(record.date, record.area);
         if (exists) {
-            console.log(`  ⏭️ Record already exists for ${record.area} on ${record.date}, skipping...`);
-            return 'skipped';
+            console.log(`  🔄 Record exists for ${record.area} on ${record.date}, updating with new image...`);
+            const updated = await updateHygieneRecord(record);
+            if (updated) {
+                return 'updated';
+            } else {
+                return false;
+            }
         }
 
         // Insert new record
@@ -462,8 +494,9 @@ async function createHygieneRecord(record) {
         if (error) {
             // Check if it's a duplicate error (shouldn't happen after our check, but just in case)
             if (error.message?.includes('duplicate') || error.code === '23505') {
-                console.log(`  ⏭️ Duplicate record detected for ${record.area} on ${record.date}, skipping...`);
-                return 'skipped';
+                console.log(`  🔄 Duplicate detected, updating instead...`);
+                const updated = await updateHygieneRecord(record);
+                return updated ? 'updated' : 'skipped';
             }
             console.error(`  ❌ Error creating record:`, error.message);
             return false;
@@ -502,7 +535,7 @@ async function autopopulateHygiene() {
 
     let successCount = 0;
     let failCount = 0;
-    let skippedCount = 0;
+    let updatedCount = 0;
     let aiEditedCount = 0;
 
     // Process each date and area
@@ -533,7 +566,7 @@ async function autopopulateHygiene() {
                     } else {
                         console.log(`  ℹ️ Using original image (AI edit unavailable)`);
                     }
-                    
+
                     // Add delay between Replicate requests to avoid rate limits
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
@@ -560,12 +593,12 @@ async function autopopulateHygiene() {
                 if (result === true) {
                     successCount++;
                     console.log(`  ✅ Created record for ${area} on ${date} at ${time}\n`);
-                } else if (result === 'skipped') {
-                    skippedCount++;
-                    console.log(`  ⏭️ Skipped duplicate record for ${area} on ${date}\n`);
+                } else if (result === 'updated') {
+                    updatedCount++;
+                    console.log(`  ✅ Updated record for ${area} on ${date} with new AI-edited image\n`);
                 } else {
                     failCount++;
-                    console.error(`  ❌ Failed to create record for ${area} on ${date}\n`);
+                    console.error(`  ❌ Failed to create/update record for ${area} on ${date}\n`);
                 }
 
                 // Small delay to avoid rate limits
@@ -580,10 +613,10 @@ async function autopopulateHygiene() {
 
     console.log('\n=== Summary ===');
     console.log(`✅ Successfully created: ${successCount} records`);
-    console.log(`⏭️ Skipped (duplicates): ${skippedCount} records`);
+    console.log(`🔄 Updated existing: ${updatedCount} records`);
     console.log(`❌ Failed: ${failCount} records`);
     if (REPLICATE_API_KEY) {
-        console.log(`🎨 AI-edited images: ${aiEditedCount} (Note: AI editing disabled due to rate limits)`);
+        console.log(`🎨 AI-edited images: ${aiEditedCount} (with very subtle variations)`);
     }
     console.log('🎉 Autopopulation complete!');
 }
