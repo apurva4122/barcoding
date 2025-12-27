@@ -22,13 +22,11 @@ npm install
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# For AI image editing, choose one:
-# Option 1: OpenAI (for DALL-E)
-OPENAI_API_KEY=your_openai_api_key
-
-# Option 2: Replicate (recommended for image editing)
+# For AI image editing with Replicate (see REPLICATE_SETUP.md for step-by-step guide):
 REPLICATE_API_TOKEN=your_replicate_api_token
 ```
+
+**📖 See `REPLICATE_SETUP.md` for detailed step-by-step instructions to get your free Replicate API token!**
 
 3. Make sure you have at least one hygiene record per area in Supabase (the script will use the most recent one as a template)
 
@@ -78,6 +76,8 @@ npx tsx autopopulate-hygiene.ts
 - The script includes delays to avoid API rate limiting
 - If AI editing fails, it will use the original image
 - Make sure the Supabase storage bucket `hygiene-photos` exists and has proper permissions
+- **Replicate offers free credits** - perfect for this one-time task!
+- The script uses **FLUX.1-schnell** model which is fast and free-friendly
 
 ## Troubleshooting
 
