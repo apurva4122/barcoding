@@ -96,7 +96,7 @@ async function editImageWithAI(imageBuffer: Buffer, area: string): Promise<Buffe
     try {
         // Using Replicate API for image editing
         console.log(`Editing image for ${area} using Replicate...`);
-        
+
         const base64Image = imageBuffer.toString('base64');
         const dataUrl = `data:image/jpeg;base64,${base64Image}`;
 
@@ -128,32 +128,32 @@ async function editImageWithAI(imageBuffer: Buffer, area: string): Promise<Buffe
 
         const prediction = await response.json();
         console.log(`Prediction created: ${prediction.id}, status: ${prediction.status}`);
-        
+
         // Poll for result (check every 2 seconds)
         let result = prediction;
         let attempts = 0;
         const maxAttempts = 60; // 2 minutes max wait
-        
+
         while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 2000));
             attempts++;
-            
+
             const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
                 headers: {
                     'Authorization': `Token ${AI_API_KEY}`,
                 },
             });
-            
+
             if (!statusResponse.ok) {
                 throw new Error(`Failed to check prediction status: ${statusResponse.statusText}`);
             }
-            
+
             result = await statusResponse.json();
-            
+
             if (result.status === 'succeeded' || result.status === 'failed' || result.status === 'canceled') {
                 break;
             }
-            
+
             console.log(`  Waiting... (${attempts * 2}s) Status: ${result.status}`);
         }
 
@@ -280,9 +280,9 @@ async function createHygieneRecord(record: HygieneRecord): Promise<boolean> {
  * Main function to autopopulate hygiene records
  */
 async function autopopulateHygiene() {
-  console.log('🚀 Starting hygiene autopopulation...');
-  console.log(`📋 Supabase URL: ${supabaseUrl ? '✓' : '✗'}`);
-  console.log(`🔑 Replicate Token: ${AI_API_KEY ? '✓' : '✗'}`);
+    console.log('🚀 Starting hygiene autopopulation...');
+    console.log(`📋 Supabase URL: ${supabaseUrl ? '✓' : '✗'}`);
+    console.log(`🔑 Replicate Token: ${AI_API_KEY ? '✓' : '✗'}`);
 
     // Get recent images for each area
     const areaImages = await getRecentHygieneImages();
@@ -363,14 +363,14 @@ async function autopopulateHygiene() {
 
 // Run the script
 autopopulateHygiene()
-  .then(() => {
-    console.log('Script completed successfully');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('Script failed:', error);
-    process.exit(1);
-  });
+    .then(() => {
+        console.log('Script completed successfully');
+        process.exit(0);
+    })
+    .catch((error) => {
+        console.error('Script failed:', error);
+        process.exit(1);
+    });
 
 export { autopopulateHygiene };
 
