@@ -68,21 +68,28 @@ npx tsx autopopulate-hygiene.ts
 
 ## Free Model Information
 
-The script uses **FLUX.1-schnell** model which is:
+The script uses **realistic-vision-v5.1-inpainting** model which is:
 - ✅ **Free** for first-time users
-- ✅ **Fast** (generates in seconds)
 - ✅ **Good quality** for image-to-image transformations
+- ✅ **Can adjust angles and remove objects**
 - ✅ **No credit card required** initially
 
 ### Free Tier Limits:
-- Replicate offers free credits when you sign up
-- FLUX.1-schnell is very fast and uses minimal credits
-- You can process many images with the free tier
+- Replicate offers free credits when you sign up (~$5-10 worth)
+- Each image edit costs ~$0.002-0.005
+- You can process 100+ images with the free tier
+- Check your balance at: https://replicate.com/account
+
+### Model Details:
+- **Model**: `lucataco/realistic-vision-v5.1-inpainting`
+- **Purpose**: Image-to-image transformation (editing existing images)
+- **What it does**: Adjusts camera angle, removes clutter, cleans up the room
+- **Cost**: Very affordable, works with free credits
 
 ### Alternative Free Models:
-If FLUX.1-schnell doesn't work, the script can be easily modified to use:
-- `lucataco/realistic-vision-v5.1-inpainting` - For object removal
-- `stability-ai/sdxl` - High quality but slower
+If this model doesn't work, you can modify the script to use:
+- `stability-ai/sdxl` - High quality but slower (~$0.01 per image)
+- `black-forest-labs/flux-schnell` - Very fast but may need different API format
 
 ## Troubleshooting
 
