@@ -7,3 +7,7 @@ ADD COLUMN IF NOT EXISTS inactive_date DATE;
 -- Add comment to explain the column
 COMMENT ON COLUMN workers.inactive_date IS 'Date when worker was marked inactive - salary calculations stop from this date';
 
+
+
+
+

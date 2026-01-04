@@ -155,7 +155,8 @@ function calculateMaleSalary(
     recordsByDate.set(record.date, record);
   });
 
-  // Get today's date to only process days up to today (including today)
+  // Get today's date to only process days up to today (including today) for current month
+  // For past months, process all days in the month
   // But if worker is inactive, stop at inactive date
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -165,18 +166,19 @@ function calculateMaleSalary(
   // Determine the last day to process
   let lastProcessDate = isCurrentMonth ? todayStr : endDate;
   if (worker.isActive === false && worker.inactiveDate) {
-    // Use the earlier of: inactive date, today, or end of month
+    // Use the earlier of: inactive date, today (for current month), or end of month
     const inactiveDateStr = worker.inactiveDate;
     if (inactiveDateStr < lastProcessDate) {
       lastProcessDate = inactiveDateStr;
     }
   }
 
+  // For past months, process all days. For current month, process up to today
   const daysToProcess = isCurrentMonth && lastProcessDate === todayStr
     ? today.getDate()
-    : new Date(lastProcessDate).getDate();
+    : new Date(year, month + 1, 0).getDate(); // Total days in the month
 
-  // Process each day up to today (including today)
+  // Process each day
   for (let day = 1; day <= daysToProcess; day++) {
     const date = new Date(year, month, day);
     const dateStr = date.toISOString().split('T')[0];
@@ -231,7 +233,7 @@ function calculateMaleSalary(
       if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
         continue; // Don't count days after inactive date
       }
-      
+
       presentDays++;
       baseSalary += dailyRate;
 
@@ -302,7 +304,8 @@ function calculateFemaleSalary(
     recordsByDate.set(record.date, record);
   });
 
-  // Get today's date to only process days up to today (including today)
+  // Get today's date to only process days up to today (including today) for current month
+  // For past months, process all days in the month
   // But if worker is inactive, stop at inactive date
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -313,18 +316,19 @@ function calculateFemaleSalary(
   // Determine the last day to process
   let lastProcessDate = isCurrentMonth ? todayStr : endDate;
   if (worker.isActive === false && worker.inactiveDate) {
-    // Use the earlier of: inactive date, today, or end of month
+    // Use the earlier of: inactive date, today (for current month), or end of month
     const inactiveDateStr = worker.inactiveDate;
     if (inactiveDateStr < lastProcessDate) {
       lastProcessDate = inactiveDateStr;
     }
   }
 
+  // For past months, process all days. For current month, process up to today
   const daysToProcess = isCurrentMonth && lastProcessDate === todayStr
     ? today.getDate()
-    : new Date(lastProcessDate).getDate();
+    : totalDays; // Total days in the month
 
-  // Process each day up to today (including today)
+  // Process each day
   for (let day = 1; day <= daysToProcess; day++) {
     const date = new Date(year, month, day);
     const dateStr = date.toISOString().split('T')[0];
@@ -381,7 +385,7 @@ function calculateFemaleSalary(
       if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
         continue; // Don't count days after inactive date
       }
-      
+
       baseSalary += dailyWage;
 
       // If default OT is enabled, count overtime

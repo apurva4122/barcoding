@@ -43,3 +43,7 @@ WHERE timestamp >= NOW() - INTERVAL '1 hour'
 GROUP BY machine_id;
 
 
+
+
+
+

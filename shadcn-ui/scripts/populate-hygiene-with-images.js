@@ -515,7 +515,7 @@ async function createHygieneRecord(record) {
 async function autopopulateHygiene() {
     console.log('🚀 Starting hygiene autopopulation with image upload...\n');
     console.log(`📋 Supabase URL: ${supabaseUrl ? '✓' : '✗'}`);
-    console.log(`🔑 Replicate Token: ${REPLICATE_API_KEY ? '✓ (will try AI editing)' : '✗ (skipping AI editing)'}\n`);
+    console.log(`ℹ️ Using original images (AI editing disabled)\n`);
 
     // Get recent images
     const areaImages = await getRecentHygieneImages();
@@ -536,7 +536,6 @@ async function autopopulateHygiene() {
     let successCount = 0;
     let failCount = 0;
     let updatedCount = 0;
-    let aiEditedCount = 0;
 
     // Process each date and area
     for (const date of dates) {
@@ -554,22 +553,9 @@ async function autopopulateHygiene() {
                 // Download original image
                 const originalImage = await downloadImage(sourceImageUrl);
 
-                // Try to edit with Replicate (optional)
-                let finalImage = originalImage;
-                if (REPLICATE_API_KEY) {
-                    console.log(`  🎨 Attempting AI edit with Replicate...`);
-                    const editedImage = await editImageWithReplicate(originalImage, area);
-                    if (editedImage) {
-                        finalImage = editedImage;
-                        aiEditedCount++;
-                        console.log(`  ✅ Image successfully edited with AI`);
-                    } else {
-                        console.log(`  ℹ️ Using original image (AI edit unavailable)`);
-                    }
-
-                    // Add delay between Replicate requests to avoid rate limits
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                }
+                // Use original image (no AI editing)
+                const finalImage = originalImage;
+                console.log(`  ℹ️ Using original image (AI editing disabled)`);
 
                 // Generate random time around 10 AM
                 const time = getRandomTimeAround10AM();
@@ -615,9 +601,6 @@ async function autopopulateHygiene() {
     console.log(`✅ Successfully created: ${successCount} records`);
     console.log(`🔄 Updated existing: ${updatedCount} records`);
     console.log(`❌ Failed: ${failCount} records`);
-    if (REPLICATE_API_KEY) {
-        console.log(`🎨 AI-edited images: ${aiEditedCount} (with very subtle variations)`);
-    }
     console.log('🎉 Autopopulation complete!');
 }
 

@@ -59,3 +59,6 @@ The script will:
 - The script will automatically fall back to using original images
 - This is normal and won't stop the script from working
 
+
+
+

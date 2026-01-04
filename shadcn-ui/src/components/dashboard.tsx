@@ -237,6 +237,29 @@ export function Dashboard() {
       .slice(0, 5);
   };
 
+  // Get top 5 workers with highest absentees for last month
+  const getTop5HighestAbsenteesLastMonth = (): WorkerAbsenteeStats[] => {
+    const stats = calculateLastMonthSalaries();
+    return stats
+      .sort((a, b) => b.absentCount - a.absentCount)
+      .slice(0, 5)
+      .filter(stat => stat.absentCount > 0); // Only show workers with absentees
+  };
+
+  // Get top 5 workers with minimum absentees (most present) for last month
+  const getTop5MinimumAbsenteesLastMonth = (): WorkerAbsenteeStats[] => {
+    const stats = calculateLastMonthSalaries();
+    return stats
+      .sort((a, b) => {
+        // Sort by absent count ascending, then by present count descending
+        if (a.absentCount !== b.absentCount) {
+          return a.absentCount - b.absentCount;
+        }
+        return b.presentCount - a.presentCount;
+      })
+      .slice(0, 5);
+  };
+
   // Format data for bar chart
   const formatChartData = (stats: WorkerAbsenteeStats[], showAbsent: boolean = true) => {
     return stats.map(stat => ({
@@ -262,6 +285,19 @@ export function Dashboard() {
   const top5Minimum = getTop5MinimumAbsentees();
   const highestChartData = formatChartData(top5Highest, true);
   const minimumChartData = formatChartData(top5Minimum, false);
+
+  const top5HighestLastMonth = getTop5HighestAbsenteesLastMonth();
+  const top5MinimumLastMonth = getTop5MinimumAbsenteesLastMonth();
+  const highestChartDataLastMonth = formatChartData(top5HighestLastMonth, true);
+  const minimumChartDataLastMonth = formatChartData(top5MinimumLastMonth, false);
+
+  // Get last month name
+  const getLastMonthName = () => {
+    const now = new Date();
+    const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    return new Date(lastMonthYear, lastMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
 
   // Calculate barcode scanning statistics
   const getBarcodeStats = () => {
@@ -597,6 +633,150 @@ export function Dashboard() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Previous Month Charts */}
+          <div className="mt-8">
+            <h3 className="text-2xl font-bold mb-4">Previous Month ({getLastMonthName()})</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Top 5 Highest Absentees - Last Month */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-red-500" />
+                        Top 5 Highest Absentees - {getLastMonthName()}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        Workers with most absences last month
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {highestChartDataLastMonth.length === 0 ? (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>No absentee data available for last month</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <BarChart
+                        title=""
+                        data={highestChartDataLastMonth}
+                        height={300}
+                      />
+                      {/* Salary Display */}
+                      <div className="mt-6 space-y-2">
+                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Salaries
+                        </h4>
+                        <div className="space-y-1">
+                          {highestChartDataLastMonth.map((item, index) => {
+                            const worker = workers.find(w => w.name === item.label);
+                            const stat = top5HighestLastMonth.find(s => s.workerName === item.label);
+                            const hasBonus = stat?.salaryDetails?.hasBonus || false;
+                            const bonus = stat?.salaryDetails?.bonus || 0;
+                            const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
+                            return (
+                              <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
+                                <span className="font-medium">{item.label}</span>
+                                <span className="text-muted-foreground">
+                                  ₹{item.salary?.toLocaleString() || '0'}
+                                  {hasBonus && (
+                                    <span className="text-green-600 ml-1">
+                                      (+₹{bonus.toLocaleString()} bonus)
+                                    </span>
+                                  )}
+                                  {overtimeCompensation > 0 && (
+                                    <span className="text-blue-600 ml-1">
+                                      (+₹{overtimeCompensation.toLocaleString()} OT)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Top 5 Minimum Absentees - Last Month */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingDown className="h-5 w-5 text-green-500" />
+                        Top 5 Minimum Absentees - {getLastMonthName()}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        Workers with best attendance last month
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {minimumChartDataLastMonth.length === 0 ? (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>No attendance data available for last month</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <BarChart
+                        title=""
+                        data={minimumChartDataLastMonth}
+                        height={300}
+                      />
+                      {/* Salary Display */}
+                      <div className="mt-6 space-y-2">
+                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Salaries
+                        </h4>
+                        <div className="space-y-1">
+                          {minimumChartDataLastMonth.map((item, index) => {
+                            const worker = workers.find(w => w.name === item.label);
+                            const stat = top5MinimumLastMonth.find(s => s.workerName === item.label);
+                            const hasBonus = stat?.salaryDetails?.hasBonus || false;
+                            const bonus = stat?.salaryDetails?.bonus || 0;
+                            const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
+                            return (
+                              <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
+                                <span className="font-medium">{item.label}</span>
+                                <span className="text-muted-foreground">
+                                  ₹{item.salary?.toLocaleString() || '0'}
+                                  {hasBonus && (
+                                    <span className="text-green-600 ml-1">
+                                      (+₹{bonus.toLocaleString()} bonus)
+                                    </span>
+                                  )}
+                                  {overtimeCompensation > 0 && (
+                                    <span className="text-blue-600 ml-1">
+                                      (+₹{overtimeCompensation.toLocaleString()} OT)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Last Month Salaries by Worker */}
