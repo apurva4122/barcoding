@@ -10,7 +10,7 @@ import { getAllBarcodes } from "@/lib/storage";
 import { getAllHygieneRecords, getHygieneRecordsByDate } from "@/lib/hygiene-storage";
 import { getAllWorkerDefaultOvertimeSettings } from "@/lib/supabase-service";
 import { Worker, AttendanceRecord, AttendanceStatus, Barcode, PackingStatus, HygieneRecord, HygieneArea } from "@/types";
-import { calculateMonthlySalary, getCurrentMonthYear, type SalaryCalculationResult } from "@/lib/salary-calculator";
+import { calculateMonthlySalary, getCurrentMonthYear, generateSalaryEquation, type SalaryCalculationResult } from "@/lib/salary-calculator";
 import { TrendingDown, TrendingUp, DollarSign, Calendar, Sparkles, Package, Users, CheckCircle2, XCircle, Activity } from "lucide-react";
 import { BatchCounterWidget } from "./batch-counter-widget";
 
@@ -440,6 +440,19 @@ export function Dashboard() {
                                 <span className="ml-2 text-red-600">Late Deduct: ₹{lateMinutesDeduction.toLocaleString()}</span>
                               )}
                             </div>
+                            {worker && (
+                              <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
+                                {generateSalaryEquation(
+                                  worker,
+                                  stat.presentCount,
+                                  stat.absentCount,
+                                  stat.halfDayCount,
+                                  stat.salaryDetails,
+                                  getCurrentMonthYear().month,
+                                  getCurrentMonthYear().year
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -495,21 +508,36 @@ export function Dashboard() {
                           const bonus = stat?.salaryDetails?.bonus || 0;
                           const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
                           return (
-                            <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
-                              <span className="font-medium">{item.label}</span>
-                              <span className="text-muted-foreground">
-                                ₹{item.salary?.toLocaleString() || '0'}
-                                {hasBonus && (
-                                  <span className="text-green-600 ml-1">
-                                    (+₹{bonus.toLocaleString()} bonus)
-                                  </span>
-                                )}
-                                {overtimeCompensation > 0 && (
-                                  <span className="text-blue-600 ml-1">
-                                    (+₹{overtimeCompensation.toLocaleString()} OT)
-                                  </span>
-                                )}
-                              </span>
+                            <div key={index} className="border-b pb-2">
+                              <div className="flex items-center justify-between text-sm py-1">
+                                <span className="font-medium">{item.label}</span>
+                                <span className="text-muted-foreground">
+                                  ₹{item.salary?.toLocaleString() || '0'}
+                                  {hasBonus && (
+                                    <span className="text-green-600 ml-1">
+                                      (+₹{bonus.toLocaleString()} bonus)
+                                    </span>
+                                  )}
+                                  {overtimeCompensation > 0 && (
+                                    <span className="text-blue-600 ml-1">
+                                      (+₹{overtimeCompensation.toLocaleString()} OT)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                              {worker && stat && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {generateSalaryEquation(
+                                    worker,
+                                    stat.presentCount,
+                                    stat.absentCount,
+                                    stat.halfDayCount,
+                                    stat.salaryDetails,
+                                    getCurrentMonthYear().month,
+                                    getCurrentMonthYear().year
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -564,21 +592,36 @@ export function Dashboard() {
                           const bonus = stat?.salaryDetails?.bonus || 0;
                           const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
                           return (
-                            <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
-                              <span className="font-medium">{item.label}</span>
-                              <span className="text-muted-foreground">
-                                ₹{item.salary?.toLocaleString() || '0'}
-                                {hasBonus && (
-                                  <span className="text-green-600 ml-1">
-                                    (+₹{bonus.toLocaleString()} bonus)
-                                  </span>
-                                )}
-                                {overtimeCompensation > 0 && (
-                                  <span className="text-blue-600 ml-1">
-                                    (+₹{overtimeCompensation.toLocaleString()} OT)
-                                  </span>
-                                )}
-                              </span>
+                            <div key={index} className="border-b pb-2">
+                              <div className="flex items-center justify-between text-sm py-1">
+                                <span className="font-medium">{item.label}</span>
+                                <span className="text-muted-foreground">
+                                  ₹{item.salary?.toLocaleString() || '0'}
+                                  {hasBonus && (
+                                    <span className="text-green-600 ml-1">
+                                      (+₹{bonus.toLocaleString()} bonus)
+                                    </span>
+                                  )}
+                                  {overtimeCompensation > 0 && (
+                                    <span className="text-blue-600 ml-1">
+                                      (+₹{overtimeCompensation.toLocaleString()} OT)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                              {worker && stat && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {generateSalaryEquation(
+                                    worker,
+                                    stat.presentCount,
+                                    stat.absentCount,
+                                    stat.halfDayCount,
+                                    stat.salaryDetails,
+                                    getCurrentMonthYear().month,
+                                    getCurrentMonthYear().year
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -683,21 +726,41 @@ export function Dashboard() {
                             const bonus = stat?.salaryDetails?.bonus || 0;
                             const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
                             return (
-                              <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
-                                <span className="font-medium">{item.label}</span>
-                                <span className="text-muted-foreground">
-                                  ₹{item.salary?.toLocaleString() || '0'}
-                                  {hasBonus && (
-                                    <span className="text-green-600 ml-1">
-                                      (+₹{bonus.toLocaleString()} bonus)
-                                    </span>
-                                  )}
-                                  {overtimeCompensation > 0 && (
-                                    <span className="text-blue-600 ml-1">
-                                      (+₹{overtimeCompensation.toLocaleString()} OT)
-                                    </span>
-                                  )}
-                                </span>
+                              <div key={index} className="border-b pb-2">
+                                <div className="flex items-center justify-between text-sm py-1">
+                                  <span className="font-medium">{item.label}</span>
+                                  <span className="text-muted-foreground">
+                                    ₹{item.salary?.toLocaleString() || '0'}
+                                    {hasBonus && (
+                                      <span className="text-green-600 ml-1">
+                                        (+₹{bonus.toLocaleString()} bonus)
+                                      </span>
+                                    )}
+                                    {overtimeCompensation > 0 && (
+                                      <span className="text-blue-600 ml-1">
+                                        (+₹{overtimeCompensation.toLocaleString()} OT)
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                                {worker && stat && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {(() => {
+                                      const { month, year } = getCurrentMonthYear();
+                                      const lastMonth = month === 0 ? 11 : month - 1;
+                                      const lastMonthYear = month === 0 ? year - 1 : year;
+                                      return generateSalaryEquation(
+                                        worker,
+                                        stat.presentCount,
+                                        stat.absentCount,
+                                        stat.halfDayCount,
+                                        stat.salaryDetails,
+                                        lastMonth,
+                                        lastMonthYear
+                                      );
+                                    })()}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -752,21 +815,41 @@ export function Dashboard() {
                             const bonus = stat?.salaryDetails?.bonus || 0;
                             const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
                             return (
-                              <div key={index} className="flex items-center justify-between text-sm py-1 border-b">
-                                <span className="font-medium">{item.label}</span>
-                                <span className="text-muted-foreground">
-                                  ₹{item.salary?.toLocaleString() || '0'}
-                                  {hasBonus && (
-                                    <span className="text-green-600 ml-1">
-                                      (+₹{bonus.toLocaleString()} bonus)
-                                    </span>
-                                  )}
-                                  {overtimeCompensation > 0 && (
-                                    <span className="text-blue-600 ml-1">
-                                      (+₹{overtimeCompensation.toLocaleString()} OT)
-                                    </span>
-                                  )}
-                                </span>
+                              <div key={index} className="border-b pb-2">
+                                <div className="flex items-center justify-between text-sm py-1">
+                                  <span className="font-medium">{item.label}</span>
+                                  <span className="text-muted-foreground">
+                                    ₹{item.salary?.toLocaleString() || '0'}
+                                    {hasBonus && (
+                                      <span className="text-green-600 ml-1">
+                                        (+₹{bonus.toLocaleString()} bonus)
+                                      </span>
+                                    )}
+                                    {overtimeCompensation > 0 && (
+                                      <span className="text-blue-600 ml-1">
+                                        (+₹{overtimeCompensation.toLocaleString()} OT)
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                                {worker && stat && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {(() => {
+                                      const { month, year } = getCurrentMonthYear();
+                                      const lastMonth = month === 0 ? 11 : month - 1;
+                                      const lastMonthYear = month === 0 ? year - 1 : year;
+                                      return generateSalaryEquation(
+                                        worker,
+                                        stat.presentCount,
+                                        stat.absentCount,
+                                        stat.halfDayCount,
+                                        stat.salaryDetails,
+                                        lastMonth,
+                                        lastMonthYear
+                                      );
+                                    })()}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -836,8 +919,26 @@ export function Dashboard() {
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {stat.presentCount} present, {stat.absentCount} absent
+                            {stat.presentCount} present, {stat.absentCount} absent, {stat.halfDayCount} half day
                           </div>
+                          {worker && (
+                            <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
+                              {(() => {
+                                const { month, year } = getCurrentMonthYear();
+                                const lastMonth = month === 0 ? 11 : month - 1;
+                                const lastMonthYear = month === 0 ? year - 1 : year;
+                                return generateSalaryEquation(
+                                  worker,
+                                  stat.presentCount,
+                                  stat.absentCount,
+                                  stat.halfDayCount,
+                                  stat.salaryDetails,
+                                  lastMonth,
+                                  lastMonthYear
+                                );
+                              })()}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
