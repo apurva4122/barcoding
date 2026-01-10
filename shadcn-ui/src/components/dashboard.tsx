@@ -13,6 +13,7 @@ import { Worker, AttendanceRecord, AttendanceStatus, Barcode, PackingStatus, Hyg
 import { calculateMonthlySalary, getCurrentMonthYear, generateSalaryEquation, type SalaryCalculationResult } from "@/lib/salary-calculator";
 import { TrendingDown, TrendingUp, DollarSign, Calendar, Sparkles, Package, Users, CheckCircle2, XCircle, Activity } from "lucide-react";
 import { BatchCounterWidget } from "./batch-counter-widget";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface WorkerAbsenteeStats {
   workerId: string;
@@ -338,16 +339,17 @@ export function Dashboard() {
   const hygieneStatus = getHygieneStatus();
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted-foreground mt-2">
-          Overview of attendance, hygiene checks, and barcode scanning progress
-        </p>
-      </div>
+    <TooltipProvider>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground mt-2">
+            Overview of attendance, hygiene checks, and barcode scanning progress
+          </p>
+        </div>
 
-      <Tabs defaultValue="attendance" className="space-y-4">
+        <Tabs defaultValue="attendance" className="space-y-4">
         <TabsList>
           <TabsTrigger value="attendance" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
@@ -413,25 +415,64 @@ export function Dashboard() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-bold text-lg">
-                              ₹{stat.salary.toLocaleString()}
-                              {hasBonus && (
-                                <span className="text-green-600 text-sm font-normal ml-1">
-                                  (+₹{bonus.toLocaleString()} bonus)
-                                </span>
-                              )}
-                              {overtimeCompensation > 0 && (
-                                <span className="text-blue-600 text-sm font-normal ml-1">
-                                  (+₹{overtimeCompensation.toLocaleString()} OT)
-                                </span>
-                              )}
-                              {lateMinutesDeduction > 0 && (
-                                <span className="text-red-600 text-sm font-normal ml-1">
-                                  (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
+                            {worker ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="font-bold text-lg cursor-help">
+                                    ₹{stat.salary.toLocaleString()}
+                                    {hasBonus && (
+                                      <span className="text-green-600 text-sm font-normal ml-1">
+                                        (+₹{bonus.toLocaleString()} bonus)
+                                      </span>
+                                    )}
+                                    {overtimeCompensation > 0 && (
+                                      <span className="text-blue-600 text-sm font-normal ml-1">
+                                        (+₹{overtimeCompensation.toLocaleString()} OT)
+                                      </span>
+                                    )}
+                                    {lateMinutesDeduction > 0 && (
+                                      <span className="text-red-600 text-sm font-normal ml-1">
+                                        (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
+                                      </span>
+                                    )}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                  {(() => {
+                                    const currentMonthYear = getCurrentMonthYear();
+                                    return generateSalaryEquation(
+                                      worker,
+                                      stat.presentCount,
+                                      stat.absentCount,
+                                      stat.halfDayCount,
+                                      stat.salaryDetails,
+                                      currentMonthYear.month,
+                                      currentMonthYear.year
+                                    );
+                                  })()}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <div className="font-bold text-lg">
+                                ₹{stat.salary.toLocaleString()}
+                                {hasBonus && (
+                                  <span className="text-green-600 text-sm font-normal ml-1">
+                                    (+₹{bonus.toLocaleString()} bonus)
+                                  </span>
+                                )}
+                                {overtimeCompensation > 0 && (
+                                  <span className="text-blue-600 text-sm font-normal ml-1">
+                                    (+₹{overtimeCompensation.toLocaleString()} OT)
+                                  </span>
+                                )}
+                                {lateMinutesDeduction > 0 && (
+                                  <span className="text-red-600 text-sm font-normal ml-1">
+                                    (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground mt-1">
                               Base: ₹{baseSalary.toLocaleString()}
                               {overtimeCompensation > 0 && (
                                 <span className="ml-2">OT: ₹{overtimeCompensation.toLocaleString()}</span>
@@ -440,22 +481,6 @@ export function Dashboard() {
                                 <span className="ml-2 text-red-600">Late Deduct: ₹{lateMinutesDeduction.toLocaleString()}</span>
                               )}
                             </div>
-                            {worker && (() => {
-                              const currentMonthYear = getCurrentMonthYear();
-                              return (
-                                <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
-                                  {generateSalaryEquation(
-                                    worker,
-                                    stat.presentCount,
-                                    stat.absentCount,
-                                    stat.halfDayCount,
-                                    stat.salaryDetails,
-                                    currentMonthYear.month,
-                                    currentMonthYear.year
-                                  )}
-                                </div>
-                              );
-                            })()}
                           </div>
                         </div>
                       );
@@ -528,22 +553,31 @@ export function Dashboard() {
                                   )}
                                 </span>
                               </div>
-                              {worker && stat && (() => {
-                                const { month, year } = getCurrentMonthYear();
-                                return (
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    {generateSalaryEquation(
-                                      worker,
-                                      stat.presentCount,
-                                      stat.absentCount,
-                                      stat.halfDayCount,
-                                      stat.salaryDetails,
-                                      month,
-                                      year
-                                    )}
-                                  </div>
-                                );
-                              })()}
+                              {worker && stat && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
+                                      Hover for calculation
+                                    </span>
+                                  </TooltipTrigger>
+                                  {(() => {
+                                    const { month, year } = getCurrentMonthYear();
+                                    return (
+                                      <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                        {generateSalaryEquation(
+                                          worker,
+                                          stat.presentCount,
+                                          stat.absentCount,
+                                          stat.halfDayCount,
+                                          stat.salaryDetails,
+                                          month,
+                                          year
+                                        )}
+                                      </TooltipContent>
+                                    );
+                                  })()}
+                                </Tooltip>
+                              )}
                             </div>
                           );
                         })}
@@ -615,22 +649,31 @@ export function Dashboard() {
                                   )}
                                 </span>
                               </div>
-                              {worker && stat && (() => {
-                                const { month, year } = getCurrentMonthYear();
-                                return (
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    {generateSalaryEquation(
-                                      worker,
-                                      stat.presentCount,
-                                      stat.absentCount,
-                                      stat.halfDayCount,
-                                      stat.salaryDetails,
-                                      month,
-                                      year
-                                    )}
-                                  </div>
-                                );
-                              })()}
+                              {worker && stat && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
+                                      Hover for calculation
+                                    </span>
+                                  </TooltipTrigger>
+                                  {(() => {
+                                    const { month, year } = getCurrentMonthYear();
+                                    return (
+                                      <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                        {generateSalaryEquation(
+                                          worker,
+                                          stat.presentCount,
+                                          stat.absentCount,
+                                          stat.halfDayCount,
+                                          stat.salaryDetails,
+                                          month,
+                                          year
+                                        )}
+                                      </TooltipContent>
+                                    );
+                                  })()}
+                                </Tooltip>
+                              )}
                             </div>
                           );
                         })}
@@ -753,22 +796,31 @@ export function Dashboard() {
                                   </span>
                                 </div>
                                 {worker && stat && (
-                                  <div className="text-xs text-muted-foreground mt-1">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
+                                        Hover for calculation
+                                      </span>
+                                    </TooltipTrigger>
                                     {(() => {
                                       const { month, year } = getCurrentMonthYear();
                                       const lastMonth = month === 0 ? 11 : month - 1;
                                       const lastMonthYear = month === 0 ? year - 1 : year;
-                                      return generateSalaryEquation(
-                                        worker,
-                                        stat.presentCount,
-                                        stat.absentCount,
-                                        stat.halfDayCount,
-                                        stat.salaryDetails,
-                                        lastMonth,
-                                        lastMonthYear
+                                      return (
+                                        <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                          {generateSalaryEquation(
+                                            worker,
+                                            stat.presentCount,
+                                            stat.absentCount,
+                                            stat.halfDayCount,
+                                            stat.salaryDetails,
+                                            lastMonth,
+                                            lastMonthYear
+                                          )}
+                                        </TooltipContent>
                                       );
                                     })()}
-                                  </div>
+                                  </Tooltip>
                                 )}
                               </div>
                             );
@@ -842,22 +894,31 @@ export function Dashboard() {
                                   </span>
                                 </div>
                                 {worker && stat && (
-                                  <div className="text-xs text-muted-foreground mt-1">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
+                                        Hover for calculation
+                                      </span>
+                                    </TooltipTrigger>
                                     {(() => {
                                       const { month, year } = getCurrentMonthYear();
                                       const lastMonth = month === 0 ? 11 : month - 1;
                                       const lastMonthYear = month === 0 ? year - 1 : year;
-                                      return generateSalaryEquation(
-                                        worker,
-                                        stat.presentCount,
-                                        stat.absentCount,
-                                        stat.halfDayCount,
-                                        stat.salaryDetails,
-                                        lastMonth,
-                                        lastMonthYear
+                                      return (
+                                        <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                          {generateSalaryEquation(
+                                            worker,
+                                            stat.presentCount,
+                                            stat.absentCount,
+                                            stat.halfDayCount,
+                                            stat.salaryDetails,
+                                            lastMonth,
+                                            lastMonthYear
+                                          )}
+                                        </TooltipContent>
                                       );
                                     })()}
-                                  </div>
+                                  </Tooltip>
                                 )}
                               </div>
                             );
@@ -930,24 +991,31 @@ export function Dashboard() {
                           <div className="text-xs text-muted-foreground">
                             {stat.presentCount} present, {stat.absentCount} absent, {stat.halfDayCount} half day
                           </div>
-                          {worker && (
-                            <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
-                              {(() => {
-                                const { month, year } = getCurrentMonthYear();
-                                const lastMonth = month === 0 ? 11 : month - 1;
-                                const lastMonthYear = month === 0 ? year - 1 : year;
-                                return generateSalaryEquation(
-                                  worker,
-                                  stat.presentCount,
-                                  stat.absentCount,
-                                  stat.halfDayCount,
-                                  stat.salaryDetails,
-                                  lastMonth,
-                                  lastMonthYear
-                                );
-                              })()}
-                            </div>
-                          )}
+                          {worker && (() => {
+                            const { month, year } = getCurrentMonthYear();
+                            const lastMonth = month === 0 ? 11 : month - 1;
+                            const lastMonthYear = month === 0 ? year - 1 : year;
+                            return (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
+                                    Hover for calculation
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                  {generateSalaryEquation(
+                                    worker,
+                                    stat.presentCount,
+                                    stat.absentCount,
+                                    stat.halfDayCount,
+                                    stat.salaryDetails,
+                                    lastMonth,
+                                    lastMonthYear
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })()}
                         </div>
                       </div>
                     );
@@ -1194,6 +1262,7 @@ export function Dashboard() {
           <BatchCounterWidget autoRefresh={true} refreshInterval={5000} />
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

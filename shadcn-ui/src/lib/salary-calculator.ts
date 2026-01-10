@@ -434,3 +434,150 @@ export function getCurrentMonthYear(): { month: number; year: number } {
   };
 }
 
+/**
+ * Generate salary calculation equation as a string
+ * @param worker - Worker object
+ * @param presentDays - Number of present days
+ * @param absentDays - Number of absent days
+ * @param halfDays - Number of half days
+ * @param salaryDetails - Salary calculation result
+ * @param month - Month (0-11)
+ * @param year - Year
+ * @returns Equation string showing how salary was calculated
+ */
+export function generateSalaryEquation(
+  worker: Worker,
+  presentDays: number,
+  absentDays: number,
+  halfDays: number,
+  salaryDetails: SalaryCalculationResult,
+  month: number,
+  year: number
+): string {
+  if (!worker.baseSalary || worker.baseSalary <= 0) {
+    return "Base Salary: ₹0";
+  }
+
+  const lines: string[] = [];
+  
+  if (worker.gender === Gender.MALE) {
+    // Male: Monthly salary based calculation
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    let workingDays = 0;
+    let tuesdays = 0;
+    
+    for (let day = 1; day <= totalDays; day++) {
+      const date = new Date(year, month, day);
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek === 2) { // Tuesday
+        tuesdays++;
+      } else {
+        workingDays++;
+      }
+    }
+    
+    const dailyRate = worker.baseSalary / (workingDays + tuesdays);
+    const hourlyRate = dailyRate / 10;
+    
+    // Summary line
+    lines.push(`Parameters: ${presentDays} Present, ${absentDays} Absent, ${halfDays} Half Day`);
+    
+    // Base salary calculation
+    const baseSalaryAmount = salaryDetails.baseSalary;
+    const baseCalc: string[] = [];
+    if (presentDays > 0) {
+      baseCalc.push(`${presentDays}P × ₹${dailyRate.toFixed(2)}`);
+    }
+    if (halfDays > 0) {
+      baseCalc.push(`${halfDays}HD × ₹${(dailyRate * 0.5).toFixed(2)}`);
+    }
+    if (absentDays > 0) {
+      lines.push(`Absent Days: ${absentDays} (No pay)`);
+    }
+    if (baseCalc.length > 0) {
+      lines.push(`Base: ${baseCalc.join(" + ")} = ₹${baseSalaryAmount.toFixed(2)}`);
+    }
+    
+    // Overtime calculation
+    if (salaryDetails.overtimeCompensation > 0) {
+      const effectiveOTHours = salaryDetails.overtimeCompensation / (hourlyRate * 2);
+      let otLine = `OT: ${effectiveOTHours.toFixed(1)}hrs × ₹${(hourlyRate * 2).toFixed(2)} = ₹${salaryDetails.overtimeCompensation.toFixed(2)}`;
+      if (salaryDetails.totalLateMinutes > 0) {
+        const lateHours = (salaryDetails.totalLateMinutes / 60).toFixed(1);
+        otLine += ` (Late: ${salaryDetails.totalLateMinutes}min / 60 = ${lateHours}hrs deducted)`;
+      }
+      lines.push(otLine);
+    } else {
+      lines.push(`OT: No overtime`);
+    }
+    
+    // Bonus
+    const halfDaysAsAbsent = Math.floor(halfDays / 2);
+    const totalAbsentDays = absentDays + halfDaysAsAbsent;
+    if (salaryDetails.bonus > 0) {
+      lines.push(`Bonus: ₹${salaryDetails.bonus} (Total absent: ${totalAbsentDays} = ${absentDays} absent + ${halfDaysAsAbsent} from ${halfDays}HD)`);
+    } else {
+      lines.push(`Bonus: ₹0 (Total absent: ${totalAbsentDays} = ${absentDays} absent + ${halfDaysAsAbsent} from ${halfDays}HD)`);
+    }
+  } else {
+    // Female: Daily wage based calculation
+    const dailyWage = worker.baseSalary;
+    const hourlyRate = dailyWage / 9;
+    
+    // Count working days (excluding Tuesdays)
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    let tuesdays = 0;
+    for (let day = 1; day <= totalDays; day++) {
+      const date = new Date(year, month, day);
+      if (date.getDay() === 2) tuesdays++;
+    }
+    
+    // Summary line
+    lines.push(`Parameters: ${presentDays} Present, ${absentDays} Absent, ${halfDays} Half Day`);
+    
+    // Base salary calculation
+    const baseSalaryAmount = salaryDetails.baseSalary;
+    const baseCalc: string[] = [];
+    if (presentDays > 0) {
+      baseCalc.push(`${presentDays}P × ₹${dailyWage.toFixed(2)}`);
+    }
+    if (halfDays > 0) {
+      baseCalc.push(`${halfDays}HD × ₹${(dailyWage * 0.5).toFixed(2)}`);
+    }
+    if (absentDays > 0) {
+      lines.push(`Absent Days: ${absentDays} (No pay)`);
+    }
+    if (tuesdays > 0) {
+      lines.push(`Tuesdays: ${tuesdays} (No pay)`);
+    }
+    if (baseCalc.length > 0) {
+      lines.push(`Base: ${baseCalc.join(" + ")} = ₹${baseSalaryAmount.toFixed(2)}`);
+    }
+    
+    // Overtime calculation
+    if (salaryDetails.overtimeCompensation > 0) {
+      const effectiveOTHours = salaryDetails.overtimeCompensation / (hourlyRate * 2);
+      let otLine = `OT: ${effectiveOTHours.toFixed(1)}hrs × ₹${(hourlyRate * 2).toFixed(2)} = ₹${salaryDetails.overtimeCompensation.toFixed(2)}`;
+      if (salaryDetails.totalLateMinutes > 0) {
+        const lateHours = (salaryDetails.totalLateMinutes / 60).toFixed(1);
+        otLine += ` (Late: ${salaryDetails.totalLateMinutes}min / 60 = ${lateHours}hrs deducted)`;
+      }
+      lines.push(otLine);
+    } else {
+      lines.push(`OT: No overtime`);
+    }
+    
+    // Bonus
+    const halfDaysAsAbsent = Math.floor(halfDays / 2);
+    const totalAbsentDays = absentDays + halfDaysAsAbsent;
+    if (salaryDetails.bonus > 0) {
+      lines.push(`Bonus: ₹${salaryDetails.bonus} (Total absent: ${totalAbsentDays} = ${absentDays} absent + ${halfDaysAsAbsent} from ${halfDays}HD)`);
+    } else {
+      lines.push(`Bonus: ₹0 (Total absent: ${totalAbsentDays} = ${absentDays} absent + ${halfDaysAsAbsent} from ${halfDays}HD)`);
+    }
+  }
+  
+  lines.push(`Total: ₹${salaryDetails.totalSalary.toFixed(2)}`);
+  
+  return lines.join("\n");
+}
