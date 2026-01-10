@@ -350,418 +350,181 @@ export function Dashboard() {
         </div>
 
         <Tabs defaultValue="attendance" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="attendance" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Attendance
-          </TabsTrigger>
-          <TabsTrigger value="hygiene" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Hygiene Checks
-          </TabsTrigger>
-          <TabsTrigger value="barcode" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Barcode Scanning
-          </TabsTrigger>
-          <TabsTrigger value="batch-counter" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Batch Counter
-          </TabsTrigger>
-        </TabsList>
+          <TabsList>
+            <TabsTrigger value="attendance" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Attendance
+            </TabsTrigger>
+            <TabsTrigger value="hygiene" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Hygiene Checks
+            </TabsTrigger>
+            <TabsTrigger value="barcode" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Barcode Scanning
+            </TabsTrigger>
+            <TabsTrigger value="batch-counter" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Batch Counter
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Attendance Tab */}
-        <TabsContent value="attendance" className="space-y-6">
+          {/* Attendance Tab */}
+          <TabsContent value="attendance" className="space-y-6">
 
-          {/* All Workers Salaries Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                All Workers Salaries - {currentMonth}
-              </CardTitle>
-              <CardDescription>
-                Complete salary breakdown for all workers including attendance bonus
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {workers.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  No workers found
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {calculateAbsenteeStats()
-                    .sort((a, b) => b.salary - a.salary) // Sort by salary descending
-                    .map((stat) => {
-                      const worker = workers.find(w => w.id === stat.workerId);
-                      const hasBonus = stat.salaryDetails?.hasBonus || false;
-                      const bonus = stat.salaryDetails?.bonus || 0;
-                      const baseSalary = stat.salaryDetails?.baseSalary || 0;
-                      const overtimeCompensation = stat.salaryDetails?.overtimeCompensation || 0;
-                      const lateMinutesDeduction = stat.salaryDetails?.lateMinutesDeduction || 0;
-                      const totalLateMinutes = stat.salaryDetails?.totalLateMinutes || 0;
-                      const isInactive = worker?.isActive === false;
-                      return (
-                        <div key={stat.workerId} className="flex items-center justify-between py-3 border-b">
-                          <div className="flex-1">
-                            <div className="font-medium flex items-center gap-2">
-                              {stat.workerName}
-                              {isInactive && (
-                                <span className="text-xs text-muted-foreground">(Inactive{worker?.inactiveDate ? ` from ${new Date(worker.inactiveDate).toLocaleDateString()}` : ''})</span>
-                              )}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {stat.employeeId} • {stat.presentCount} present, {stat.absentCount} absent, {stat.halfDayCount} half day
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            {worker ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="font-bold text-lg cursor-help">
-                                    ₹{stat.salary.toLocaleString()}
-                                    {hasBonus && (
-                                      <span className="text-green-600 text-sm font-normal ml-1">
-                                        (+₹{bonus.toLocaleString()} bonus)
-                                      </span>
-                                    )}
-                                    {overtimeCompensation > 0 && (
-                                      <span className="text-blue-600 text-sm font-normal ml-1">
-                                        (+₹{overtimeCompensation.toLocaleString()} OT)
-                                      </span>
-                                    )}
-                                    {lateMinutesDeduction > 0 && (
-                                      <span className="text-red-600 text-sm font-normal ml-1">
-                                        (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
-                                      </span>
-                                    )}
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-md whitespace-pre-line text-xs">
-                                  {(() => {
-                                    const currentMonthYear = getCurrentMonthYear();
-                                    return generateSalaryEquation(
-                                      worker,
-                                      stat.presentCount,
-                                      stat.absentCount,
-                                      stat.halfDayCount,
-                                      stat.salaryDetails,
-                                      currentMonthYear.month,
-                                      currentMonthYear.year
-                                    );
-                                  })()}
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <div className="font-bold text-lg">
-                                ₹{stat.salary.toLocaleString()}
-                                {hasBonus && (
-                                  <span className="text-green-600 text-sm font-normal ml-1">
-                                    (+₹{bonus.toLocaleString()} bonus)
-                                  </span>
+            {/* All Workers Salaries Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  All Workers Salaries - {currentMonth}
+                </CardTitle>
+                <CardDescription>
+                  Complete salary breakdown for all workers including attendance bonus
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {workers.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    No workers found
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                    {calculateAbsenteeStats()
+                      .sort((a, b) => b.salary - a.salary) // Sort by salary descending
+                      .map((stat) => {
+                        const worker = workers.find(w => w.id === stat.workerId);
+                        const hasBonus = stat.salaryDetails?.hasBonus || false;
+                        const bonus = stat.salaryDetails?.bonus || 0;
+                        const baseSalary = stat.salaryDetails?.baseSalary || 0;
+                        const overtimeCompensation = stat.salaryDetails?.overtimeCompensation || 0;
+                        const lateMinutesDeduction = stat.salaryDetails?.lateMinutesDeduction || 0;
+                        const totalLateMinutes = stat.salaryDetails?.totalLateMinutes || 0;
+                        const isInactive = worker?.isActive === false;
+                        return (
+                          <div key={stat.workerId} className="flex items-center justify-between py-3 border-b">
+                            <div className="flex-1">
+                              <div className="font-medium flex items-center gap-2">
+                                {stat.workerName}
+                                {isInactive && (
+                                  <span className="text-xs text-muted-foreground">(Inactive{worker?.inactiveDate ? ` from ${new Date(worker.inactiveDate).toLocaleDateString()}` : ''})</span>
                                 )}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {stat.employeeId} • {stat.presentCount} present, {stat.absentCount} absent, {stat.halfDayCount} half day
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              {worker ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="font-bold text-lg cursor-help">
+                                      ₹{stat.salary.toLocaleString()}
+                                      {hasBonus && (
+                                        <span className="text-green-600 text-sm font-normal ml-1">
+                                          (+₹{bonus.toLocaleString()} bonus)
+                                        </span>
+                                      )}
+                                      {overtimeCompensation > 0 && (
+                                        <span className="text-blue-600 text-sm font-normal ml-1">
+                                          (+₹{overtimeCompensation.toLocaleString()} OT)
+                                        </span>
+                                      )}
+                                      {lateMinutesDeduction > 0 && (
+                                        <span className="text-red-600 text-sm font-normal ml-1">
+                                          (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                    {(() => {
+                                      const currentMonthYear = getCurrentMonthYear();
+                                      const { startDate, endDate } = getCurrentMonthRange();
+                                      const monthRecords = attendanceRecords.filter(record => 
+                                        record.date >= startDate && record.date <= endDate
+                                      );
+                                      return generateSalaryEquation(
+                                        worker,
+                                        stat.presentCount,
+                                        stat.absentCount,
+                                        stat.halfDayCount,
+                                        stat.salaryDetails,
+                                        currentMonthYear.month,
+                                        currentMonthYear.year,
+                                        monthRecords
+                                      );
+                                    })()}
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <div className="font-bold text-lg">
+                                  ₹{stat.salary.toLocaleString()}
+                                  {hasBonus && (
+                                    <span className="text-green-600 text-sm font-normal ml-1">
+                                      (+₹{bonus.toLocaleString()} bonus)
+                                    </span>
+                                  )}
+                                  {overtimeCompensation > 0 && (
+                                    <span className="text-blue-600 text-sm font-normal ml-1">
+                                      (+₹{overtimeCompensation.toLocaleString()} OT)
+                                    </span>
+                                  )}
+                                  {lateMinutesDeduction > 0 && (
+                                    <span className="text-red-600 text-sm font-normal ml-1">
+                                      (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Base: ₹{baseSalary.toLocaleString()}
                                 {overtimeCompensation > 0 && (
-                                  <span className="text-blue-600 text-sm font-normal ml-1">
-                                    (+₹{overtimeCompensation.toLocaleString()} OT)
-                                  </span>
+                                  <span className="ml-2">OT: ₹{overtimeCompensation.toLocaleString()}</span>
                                 )}
                                 {lateMinutesDeduction > 0 && (
-                                  <span className="text-red-600 text-sm font-normal ml-1">
-                                    (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
-                                  </span>
+                                  <span className="ml-2 text-red-600">Late Deduct: ₹{lateMinutesDeduction.toLocaleString()}</span>
                                 )}
                               </div>
-                            )}
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Base: ₹{baseSalary.toLocaleString()}
-                              {overtimeCompensation > 0 && (
-                                <span className="ml-2">OT: ₹{overtimeCompensation.toLocaleString()}</span>
-                              )}
-                              {lateMinutesDeduction > 0 && (
-                                <span className="ml-2 text-red-600">Late Deduct: ₹{lateMinutesDeduction.toLocaleString()}</span>
-                              )}
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Charts Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Top 5 Highest Absentees */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-red-500" />
-                      Top 5 Highest Absentees
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      Workers with most absences this month
-                    </CardDescription>
+                        );
+                      })}
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {highestChartData.length === 0 ? (
-                  <div className="flex items-center justify-center h-64 text-muted-foreground">
-                    <div className="text-center">
-                      <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No absentee data available for this month</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <BarChart
-                      title=""
-                      data={highestChartData}
-                      height={300}
-                    />
-                    {/* Salary Display */}
-                    <div className="mt-6 space-y-2">
-                      <h4 className="text-sm font-semibold flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Salaries
-                      </h4>
-                      <div className="space-y-1">
-                        {highestChartData.map((item, index) => {
-                          const worker = workers.find(w => w.name === item.label);
-                          const stat = top5Highest.find(s => s.workerName === item.label);
-                          const hasBonus = stat?.salaryDetails?.hasBonus || false;
-                          const bonus = stat?.salaryDetails?.bonus || 0;
-                          const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
-                          return (
-                            <div key={index} className="border-b pb-2">
-                              <div className="flex items-center justify-between text-sm py-1">
-                                <span className="font-medium">{item.label}</span>
-                                <span className="text-muted-foreground">
-                                  ₹{item.salary?.toLocaleString() || '0'}
-                                  {hasBonus && (
-                                    <span className="text-green-600 ml-1">
-                                      (+₹{bonus.toLocaleString()} bonus)
-                                    </span>
-                                  )}
-                                  {overtimeCompensation > 0 && (
-                                    <span className="text-blue-600 ml-1">
-                                      (+₹{overtimeCompensation.toLocaleString()} OT)
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                              {worker && stat && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
-                                      Hover for calculation
-                                    </span>
-                                  </TooltipTrigger>
-                                  {(() => {
-                                    const { month, year } = getCurrentMonthYear();
-                                    return (
-                                      <TooltipContent className="max-w-md whitespace-pre-line text-xs">
-                                        {generateSalaryEquation(
-                                          worker,
-                                          stat.presentCount,
-                                          stat.absentCount,
-                                          stat.halfDayCount,
-                                          stat.salaryDetails,
-                                          month,
-                                          year
-                                        )}
-                                      </TooltipContent>
-                                    );
-                                  })()}
-                                </Tooltip>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
                 )}
               </CardContent>
             </Card>
 
-            {/* Top 5 Minimum Absentees */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingDown className="h-5 w-5 text-green-500" />
-                      Top 5 Minimum Absentees
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      Workers with best attendance this month
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {minimumChartData.length === 0 ? (
-                  <div className="flex items-center justify-center h-64 text-muted-foreground">
-                    <div className="text-center">
-                      <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No attendance data available for this month</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <BarChart
-                      title=""
-                      data={minimumChartData}
-                      height={300}
-                    />
-                    {/* Salary Display */}
-                    <div className="mt-6 space-y-2">
-                      <h4 className="text-sm font-semibold flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Salaries
-                      </h4>
-                      <div className="space-y-1">
-                        {minimumChartData.map((item, index) => {
-                          const worker = workers.find(w => w.name === item.label);
-                          const stat = top5Minimum.find(s => s.workerName === item.label);
-                          const hasBonus = stat?.salaryDetails?.hasBonus || false;
-                          const bonus = stat?.salaryDetails?.bonus || 0;
-                          const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
-                          return (
-                            <div key={index} className="border-b pb-2">
-                              <div className="flex items-center justify-between text-sm py-1">
-                                <span className="font-medium">{item.label}</span>
-                                <span className="text-muted-foreground">
-                                  ₹{item.salary?.toLocaleString() || '0'}
-                                  {hasBonus && (
-                                    <span className="text-green-600 ml-1">
-                                      (+₹{bonus.toLocaleString()} bonus)
-                                    </span>
-                                  )}
-                                  {overtimeCompensation > 0 && (
-                                    <span className="text-blue-600 ml-1">
-                                      (+₹{overtimeCompensation.toLocaleString()} OT)
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                              {worker && stat && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
-                                      Hover for calculation
-                                    </span>
-                                  </TooltipTrigger>
-                                  {(() => {
-                                    const { month, year } = getCurrentMonthYear();
-                                    return (
-                                      <TooltipContent className="max-w-md whitespace-pre-line text-xs">
-                                        {generateSalaryEquation(
-                                          worker,
-                                          stat.presentCount,
-                                          stat.absentCount,
-                                          stat.halfDayCount,
-                                          stat.salaryDetails,
-                                          month,
-                                          year
-                                        )}
-                                      </TooltipContent>
-                                    );
-                                  })()}
-                                </Tooltip>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Workers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {workers.filter(w => w.isActive !== false).length}
-                  {workers.filter(w => w.isActive === false).length > 0 && (
-                    <span className="text-sm text-muted-foreground font-normal ml-1">
-                      ({workers.filter(w => w.isActive === false).length} inactive)
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Workers with Absences</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-500">
-                  {calculateAbsenteeStats().filter(s => {
-                    const worker = workers.find(w => w.id === s.workerId);
-                    return s.absentCount > 0 && worker?.isActive !== false;
-                  }).length}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Perfect Attendance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-500">
-                  {calculateAbsenteeStats().filter(s => {
-                    const worker = workers.find(w => w.id === s.workerId);
-                    return s.absentCount === 0 && s.presentCount > 0 && worker?.isActive !== false;
-                  }).length}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Previous Month Charts */}
-          <div className="mt-8">
-            <h3 className="text-2xl font-bold mb-4">Previous Month ({getLastMonthName()})</h3>
+            {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Top 5 Highest Absentees - Last Month */}
+              {/* Top 5 Highest Absentees */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         <TrendingUp className="h-5 w-5 text-red-500" />
-                        Top 5 Highest Absentees - {getLastMonthName()}
+                        Top 5 Highest Absentees
                       </CardTitle>
                       <CardDescription className="mt-1">
-                        Workers with most absences last month
+                        Workers with most absences this month
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {highestChartDataLastMonth.length === 0 ? (
+                  {highestChartData.length === 0 ? (
                     <div className="flex items-center justify-center h-64 text-muted-foreground">
                       <div className="text-center">
                         <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>No absentee data available for last month</p>
+                        <p>No absentee data available for this month</p>
                       </div>
                     </div>
                   ) : (
                     <>
                       <BarChart
                         title=""
-                        data={highestChartDataLastMonth}
+                        data={highestChartData}
                         height={300}
                       />
                       {/* Salary Display */}
@@ -771,9 +534,9 @@ export function Dashboard() {
                           Salaries
                         </h4>
                         <div className="space-y-1">
-                          {highestChartDataLastMonth.map((item, index) => {
+                          {highestChartData.map((item, index) => {
                             const worker = workers.find(w => w.name === item.label);
-                            const stat = top5HighestLastMonth.find(s => s.workerName === item.label);
+                            const stat = top5Highest.find(s => s.workerName === item.label);
                             const hasBonus = stat?.salaryDetails?.hasBonus || false;
                             const bonus = stat?.salaryDetails?.bonus || 0;
                             const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
@@ -804,19 +567,24 @@ export function Dashboard() {
                                     </TooltipTrigger>
                                     {(() => {
                                       const { month, year } = getCurrentMonthYear();
-                                      const lastMonth = month === 0 ? 11 : month - 1;
-                                      const lastMonthYear = month === 0 ? year - 1 : year;
                                       return (
                                         <TooltipContent className="max-w-md whitespace-pre-line text-xs">
-                                          {generateSalaryEquation(
-                                            worker,
-                                            stat.presentCount,
-                                            stat.absentCount,
-                                            stat.halfDayCount,
-                                            stat.salaryDetails,
-                                            lastMonth,
-                                            lastMonthYear
-                                          )}
+                                          {(() => {
+                                            const { startDate, endDate } = getCurrentMonthRange();
+                                            const monthRecords = attendanceRecords.filter(record => 
+                                              record.date >= startDate && record.date <= endDate
+                                            );
+                                            return generateSalaryEquation(
+                                              worker,
+                                              stat.presentCount,
+                                              stat.absentCount,
+                                              stat.halfDayCount,
+                                              stat.salaryDetails,
+                                              month,
+                                              year,
+                                              monthRecords
+                                            );
+                                          })()}
                                         </TooltipContent>
                                       );
                                     })()}
@@ -832,34 +600,34 @@ export function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Top 5 Minimum Absentees - Last Month */}
+              {/* Top 5 Minimum Absentees */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         <TrendingDown className="h-5 w-5 text-green-500" />
-                        Top 5 Minimum Absentees - {getLastMonthName()}
+                        Top 5 Minimum Absentees
                       </CardTitle>
                       <CardDescription className="mt-1">
-                        Workers with best attendance last month
+                        Workers with best attendance this month
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {minimumChartDataLastMonth.length === 0 ? (
+                  {minimumChartData.length === 0 ? (
                     <div className="flex items-center justify-center h-64 text-muted-foreground">
                       <div className="text-center">
                         <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>No attendance data available for last month</p>
+                        <p>No attendance data available for this month</p>
                       </div>
                     </div>
                   ) : (
                     <>
                       <BarChart
                         title=""
-                        data={minimumChartDataLastMonth}
+                        data={minimumChartData}
                         height={300}
                       />
                       {/* Salary Display */}
@@ -869,9 +637,9 @@ export function Dashboard() {
                           Salaries
                         </h4>
                         <div className="space-y-1">
-                          {minimumChartDataLastMonth.map((item, index) => {
+                          {minimumChartData.map((item, index) => {
                             const worker = workers.find(w => w.name === item.label);
-                            const stat = top5MinimumLastMonth.find(s => s.workerName === item.label);
+                            const stat = top5Minimum.find(s => s.workerName === item.label);
                             const hasBonus = stat?.salaryDetails?.hasBonus || false;
                             const bonus = stat?.salaryDetails?.bonus || 0;
                             const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
@@ -902,19 +670,24 @@ export function Dashboard() {
                                     </TooltipTrigger>
                                     {(() => {
                                       const { month, year } = getCurrentMonthYear();
-                                      const lastMonth = month === 0 ? 11 : month - 1;
-                                      const lastMonthYear = month === 0 ? year - 1 : year;
                                       return (
                                         <TooltipContent className="max-w-md whitespace-pre-line text-xs">
-                                          {generateSalaryEquation(
-                                            worker,
-                                            stat.presentCount,
-                                            stat.absentCount,
-                                            stat.halfDayCount,
-                                            stat.salaryDetails,
-                                            lastMonth,
-                                            lastMonthYear
-                                          )}
+                                          {(() => {
+                                            const { startDate, endDate } = getCurrentMonthRange();
+                                            const monthRecords = attendanceRecords.filter(record => 
+                                              record.date >= startDate && record.date <= endDate
+                                            );
+                                            return generateSalaryEquation(
+                                              worker,
+                                              stat.presentCount,
+                                              stat.absentCount,
+                                              stat.halfDayCount,
+                                              stat.salaryDetails,
+                                              month,
+                                              year,
+                                              monthRecords
+                                            );
+                                          })()}
                                         </TooltipContent>
                                       );
                                     })()}
@@ -930,338 +703,605 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             </div>
-          </div>
 
-          {/* Last Month Salaries by Worker */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Last Month Salaries (Labour-wise)
-              </CardTitle>
-              <CardDescription>
-                Individual worker salaries for the previous month
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {workers.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  No workers found
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {calculateLastMonthSalaries().map((stat) => {
-                    const worker = workers.find(w => w.id === stat.workerId);
-                    const hasBonus = stat.salaryDetails?.hasBonus || false;
-                    const bonus = stat.salaryDetails?.bonus || 0;
-                    const overtimeCompensation = stat.salaryDetails?.overtimeCompensation || 0;
-                    const lateMinutesDeduction = stat.salaryDetails?.lateMinutesDeduction || 0;
-                    const totalLateMinutes = stat.salaryDetails?.totalLateMinutes || 0;
-                    const isInactive = worker?.isActive === false;
-                    return (
-                      <div key={stat.workerId} className="flex items-center justify-between py-2 border-b">
-                        <div className="flex-1">
-                          <div className="font-medium flex items-center gap-2">
-                            {stat.workerName}
-                            {isInactive && (
-                              <span className="text-xs text-muted-foreground">(Inactive{worker?.inactiveDate ? ` from ${new Date(worker.inactiveDate).toLocaleDateString()}` : ''})</span>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">{stat.employeeId}</div>
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Workers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {workers.filter(w => w.isActive !== false).length}
+                    {workers.filter(w => w.isActive === false).length > 0 && (
+                      <span className="text-sm text-muted-foreground font-normal ml-1">
+                        ({workers.filter(w => w.isActive === false).length} inactive)
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Workers with Absences</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-500">
+                    {calculateAbsenteeStats().filter(s => {
+                      const worker = workers.find(w => w.id === s.workerId);
+                      return s.absentCount > 0 && worker?.isActive !== false;
+                    }).length}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Perfect Attendance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-500">
+                    {calculateAbsenteeStats().filter(s => {
+                      const worker = workers.find(w => w.id === s.workerId);
+                      return s.absentCount === 0 && s.presentCount > 0 && worker?.isActive !== false;
+                    }).length}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Previous Month Charts */}
+            <div className="mt-8">
+              <h3 className="text-2xl font-bold mb-4">Previous Month ({getLastMonthName()})</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Top 5 Highest Absentees - Last Month */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-red-500" />
+                          Top 5 Highest Absentees - {getLastMonthName()}
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          Workers with most absences last month
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {highestChartDataLastMonth.length === 0 ? (
+                      <div className="flex items-center justify-center h-64 text-muted-foreground">
+                        <div className="text-center">
+                          <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p>No absentee data available for last month</p>
                         </div>
-                        <div className="text-right">
-                          <div className="font-bold text-lg">
-                            ₹{stat.salary.toLocaleString()}
-                            {hasBonus && (
-                              <span className="text-green-600 text-sm font-normal ml-1">
-                                (+₹{bonus.toLocaleString()} bonus)
-                              </span>
-                            )}
-                            {overtimeCompensation > 0 && (
-                              <span className="text-blue-600 text-sm font-normal ml-1">
-                                (+₹{overtimeCompensation.toLocaleString()} OT)
-                              </span>
-                            )}
-                            {lateMinutesDeduction > 0 && (
-                              <span className="text-red-600 text-sm font-normal ml-1">
-                                (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {stat.presentCount} present, {stat.absentCount} absent, {stat.halfDayCount} half day
-                          </div>
-                          {worker && (() => {
-                            const { month, year } = getCurrentMonthYear();
-                            const lastMonth = month === 0 ? 11 : month - 1;
-                            const lastMonthYear = month === 0 ? year - 1 : year;
-                            return (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
-                                    Hover for calculation
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-md whitespace-pre-line text-xs">
-                                  {generateSalaryEquation(
-                                    worker,
-                                    stat.presentCount,
-                                    stat.absentCount,
-                                    stat.halfDayCount,
-                                    stat.salaryDetails,
-                                    lastMonth,
-                                    lastMonthYear
+                      </div>
+                    ) : (
+                      <>
+                        <BarChart
+                          title=""
+                          data={highestChartDataLastMonth}
+                          height={300}
+                        />
+                        {/* Salary Display */}
+                        <div className="mt-6 space-y-2">
+                          <h4 className="text-sm font-semibold flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            Salaries
+                          </h4>
+                          <div className="space-y-1">
+                            {highestChartDataLastMonth.map((item, index) => {
+                              const worker = workers.find(w => w.name === item.label);
+                              const stat = top5HighestLastMonth.find(s => s.workerName === item.label);
+                              const hasBonus = stat?.salaryDetails?.hasBonus || false;
+                              const bonus = stat?.salaryDetails?.bonus || 0;
+                              const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
+                              return (
+                                <div key={index} className="border-b pb-2">
+                                  <div className="flex items-center justify-between text-sm py-1">
+                                    <span className="font-medium">{item.label}</span>
+                                    <span className="text-muted-foreground">
+                                      ₹{item.salary?.toLocaleString() || '0'}
+                                      {hasBonus && (
+                                        <span className="text-green-600 ml-1">
+                                          (+₹{bonus.toLocaleString()} bonus)
+                                        </span>
+                                      )}
+                                      {overtimeCompensation > 0 && (
+                                        <span className="text-blue-600 ml-1">
+                                          (+₹{overtimeCompensation.toLocaleString()} OT)
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                  {worker && stat && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
+                                          Hover for calculation
+                                        </span>
+                                      </TooltipTrigger>
+                                      {(() => {
+                                        const { month, year } = getCurrentMonthYear();
+                                        const lastMonth = month === 0 ? 11 : month - 1;
+                                        const lastMonthYear = month === 0 ? year - 1 : year;
+                                        return (
+                                          <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                            {(() => {
+                                              const { startDate, endDate } = getLastMonthRange();
+                                              const monthRecords = attendanceRecords.filter(record => 
+                                                record.date >= startDate && record.date <= endDate
+                                              );
+                                              return generateSalaryEquation(
+                                                worker,
+                                                stat.presentCount,
+                                                stat.absentCount,
+                                                stat.halfDayCount,
+                                                stat.salaryDetails,
+                                                lastMonth,
+                                                lastMonthYear,
+                                                monthRecords
+                                              );
+                                            })()}
+                                          </TooltipContent>
+                                        );
+                                      })()}
+                                    </Tooltip>
                                   )}
-                                </TooltipContent>
-                              </Tooltip>
-                            );
-                          })()}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Top 5 Minimum Absentees - Last Month */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingDown className="h-5 w-5 text-green-500" />
+                          Top 5 Minimum Absentees - {getLastMonthName()}
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          Workers with best attendance last month
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {minimumChartDataLastMonth.length === 0 ? (
+                      <div className="flex items-center justify-center h-64 text-muted-foreground">
+                        <div className="text-center">
+                          <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p>No attendance data available for last month</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <BarChart
+                          title=""
+                          data={minimumChartDataLastMonth}
+                          height={300}
+                        />
+                        {/* Salary Display */}
+                        <div className="mt-6 space-y-2">
+                          <h4 className="text-sm font-semibold flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            Salaries
+                          </h4>
+                          <div className="space-y-1">
+                            {minimumChartDataLastMonth.map((item, index) => {
+                              const worker = workers.find(w => w.name === item.label);
+                              const stat = top5MinimumLastMonth.find(s => s.workerName === item.label);
+                              const hasBonus = stat?.salaryDetails?.hasBonus || false;
+                              const bonus = stat?.salaryDetails?.bonus || 0;
+                              const overtimeCompensation = stat?.salaryDetails?.overtimeCompensation || 0;
+                              return (
+                                <div key={index} className="border-b pb-2">
+                                  <div className="flex items-center justify-between text-sm py-1">
+                                    <span className="font-medium">{item.label}</span>
+                                    <span className="text-muted-foreground">
+                                      ₹{item.salary?.toLocaleString() || '0'}
+                                      {hasBonus && (
+                                        <span className="text-green-600 ml-1">
+                                          (+₹{bonus.toLocaleString()} bonus)
+                                        </span>
+                                      )}
+                                      {overtimeCompensation > 0 && (
+                                        <span className="text-blue-600 ml-1">
+                                          (+₹{overtimeCompensation.toLocaleString()} OT)
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                  {worker && stat && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
+                                          Hover for calculation
+                                        </span>
+                                      </TooltipTrigger>
+                                      {(() => {
+                                        const { month, year } = getCurrentMonthYear();
+                                        const lastMonth = month === 0 ? 11 : month - 1;
+                                        const lastMonthYear = month === 0 ? year - 1 : year;
+                                        return (
+                                          <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                            {(() => {
+                                              const { startDate, endDate } = getLastMonthRange();
+                                              const monthRecords = attendanceRecords.filter(record => 
+                                                record.date >= startDate && record.date <= endDate
+                                              );
+                                              return generateSalaryEquation(
+                                                worker,
+                                                stat.presentCount,
+                                                stat.absentCount,
+                                                stat.halfDayCount,
+                                                stat.salaryDetails,
+                                                lastMonth,
+                                                lastMonthYear,
+                                                monthRecords
+                                              );
+                                            })()}
+                                          </TooltipContent>
+                                        );
+                                      })()}
+                                    </Tooltip>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Last Month Salaries by Worker */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Last Month Salaries (Labour-wise)
+                </CardTitle>
+                <CardDescription>
+                  Individual worker salaries for the previous month
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {workers.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    No workers found
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {calculateLastMonthSalaries().map((stat) => {
+                      const worker = workers.find(w => w.id === stat.workerId);
+                      const hasBonus = stat.salaryDetails?.hasBonus || false;
+                      const bonus = stat.salaryDetails?.bonus || 0;
+                      const overtimeCompensation = stat.salaryDetails?.overtimeCompensation || 0;
+                      const lateMinutesDeduction = stat.salaryDetails?.lateMinutesDeduction || 0;
+                      const totalLateMinutes = stat.salaryDetails?.totalLateMinutes || 0;
+                      const isInactive = worker?.isActive === false;
+                      return (
+                        <div key={stat.workerId} className="flex items-center justify-between py-2 border-b">
+                          <div className="flex-1">
+                            <div className="font-medium flex items-center gap-2">
+                              {stat.workerName}
+                              {isInactive && (
+                                <span className="text-xs text-muted-foreground">(Inactive{worker?.inactiveDate ? ` from ${new Date(worker.inactiveDate).toLocaleDateString()}` : ''})</span>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground">{stat.employeeId}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-lg">
+                              ₹{stat.salary.toLocaleString()}
+                              {hasBonus && (
+                                <span className="text-green-600 text-sm font-normal ml-1">
+                                  (+₹{bonus.toLocaleString()} bonus)
+                                </span>
+                              )}
+                              {overtimeCompensation > 0 && (
+                                <span className="text-blue-600 text-sm font-normal ml-1">
+                                  (+₹{overtimeCompensation.toLocaleString()} OT)
+                                </span>
+                              )}
+                              {lateMinutesDeduction > 0 && (
+                                <span className="text-red-600 text-sm font-normal ml-1">
+                                  (-₹{lateMinutesDeduction.toLocaleString()} late: {totalLateMinutes}min)
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {stat.presentCount} present, {stat.absentCount} absent, {stat.halfDayCount} half day
+                            </div>
+                            {worker && (() => {
+                              const { month, year } = getCurrentMonthYear();
+                              const lastMonth = month === 0 ? 11 : month - 1;
+                              const lastMonthYear = month === 0 ? year - 1 : year;
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help text-xs text-muted-foreground mt-1 underline decoration-dotted">
+                                      Hover for calculation
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-md whitespace-pre-line text-xs">
+                                    {(() => {
+                                      const { startDate, endDate } = getLastMonthRange();
+                                      const monthRecords = attendanceRecords.filter(record => 
+                                        record.date >= startDate && record.date <= endDate
+                                      );
+                                      return generateSalaryEquation(
+                                        worker,
+                                        stat.presentCount,
+                                        stat.absentCount,
+                                        stat.halfDayCount,
+                                        stat.salaryDetails,
+                                        lastMonth,
+                                        lastMonthYear,
+                                        monthRecords
+                                      );
+                                    })()}
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Hygiene Checks Tab */}
+          <TabsContent value="hygiene" className="space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold tracking-tight">Hygiene Checks Progress</h3>
+              <p className="text-muted-foreground mt-2">
+                Daily hygiene check status for {new Date(selectedDate).toLocaleDateString()}
+              </p>
+            </div>
+
+            {/* Date Selector */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Select Date</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="max-w-xs"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Progress Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  Hygiene Check Status
+                </CardTitle>
+                <CardDescription>
+                  {hygieneStatus.completed} of {hygieneStatus.total} areas completed
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Overall Progress</span>
+                    <span className="text-sm text-muted-foreground">
+                      {hygieneStatus.completed}/{hygieneStatus.total}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className="bg-green-600 h-2.5 rounded-full transition-all"
+                      style={{ width: `${(hygieneStatus.completed / hygieneStatus.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                  {[
+                    { value: HygieneArea.TOILETS, label: "Clean Toilets" },
+                    { value: HygieneArea.STORAGE_AREA, label: "Cleaned Storage Area" },
+                    { value: HygieneArea.PACKAGING_AREA, label: "Cleaned Packaging Area" },
+                    { value: HygieneArea.PROCESSING_AREA, label: "Cleaned Processing Area" },
+                    { value: HygieneArea.OFFICE_AREA, label: "Clean Office Area" },
+                  ].map((area) => {
+                    const record = hygieneRecords.find(r => r.area === area.value);
+                    const completed = !!record;
+                    return (
+                      <div
+                        key={area.value}
+                        className={`p-4 border rounded-lg flex items-center justify-between ${completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                          }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {completed ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-gray-400" />
+                          )}
+                          <div>
+                            <div className="font-medium">{area.label}</div>
+                            {record && (
+                              <div className="text-xs text-muted-foreground">
+                                By {record.workerName}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
 
-        {/* Hygiene Checks Tab */}
-        <TabsContent value="hygiene" className="space-y-6">
-          <div>
-            <h3 className="text-2xl font-bold tracking-tight">Hygiene Checks Progress</h3>
-            <p className="text-muted-foreground mt-2">
-              Daily hygiene check status for {new Date(selectedDate).toLocaleDateString()}
-            </p>
-          </div>
-
-          {/* Date Selector */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Date</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="max-w-xs"
-              />
-            </CardContent>
-          </Card>
-
-          {/* Progress Overview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
-                Hygiene Check Status
-              </CardTitle>
-              <CardDescription>
-                {hygieneStatus.completed} of {hygieneStatus.total} areas completed
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Overall Progress</span>
-                  <span className="text-sm text-muted-foreground">
-                    {hygieneStatus.completed}/{hygieneStatus.total}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div
-                    className="bg-green-600 h-2.5 rounded-full transition-all"
-                    style={{ width: `${(hygieneStatus.completed / hygieneStatus.total) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                {[
-                  { value: HygieneArea.TOILETS, label: "Clean Toilets" },
-                  { value: HygieneArea.STORAGE_AREA, label: "Cleaned Storage Area" },
-                  { value: HygieneArea.PACKAGING_AREA, label: "Cleaned Packaging Area" },
-                  { value: HygieneArea.PROCESSING_AREA, label: "Cleaned Processing Area" },
-                  { value: HygieneArea.OFFICE_AREA, label: "Clean Office Area" },
-                ].map((area) => {
-                  const record = hygieneRecords.find(r => r.area === area.value);
-                  const completed = !!record;
-                  return (
-                    <div
-                      key={area.value}
-                      className={`p-4 border rounded-lg flex items-center justify-between ${completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {completed ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-gray-400" />
-                        )}
-                        <div>
-                          <div className="font-medium">{area.label}</div>
-                          {record && (
-                            <div className="text-xs text-muted-foreground">
-                              By {record.workerName}
-                            </div>
-                          )}
+            {/* Recent Records */}
+            {hygieneRecords.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Records</CardTitle>
+                  <CardDescription>
+                    Latest hygiene records for {new Date(selectedDate).toLocaleDateString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {hygieneRecords.map((record) => (
+                      <div key={record.id} className="border rounded-lg p-4">
+                        <div className="flex items-start gap-4">
+                          <img
+                            src={record.photoUrl}
+                            alt={record.area}
+                            className="w-24 h-24 object-cover rounded-lg border"
+                          />
+                          <div className="flex-1">
+                            <h4 className="font-semibold">
+                              {[
+                                { value: HygieneArea.TOILETS, label: "Clean Toilets" },
+                                { value: HygieneArea.STORAGE_AREA, label: "Cleaned Storage Area" },
+                                { value: HygieneArea.PACKAGING_AREA, label: "Cleaned Packaging Area" },
+                                { value: HygieneArea.PROCESSING_AREA, label: "Cleaned Processing Area" },
+                                { value: HygieneArea.OFFICE_AREA, label: "Clean Office Area" },
+                              ].find(a => a.value === record.area)?.label || record.area}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              By {record.workerName} • {new Date(record.createdAt).toLocaleString()}
+                            </p>
+                            {record.notes && (
+                              <p className="text-sm text-muted-foreground mt-2">{record.notes}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-          {/* Recent Records */}
-          {hygieneRecords.length > 0 && (
+          {/* Barcode Scanning Tab */}
+          <TabsContent value="barcode" className="space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold tracking-tight">Barcode Scanning Progress</h3>
+              <p className="text-muted-foreground mt-2">
+                Overview of package scanning and status distribution
+              </p>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Packages</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{barcodeStats.total}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">{barcodeStats.pending}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Dispatched</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">{barcodeStats.dispatched}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Today Scanned</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{barcodeStats.todayScanned}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Status Distribution */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Records</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Package Status Distribution
+                </CardTitle>
                 <CardDescription>
-                  Latest hygiene records for {new Date(selectedDate).toLocaleDateString()}
+                  Current status breakdown of all packages
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {hygieneRecords.map((record) => (
-                    <div key={record.id} className="border rounded-lg p-4">
-                      <div className="flex items-start gap-4">
-                        <img
-                          src={record.photoUrl}
-                          alt={record.area}
-                          className="w-24 h-24 object-cover rounded-lg border"
-                        />
-                        <div className="flex-1">
-                          <h4 className="font-semibold">
-                            {[
-                              { value: HygieneArea.TOILETS, label: "Clean Toilets" },
-                              { value: HygieneArea.STORAGE_AREA, label: "Cleaned Storage Area" },
-                              { value: HygieneArea.PACKAGING_AREA, label: "Cleaned Packaging Area" },
-                              { value: HygieneArea.PROCESSING_AREA, label: "Cleaned Processing Area" },
-                              { value: HygieneArea.OFFICE_AREA, label: "Clean Office Area" },
-                            ].find(a => a.value === record.area)?.label || record.area}
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            By {record.workerName} • {new Date(record.createdAt).toLocaleString()}
-                          </p>
-                          {record.notes && (
-                            <p className="text-sm text-muted-foreground mt-2">{record.notes}</p>
-                          )}
-                        </div>
-                      </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+                      <span>Pending</span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Barcode Scanning Tab */}
-        <TabsContent value="barcode" className="space-y-6">
-          <div>
-            <h3 className="text-2xl font-bold tracking-tight">Barcode Scanning Progress</h3>
-            <p className="text-muted-foreground mt-2">
-              Overview of package scanning and status distribution
-            </p>
-          </div>
-
-          {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Packages</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{barcodeStats.total}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{barcodeStats.pending}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Dispatched</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{barcodeStats.dispatched}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Today Scanned</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{barcodeStats.todayScanned}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Status Distribution */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Package Status Distribution
-              </CardTitle>
-              <CardDescription>
-                Current status breakdown of all packages
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-                    <span>Pending</span>
+                    <span className="font-medium">{barcodeStats.pending}</span>
                   </div>
-                  <span className="font-medium">{barcodeStats.pending}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                    <span>Packed</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                      <span>Packed</span>
+                    </div>
+                    <span className="font-medium">{barcodeStats.packed}</span>
                   </div>
-                  <span className="font-medium">{barcodeStats.packed}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-purple-500 rounded"></div>
-                    <span>Dispatched</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-purple-500 rounded"></div>
+                      <span>Dispatched</span>
+                    </div>
+                    <span className="font-medium">{barcodeStats.dispatched}</span>
                   </div>
-                  <span className="font-medium">{barcodeStats.dispatched}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-green-500 rounded"></div>
-                    <span>Delivered</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-green-500 rounded"></div>
+                      <span>Delivered</span>
+                    </div>
+                    <span className="font-medium">{barcodeStats.delivered}</span>
                   </div>
-                  <span className="font-medium">{barcodeStats.delivered}</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Batch Counter Tab */}
-        <TabsContent value="batch-counter" className="space-y-6">
-          <div>
-            <h3 className="text-2xl font-bold tracking-tight">Batch Counter Monitoring</h3>
-            <p className="text-muted-foreground mt-2">
-              Real-time production data from industrial batch counter machines
-            </p>
-          </div>
-          <BatchCounterWidget autoRefresh={true} refreshInterval={5000} />
-        </TabsContent>
-      </Tabs>
+          {/* Batch Counter Tab */}
+          <TabsContent value="batch-counter" className="space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold tracking-tight">Batch Counter Monitoring</h3>
+              <p className="text-muted-foreground mt-2">
+                Real-time production data from industrial batch counter machines
+              </p>
+            </div>
+            <BatchCounterWidget autoRefresh={true} refreshInterval={5000} />
+          </TabsContent>
+        </Tabs>
       </div>
     </TooltipProvider>
   );

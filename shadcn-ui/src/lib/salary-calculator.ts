@@ -225,6 +225,7 @@ function calculateMaleSalary(
         }
       } else if (record.status === AttendanceStatus.ABSENT) {
         absentDays++;
+        // Explicitly: Absent days get NO pay (no base salary, NO overtime, even if overtime='yes' in record)
       }
     } else {
       // No record exists - default to present and check default OT
@@ -377,6 +378,7 @@ function calculateFemaleSalary(
         }
       } else if (record.status === AttendanceStatus.ABSENT) {
         absentDays++;
+        // Explicitly: Absent days get NO pay (no base salary, NO overtime, even if overtime='yes' in record)
       }
     } else {
       // No record exists - default to present and check default OT
@@ -443,6 +445,7 @@ export function getCurrentMonthYear(): { month: number; year: number } {
  * @param salaryDetails - Salary calculation result
  * @param month - Month (0-11)
  * @param year - Year
+ * @param attendanceRecords - Optional: Attendance records for the month to show dates
  * @returns Equation string showing how salary was calculated
  */
 export function generateSalaryEquation(
@@ -452,13 +455,80 @@ export function generateSalaryEquation(
   halfDays: number,
   salaryDetails: SalaryCalculationResult,
   month: number,
-  year: number
+  year: number,
+  attendanceRecords?: AttendanceRecord[]
 ): string {
   if (!worker.baseSalary || worker.baseSalary <= 0) {
     return "Base Salary: ₹0";
   }
 
   const lines: string[] = [];
+  
+  // Collect dates for absent, half day, and no-OT days if records are provided
+  const absentDates: string[] = [];
+  const halfDayDates: string[] = [];
+  const noOTDates: string[] = [];
+  const otDates: string[] = [];
+  
+  if (attendanceRecords && attendanceRecords.length > 0) {
+    const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    
+    const monthRecords = attendanceRecords.filter(record => {
+      return record.workerId === worker.id &&
+        record.date >= startDate &&
+        record.date <= endDate;
+    });
+    
+    monthRecords.forEach(record => {
+      const date = new Date(record.date);
+      const dayOfWeek = date.getDay();
+      const isTuesday = dayOfWeek === 2;
+      const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+      
+      if (record.status === AttendanceStatus.ABSENT) {
+        absentDates.push(dateStr);
+      } else if (record.status === AttendanceStatus.HALF_DAY) {
+        if (record.overtime === 'yes') {
+          halfDayDates.push(dateStr + ' (OT)');
+        } else {
+          halfDayDates.push(dateStr + ' (No-OT)');
+        }
+      } else if (record.status === AttendanceStatus.PRESENT) {
+        if (worker.gender === Gender.MALE && isTuesday) {
+          // Men get paid for Tuesday but no OT
+          noOTDates.push(dateStr + ' (Tue)');
+        } else if (record.overtime === 'yes') {
+          otDates.push(dateStr);
+        } else {
+          noOTDates.push(dateStr);
+        }
+      }
+    });
+    
+    // Also check for days with no record (default to present, may have default OT)
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    for (let day = 1; day <= totalDays; day++) {
+      const date = new Date(year, month, day);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayOfWeek = date.getDay();
+      const isTuesday = dayOfWeek === 2;
+      
+      if (worker.gender === Gender.FEMALE && isTuesday) {
+        continue; // Skip Tuesdays for women
+      }
+      
+      const hasRecord = monthRecords.some(r => r.date === dateStr);
+      if (!hasRecord) {
+        const displayDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+        if (worker.gender === Gender.MALE && isTuesday) {
+          noOTDates.push(displayDate + '(Tue-NoRec)');
+        } else {
+          noOTDates.push(displayDate + '(NoRec)');
+        }
+      }
+    }
+  }
   
   if (worker.gender === Gender.MALE) {
     // Male: Monthly salary based calculation
@@ -482,6 +552,20 @@ export function generateSalaryEquation(
     // Summary line
     lines.push(`Parameters: ${presentDays} Present, ${absentDays} Absent, ${halfDays} Half Day`);
     
+    // Show dates if available
+    if (absentDates.length > 0) {
+      lines.push(`Absent Dates: ${absentDates.join(", ")}`);
+    }
+    if (halfDayDates.length > 0) {
+      lines.push(`Half Day Dates: ${halfDayDates.join(", ")}`);
+    }
+    if (otDates.length > 0) {
+      lines.push(`OT Dates: ${otDates.join(", ")}`);
+    }
+    if (noOTDates.length > 0) {
+      lines.push(`No-OT Dates: ${noOTDates.join(", ")}`);
+    }
+    
     // Base salary calculation
     const baseSalaryAmount = salaryDetails.baseSalary;
     const baseCalc: string[] = [];
@@ -491,7 +575,7 @@ export function generateSalaryEquation(
     if (halfDays > 0) {
       baseCalc.push(`${halfDays}HD × ₹${(dailyRate * 0.5).toFixed(2)}`);
     }
-    if (absentDays > 0) {
+    if (absentDays > 0 && absentDates.length === 0) {
       lines.push(`Absent Days: ${absentDays} (No pay)`);
     }
     if (baseCalc.length > 0) {
@@ -535,6 +619,20 @@ export function generateSalaryEquation(
     // Summary line
     lines.push(`Parameters: ${presentDays} Present, ${absentDays} Absent, ${halfDays} Half Day`);
     
+    // Show dates if available
+    if (absentDates.length > 0) {
+      lines.push(`Absent Dates: ${absentDates.join(", ")}`);
+    }
+    if (halfDayDates.length > 0) {
+      lines.push(`Half Day Dates: ${halfDayDates.join(", ")}`);
+    }
+    if (noOTDates.length > 0) {
+      lines.push(`No-OT Dates: ${noOTDates.join(", ")}`);
+    }
+    if (otDates.length > 0) {
+      lines.push(`OT Dates: ${otDates.join(", ")}`);
+    }
+    
     // Base salary calculation
     const baseSalaryAmount = salaryDetails.baseSalary;
     const baseCalc: string[] = [];
@@ -544,7 +642,7 @@ export function generateSalaryEquation(
     if (halfDays > 0) {
       baseCalc.push(`${halfDays}HD × ₹${(dailyWage * 0.5).toFixed(2)}`);
     }
-    if (absentDays > 0) {
+    if (absentDays > 0 && absentDates.length === 0) {
       lines.push(`Absent Days: ${absentDays} (No pay)`);
     }
     if (tuesdays > 0) {
