@@ -28,7 +28,11 @@ interface WorkerAbsenteeStats {
   salaryDetails: SalaryCalculationResult; // Detailed salary breakdown
 }
 
-export function Dashboard() {
+interface DashboardProps {
+  refreshTrigger?: number;
+}
+
+export function Dashboard({ refreshTrigger }: DashboardProps = {}) {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [barcodes, setBarcodes] = useState<Barcode[]>([]);
@@ -44,6 +48,44 @@ export function Dashboard() {
     const now = new Date();
     const monthYear = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     setCurrentMonth(monthYear);
+  }, []);
+
+  // Refresh when refreshTrigger changes (from parent App component)
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
+
+  // Auto-refresh every 30 seconds when dashboard is active
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh when tab becomes visible (user switches back to this tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadData();
+      }
+    };
+
+    const handleFocus = () => {
+      loadData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   useEffect(() => {
@@ -342,25 +384,25 @@ export function Dashboard() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground mt-2">
-            Overview of attendance, hygiene checks, and barcode scanning progress
-          </p>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+            <p className="text-muted-foreground mt-2">
+              Overview of attendance, hygiene checks, and barcode scanning progress
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadData()}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => loadData()}
-          disabled={loading}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
 
         <Tabs defaultValue="attendance" className="space-y-4">
           <TabsList>

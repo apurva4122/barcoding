@@ -44,7 +44,7 @@ function App() {
       case "dashboard":
         return (
           <PasswordProtection sectionName="dashboard">
-            <Dashboard key={refreshTrigger} />
+            <Dashboard refreshTrigger={refreshTrigger} />
           </PasswordProtection>
         )
       case "generator":
