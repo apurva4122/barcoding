@@ -350,11 +350,17 @@ function calculateFemaleSalary(
 
     if (record) {
       // Record exists - use explicit status
+      // CRITICAL: Double-check Tuesday for women - should never process Tuesday records for women
+      if (worker.gender === Gender.FEMALE && isTuesday) {
+        continue; // Skip Tuesday records for women - no pay, no OT
+      }
+      
       if (record.status === AttendanceStatus.PRESENT) {
         baseSalary += dailyWage;
 
         // Check for overtime (explicit record overwrites default)
-        if (record.overtime === 'yes') {
+        // Women never get OT on Tuesday (already checked above, but being explicit)
+        if (record.overtime === 'yes' && !isTuesday) {
           overtimeHours += 1; // 1 hour extra
           // Deduct late minutes from overtime
           const lateMins = typeof record.lateMinutes === 'number' ? record.lateMinutes : (record.lateMinutes ? parseInt(String(record.lateMinutes)) : 0);
@@ -368,7 +374,8 @@ function calculateFemaleSalary(
         baseSalary += dailyWage * 0.5;
 
         // Check for overtime
-        if (record.overtime === 'yes') {
+        // Women never get OT on Tuesday (already checked above, but being explicit)
+        if (record.overtime === 'yes' && !isTuesday) {
           overtimeHours += 1;
           // Deduct late minutes from overtime
           const lateMins = typeof record.lateMinutes === 'number' ? record.lateMinutes : (record.lateMinutes ? parseInt(String(record.lateMinutes)) : 0);
@@ -446,6 +453,7 @@ export function getCurrentMonthYear(): { month: number; year: number } {
  * @param month - Month (0-11)
  * @param year - Year
  * @param attendanceRecords - Optional: Attendance records for the month to show dates
+ * @param defaultOvertime - Optional: Default overtime setting for the worker (determines OT for no-record days)
  * @returns Equation string showing how salary was calculated
  */
 export function generateSalaryEquation(
@@ -456,7 +464,8 @@ export function generateSalaryEquation(
   salaryDetails: SalaryCalculationResult,
   month: number,
   year: number,
-  attendanceRecords?: AttendanceRecord[]
+  attendanceRecords?: AttendanceRecord[],
+  defaultOvertime?: boolean
 ): string {
   if (!worker.baseSalary || worker.baseSalary <= 0) {
     return "Base Salary: ₹0";
@@ -484,6 +493,12 @@ export function generateSalaryEquation(
       const date = new Date(record.date);
       const dayOfWeek = date.getDay();
       const isTuesday = dayOfWeek === 2;
+      
+      // Women don't get paid for Tuesday - skip completely
+      if (worker.gender === Gender.FEMALE && isTuesday) {
+        return; // Skip Tuesday records for women
+      }
+      
       const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
       
       if (record.status === AttendanceStatus.ABSENT) {
@@ -518,13 +533,24 @@ export function generateSalaryEquation(
         continue; // Skip Tuesdays for women
       }
       
-      const hasRecord = monthRecords.some(r => r.date === dateStr);
+      const hasRecord = monthRecords.some(r => {
+        // Ensure we're comparing dates correctly (both in YYYY-MM-DD format)
+        const recordDateStr = r.date.split('T')[0]; // Handle potential timestamp
+        return recordDateStr === dateStr;
+      });
+      
       if (!hasRecord) {
         const displayDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+        // Days with no record default to present, OT depends on defaultOvertime setting
         if (worker.gender === Gender.MALE && isTuesday) {
-          noOTDates.push(displayDate + '(Tue-NoRec)');
+          // Men get paid for Tuesday but no OT, even if defaultOvertime is true
+          noOTDates.push(displayDate + ' (Tue-NoRec)');
+        } else if (defaultOvertime === true) {
+          // No record + defaultOvertime = OT
+          otDates.push(displayDate + ' (NoRec)');
         } else {
-          noOTDates.push(displayDate + '(NoRec)');
+          // No record + no defaultOvertime = No-OT
+          noOTDates.push(displayDate + ' (NoRec)');
         }
       }
     }

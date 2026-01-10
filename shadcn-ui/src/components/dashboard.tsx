@@ -11,7 +11,8 @@ import { getAllHygieneRecords, getHygieneRecordsByDate } from "@/lib/hygiene-sto
 import { getAllWorkerDefaultOvertimeSettings } from "@/lib/supabase-service";
 import { Worker, AttendanceRecord, AttendanceStatus, Barcode, PackingStatus, HygieneRecord, HygieneArea } from "@/types";
 import { calculateMonthlySalary, getCurrentMonthYear, generateSalaryEquation, type SalaryCalculationResult } from "@/lib/salary-calculator";
-import { TrendingDown, TrendingUp, DollarSign, Calendar, Sparkles, Package, Users, CheckCircle2, XCircle, Activity } from "lucide-react";
+import { TrendingDown, TrendingUp, DollarSign, Calendar, Sparkles, Package, Users, CheckCircle2, XCircle, Activity, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { BatchCounterWidget } from "./batch-counter-widget";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -341,13 +342,25 @@ export function Dashboard() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        {/* Header */}
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground mt-2">
             Overview of attendance, hygiene checks, and barcode scanning progress
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => loadData()}
+          disabled={loading}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
 
         <Tabs defaultValue="attendance" className="space-y-4">
           <TabsList>
@@ -441,9 +454,10 @@ export function Dashboard() {
                                     {(() => {
                                       const currentMonthYear = getCurrentMonthYear();
                                       const { startDate, endDate } = getCurrentMonthRange();
-                                      const monthRecords = attendanceRecords.filter(record => 
+                                      const monthRecords = attendanceRecords.filter(record =>
                                         record.date >= startDate && record.date <= endDate
                                       );
+                                      const defaultOT = workerDefaultOvertime[worker.id] || false;
                                       return generateSalaryEquation(
                                         worker,
                                         stat.presentCount,
@@ -452,7 +466,8 @@ export function Dashboard() {
                                         stat.salaryDetails,
                                         currentMonthYear.month,
                                         currentMonthYear.year,
-                                        monthRecords
+                                        monthRecords,
+                                        defaultOT
                                       );
                                     })()}
                                   </TooltipContent>
@@ -571,9 +586,10 @@ export function Dashboard() {
                                         <TooltipContent className="max-w-md whitespace-pre-line text-xs">
                                           {(() => {
                                             const { startDate, endDate } = getCurrentMonthRange();
-                                            const monthRecords = attendanceRecords.filter(record => 
+                                            const monthRecords = attendanceRecords.filter(record =>
                                               record.date >= startDate && record.date <= endDate
                                             );
+                                            const defaultOT = workerDefaultOvertime[worker.id] || false;
                                             return generateSalaryEquation(
                                               worker,
                                               stat.presentCount,
@@ -582,7 +598,8 @@ export function Dashboard() {
                                               stat.salaryDetails,
                                               month,
                                               year,
-                                              monthRecords
+                                              monthRecords,
+                                              defaultOT
                                             );
                                           })()}
                                         </TooltipContent>
@@ -674,9 +691,10 @@ export function Dashboard() {
                                         <TooltipContent className="max-w-md whitespace-pre-line text-xs">
                                           {(() => {
                                             const { startDate, endDate } = getCurrentMonthRange();
-                                            const monthRecords = attendanceRecords.filter(record => 
+                                            const monthRecords = attendanceRecords.filter(record =>
                                               record.date >= startDate && record.date <= endDate
                                             );
+                                            const defaultOT = workerDefaultOvertime[worker.id] || false;
                                             return generateSalaryEquation(
                                               worker,
                                               stat.presentCount,
@@ -685,7 +703,8 @@ export function Dashboard() {
                                               stat.salaryDetails,
                                               month,
                                               year,
-                                              monthRecords
+                                              monthRecords,
+                                              defaultOT
                                             );
                                           })()}
                                         </TooltipContent>
@@ -829,9 +848,10 @@ export function Dashboard() {
                                           <TooltipContent className="max-w-md whitespace-pre-line text-xs">
                                             {(() => {
                                               const { startDate, endDate } = getLastMonthRange();
-                                              const monthRecords = attendanceRecords.filter(record => 
+                                              const monthRecords = attendanceRecords.filter(record =>
                                                 record.date >= startDate && record.date <= endDate
                                               );
+                                              const defaultOT = workerDefaultOvertime[worker.id] || false;
                                               return generateSalaryEquation(
                                                 worker,
                                                 stat.presentCount,
@@ -840,7 +860,8 @@ export function Dashboard() {
                                                 stat.salaryDetails,
                                                 lastMonth,
                                                 lastMonthYear,
-                                                monthRecords
+                                                monthRecords,
+                                                defaultOT
                                               );
                                             })()}
                                           </TooltipContent>
@@ -934,9 +955,10 @@ export function Dashboard() {
                                           <TooltipContent className="max-w-md whitespace-pre-line text-xs">
                                             {(() => {
                                               const { startDate, endDate } = getLastMonthRange();
-                                              const monthRecords = attendanceRecords.filter(record => 
+                                              const monthRecords = attendanceRecords.filter(record =>
                                                 record.date >= startDate && record.date <= endDate
                                               );
+                                              const defaultOT = workerDefaultOvertime[worker.id] || false;
                                               return generateSalaryEquation(
                                                 worker,
                                                 stat.presentCount,
@@ -945,7 +967,8 @@ export function Dashboard() {
                                                 stat.salaryDetails,
                                                 lastMonth,
                                                 lastMonthYear,
-                                                monthRecords
+                                                monthRecords,
+                                                defaultOT
                                               );
                                             })()}
                                           </TooltipContent>
@@ -1038,9 +1061,10 @@ export function Dashboard() {
                                   <TooltipContent className="max-w-md whitespace-pre-line text-xs">
                                     {(() => {
                                       const { startDate, endDate } = getLastMonthRange();
-                                      const monthRecords = attendanceRecords.filter(record => 
+                                      const monthRecords = attendanceRecords.filter(record =>
                                         record.date >= startDate && record.date <= endDate
                                       );
+                                      const defaultOT = workerDefaultOvertime[worker.id] || false;
                                       return generateSalaryEquation(
                                         worker,
                                         stat.presentCount,
@@ -1049,7 +1073,8 @@ export function Dashboard() {
                                         stat.salaryDetails,
                                         lastMonth,
                                         lastMonthYear,
-                                        monthRecords
+                                        monthRecords,
+                                        defaultOT
                                       );
                                     })()}
                                   </TooltipContent>
