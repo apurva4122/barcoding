@@ -440,19 +440,22 @@ export function Dashboard() {
                                 <span className="ml-2 text-red-600">Late Deduct: ₹{lateMinutesDeduction.toLocaleString()}</span>
                               )}
                             </div>
-                            {worker && (
-                              <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
-                                {generateSalaryEquation(
-                                  worker,
-                                  stat.presentCount,
-                                  stat.absentCount,
-                                  stat.halfDayCount,
-                                  stat.salaryDetails,
-                                  getCurrentMonthYear().month,
-                                  getCurrentMonthYear().year
-                                )}
-                              </div>
-                            )}
+                            {worker && (() => {
+                              const currentMonthYear = getCurrentMonthYear();
+                              return (
+                                <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
+                                  {generateSalaryEquation(
+                                    worker,
+                                    stat.presentCount,
+                                    stat.absentCount,
+                                    stat.halfDayCount,
+                                    stat.salaryDetails,
+                                    currentMonthYear.month,
+                                    currentMonthYear.year
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       );
@@ -525,19 +528,22 @@ export function Dashboard() {
                                   )}
                                 </span>
                               </div>
-                              {worker && stat && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {generateSalaryEquation(
-                                    worker,
-                                    stat.presentCount,
-                                    stat.absentCount,
-                                    stat.halfDayCount,
-                                    stat.salaryDetails,
-                                    getCurrentMonthYear().month,
-                                    getCurrentMonthYear().year
-                                  )}
-                                </div>
-                              )}
+                              {worker && stat && (() => {
+                                const { month, year } = getCurrentMonthYear();
+                                return (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {generateSalaryEquation(
+                                      worker,
+                                      stat.presentCount,
+                                      stat.absentCount,
+                                      stat.halfDayCount,
+                                      stat.salaryDetails,
+                                      month,
+                                      year
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         })}
@@ -609,19 +615,22 @@ export function Dashboard() {
                                   )}
                                 </span>
                               </div>
-                              {worker && stat && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {generateSalaryEquation(
-                                    worker,
-                                    stat.presentCount,
-                                    stat.absentCount,
-                                    stat.halfDayCount,
-                                    stat.salaryDetails,
-                                    getCurrentMonthYear().month,
-                                    getCurrentMonthYear().year
-                                  )}
-                                </div>
-                              )}
+                              {worker && stat && (() => {
+                                const { month, year } = getCurrentMonthYear();
+                                return (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {generateSalaryEquation(
+                                      worker,
+                                      stat.presentCount,
+                                      stat.absentCount,
+                                      stat.halfDayCount,
+                                      stat.salaryDetails,
+                                      month,
+                                      year
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         })}
