@@ -506,12 +506,20 @@ export function generateSalaryEquation(
   
   if (attendanceRecords && attendanceRecords.length > 0) {
     // Create date strings in YYYY-MM-DD format without timezone conversion
+    // For December: month = 11 (0-indexed), so month + 1 = 12
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    // Get last day of the month: new Date(year, month + 1, 0) gives last day of month
+    // For December 2024: new Date(2024, 12, 0) = Dec 31, 2024
     const lastDay = new Date(year, month + 1, 0).getDate();
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     
+    // Verify endDate calculation is correct
+    const verifyDate = new Date(year, month + 1, 0);
+    const verifyEndDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(verifyDate.getDate()).padStart(2, '0')}`;
+    
     console.log(`[generateSalaryEquation] Worker: ${worker.name} (${worker.id}), Month: ${month + 1}/${year}`);
-    console.log(`[generateSalaryEquation] Date range: ${startDate} to ${endDate}`);
+    console.log(`[generateSalaryEquation] Date range: ${startDate} to ${endDate} (lastDay=${lastDay})`);
+    console.log(`[generateSalaryEquation] Verification: verifyEndDate=${verifyEndDate}, should match endDate`);
     console.log(`[generateSalaryEquation] Total attendance records: ${attendanceRecords.length}`);
     
     const monthRecords = attendanceRecords.filter(record => {
