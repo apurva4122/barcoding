@@ -58,36 +58,6 @@ export function Dashboard({ refreshTrigger }: DashboardProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
-  // Auto-refresh every 30 seconds when dashboard is active
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadData();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Refresh when tab becomes visible (user switches back to this tab)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        loadData();
-      }
-    };
-
-    const handleFocus = () => {
-      loadData();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
-
   useEffect(() => {
     loadHygieneRecords();
   }, [selectedDate]);
