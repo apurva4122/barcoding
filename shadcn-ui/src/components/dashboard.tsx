@@ -98,8 +98,10 @@ export function Dashboard({ refreshTrigger }: DashboardProps = {}) {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
-    const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    // Use formatYMD-like approach to avoid timezone issues with toISOString()
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     return { startDate, endDate };
   };
 
@@ -110,8 +112,10 @@ export function Dashboard({ refreshTrigger }: DashboardProps = {}) {
     const month = now.getMonth();
     const lastMonth = month === 0 ? 11 : month - 1;
     const lastMonthYear = month === 0 ? year - 1 : year;
-    const startDate = new Date(lastMonthYear, lastMonth, 1).toISOString().split('T')[0];
-    const endDate = new Date(lastMonthYear, lastMonth + 1, 0).toISOString().split('T')[0];
+    // Use formatYMD-like approach to avoid timezone issues with toISOString()
+    const lastDay = new Date(lastMonthYear, lastMonth + 1, 0).getDate();
+    const startDate = `${lastMonthYear}-${String(lastMonth + 1).padStart(2, '0')}-01`;
+    const endDate = `${lastMonthYear}-${String(lastMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     return { startDate, endDate };
   };
 
