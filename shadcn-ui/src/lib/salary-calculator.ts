@@ -60,8 +60,10 @@ export function calculateMonthlySalary(
   // If worker is inactive, stop calculations from inactive date
   let effectiveEndDate = endDate;
   if (worker.isActive === false && worker.inactiveDate) {
+    // Normalize inactive date to YYYY-MM-DD for safe comparisons
+    const inactiveDateStr = normalizeRecordDate(worker.inactiveDate);
     // Use the earlier of: inactive date or end of month
-    effectiveEndDate = worker.inactiveDate < endDate ? worker.inactiveDate : endDate;
+    effectiveEndDate = inactiveDateStr < endDate ? inactiveDateStr : endDate;
   }
 
   // Filter attendance records for this month up to inactive date
@@ -180,7 +182,7 @@ function calculateMaleSalary(
   let lastProcessDate = isCurrentMonth ? todayStr : endDate;
   if (worker.isActive === false && worker.inactiveDate) {
     // Use the earlier of: inactive date, today (for current month), or end of month
-    const inactiveDateStr = worker.inactiveDate;
+    const inactiveDateStr = normalizeRecordDate(worker.inactiveDate);
     if (inactiveDateStr < lastProcessDate) {
       lastProcessDate = inactiveDateStr;
     }
@@ -199,7 +201,7 @@ function calculateMaleSalary(
     const isTuesday = dayOfWeek === 2;
 
     // Skip days after inactive date for inactive workers
-    if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
+    if (worker.isActive === false && worker.inactiveDate && dateStr > normalizeRecordDate(worker.inactiveDate)) {
       continue; // Don't process days after inactive date
     }
 
@@ -244,7 +246,7 @@ function calculateMaleSalary(
       // No record exists - default to present and check default OT
       // BUT: For inactive workers, don't default to present after inactive date
       // (This case is already handled by the continue statement above, but keeping for safety)
-      if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
+      if (worker.isActive === false && worker.inactiveDate && dateStr > normalizeRecordDate(worker.inactiveDate)) {
         continue; // Don't count days after inactive date
       }
 
@@ -331,7 +333,7 @@ function calculateFemaleSalary(
   let lastProcessDate = isCurrentMonth ? todayStr : endDate;
   if (worker.isActive === false && worker.inactiveDate) {
     // Use the earlier of: inactive date, today (for current month), or end of month
-    const inactiveDateStr = worker.inactiveDate;
+    const inactiveDateStr = normalizeRecordDate(worker.inactiveDate);
     if (inactiveDateStr < lastProcessDate) {
       lastProcessDate = inactiveDateStr;
     }
@@ -350,7 +352,7 @@ function calculateFemaleSalary(
     const isTuesday = dayOfWeek === 2;
 
     // Skip days after inactive date for inactive workers
-    if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
+    if (worker.isActive === false && worker.inactiveDate && dateStr > normalizeRecordDate(worker.inactiveDate)) {
       continue; // Don't process days after inactive date
     }
 
@@ -404,7 +406,7 @@ function calculateFemaleSalary(
       // No record exists - default to present and check default OT
       // BUT: For inactive workers, don't default to present after inactive date
       // (This case is already handled by the continue statement above, but keeping for safety)
-      if (worker.isActive === false && worker.inactiveDate && dateStr > worker.inactiveDate) {
+      if (worker.isActive === false && worker.inactiveDate && dateStr > normalizeRecordDate(worker.inactiveDate)) {
         continue; // Don't count days after inactive date
       }
 
