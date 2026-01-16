@@ -480,17 +480,23 @@ export function generateSalaryEquation(
   const otDates: string[] = [];
   
   if (attendanceRecords && attendanceRecords.length > 0) {
-    const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    // Create date strings in YYYY-MM-DD format without timezone conversion
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     
     const monthRecords = attendanceRecords.filter(record => {
+      const recordDateStr = record.date.split('T')[0]; // Handle potential timestamp
       return record.workerId === worker.id &&
-        record.date >= startDate &&
-        record.date <= endDate;
+        recordDateStr >= startDate &&
+        recordDateStr <= endDate;
     });
     
     monthRecords.forEach(record => {
-      const date = new Date(record.date);
+      // Parse date string to avoid timezone issues
+      const recordDateStr = record.date.split('T')[0]; // YYYY-MM-DD
+      const [recordYear, recordMonth, recordDay] = recordDateStr.split('-').map(Number);
+      const date = new Date(recordYear, recordMonth - 1, recordDay);
       const dayOfWeek = date.getDay();
       const isTuesday = dayOfWeek === 2;
       
@@ -524,8 +530,9 @@ export function generateSalaryEquation(
     // Also check for days with no record (default to present, may have default OT)
     const totalDays = new Date(year, month + 1, 0).getDate();
     for (let day = 1; day <= totalDays; day++) {
+      // Create date string in YYYY-MM-DD format without timezone conversion
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const date = new Date(year, month, day);
-      const dateStr = date.toISOString().split('T')[0];
       const dayOfWeek = date.getDay();
       const isTuesday = dayOfWeek === 2;
       
