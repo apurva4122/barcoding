@@ -510,12 +510,25 @@ export function generateSalaryEquation(
     const lastDay = new Date(year, month + 1, 0).getDate();
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     
+    console.log(`[generateSalaryEquation] Worker: ${worker.name} (${worker.id}), Month: ${month + 1}/${year}`);
+    console.log(`[generateSalaryEquation] Date range: ${startDate} to ${endDate}`);
+    console.log(`[generateSalaryEquation] Total attendance records: ${attendanceRecords.length}`);
+    
     const monthRecords = attendanceRecords.filter(record => {
       const recordDateStr = record.date.split('T')[0]; // Handle potential timestamp
-      return record.workerId === worker.id &&
+      const matches = record.workerId === worker.id &&
         recordDateStr >= startDate &&
         recordDateStr <= endDate;
+      
+      // Log records for this worker
+      if (record.workerId === worker.id) {
+        console.log(`[generateSalaryEquation] Found record for worker: date=${record.date}, normalized=${recordDateStr}, status=${record.status}, inRange=${recordDateStr >= startDate && recordDateStr <= endDate}, matches=${matches}`);
+      }
+      
+      return matches;
     });
+    
+    console.log(`[generateSalaryEquation] Filtered month records: ${monthRecords.length}`);
     
     monthRecords.forEach(record => {
       // Parse date string to avoid timezone issues
@@ -527,12 +540,14 @@ export function generateSalaryEquation(
       
       // Women don't get paid for Tuesday - skip completely
       if (worker.gender === Gender.FEMALE && isTuesday) {
+        console.log(`[generateSalaryEquation] Skipping Tuesday record for female worker: ${recordDateStr}`);
         return; // Skip Tuesday records for women
       }
       
       const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
       
       if (record.status === AttendanceStatus.ABSENT) {
+        console.log(`[generateSalaryEquation] Adding absent date: ${dateStr} (from ${recordDateStr})`);
         absentDates.push(dateStr);
       } else if (record.status === AttendanceStatus.HALF_DAY) {
         if (record.overtime === 'yes') {
@@ -612,7 +627,10 @@ export function generateSalaryEquation(
     
     // Show dates if available
     if (absentDates.length > 0) {
+      console.log(`[generateSalaryEquation] Final absent dates array for ${worker.name}:`, absentDates);
       lines.push(`Absent Dates: ${absentDates.join(", ")}`);
+    } else {
+      console.log(`[generateSalaryEquation] No absent dates found for ${worker.name} in month ${month + 1}/${year}`);
     }
     if (halfDayDates.length > 0) {
       lines.push(`Half Day Dates: ${halfDayDates.join(", ")}`);
@@ -679,7 +697,10 @@ export function generateSalaryEquation(
     
     // Show dates if available
     if (absentDates.length > 0) {
+      console.log(`[generateSalaryEquation] Final absent dates array for ${worker.name}:`, absentDates);
       lines.push(`Absent Dates: ${absentDates.join(", ")}`);
+    } else {
+      console.log(`[generateSalaryEquation] No absent dates found for ${worker.name} in month ${month + 1}/${year}`);
     }
     if (halfDayDates.length > 0) {
       lines.push(`Half Day Dates: ${halfDayDates.join(", ")}`);
