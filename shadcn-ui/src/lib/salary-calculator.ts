@@ -1,5 +1,17 @@
 import { Worker, AttendanceRecord, Gender, AttendanceStatus } from "@/types";
 
+const formatYMD = (year: number, month: number, day: number): string => {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+};
+
+const formatDateYMD = (date: Date): string => {
+  return formatYMD(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const normalizeRecordDate = (dateValue: string): string => {
+  return dateValue.split("T")[0];
+};
+
 export interface SalaryCalculationResult {
   baseSalary: number;
   bonus: number;
@@ -42,8 +54,8 @@ export function calculateMonthlySalary(
   }
 
   // Get date range for the month
-  const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-  const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  const startDate = formatYMD(year, month, 1);
+  const endDate = formatYMD(year, month, new Date(year, month + 1, 0).getDate());
 
   // If worker is inactive, stop calculations from inactive date
   let effectiveEndDate = endDate;
@@ -54,8 +66,9 @@ export function calculateMonthlySalary(
 
   // Filter attendance records for this month up to inactive date
   const monthRecords = attendanceRecords.filter(record => {
-    return record.date >= startDate &&
-      record.date <= effectiveEndDate &&
+    const recordDateStr = normalizeRecordDate(record.date);
+    return recordDateStr >= startDate &&
+      recordDateStr <= effectiveEndDate &&
       record.workerId === worker.id;
   });
 
@@ -152,16 +165,16 @@ function calculateMaleSalary(
   // Create a map of records by date for quick lookup
   const recordsByDate = new Map<string, AttendanceRecord>();
   records.forEach(record => {
-    recordsByDate.set(record.date, record);
+    recordsByDate.set(normalizeRecordDate(record.date), record);
   });
 
   // Get today's date to only process days up to today (including today) for current month
   // For past months, process all days in the month
   // But if worker is inactive, stop at inactive date
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = formatDateYMD(today);
   const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
-  const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  const endDate = formatYMD(year, month, new Date(year, month + 1, 0).getDate());
 
   // Determine the last day to process
   let lastProcessDate = isCurrentMonth ? todayStr : endDate;
@@ -181,7 +194,7 @@ function calculateMaleSalary(
   // Process each day
   for (let day = 1; day <= daysToProcess; day++) {
     const date = new Date(year, month, day);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatYMD(year, month, day);
     const dayOfWeek = date.getDay();
     const isTuesday = dayOfWeek === 2;
 
@@ -302,17 +315,17 @@ function calculateFemaleSalary(
   // Create a map of records by date for quick lookup
   const recordsByDate = new Map<string, AttendanceRecord>();
   records.forEach(record => {
-    recordsByDate.set(record.date, record);
+    recordsByDate.set(normalizeRecordDate(record.date), record);
   });
 
   // Get today's date to only process days up to today (including today) for current month
   // For past months, process all days in the month
   // But if worker is inactive, stop at inactive date
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = formatDateYMD(today);
   const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
   const totalDays = new Date(year, month + 1, 0).getDate();
-  const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  const endDate = formatYMD(year, month, new Date(year, month + 1, 0).getDate());
 
   // Determine the last day to process
   let lastProcessDate = isCurrentMonth ? todayStr : endDate;
@@ -332,7 +345,7 @@ function calculateFemaleSalary(
   // Process each day
   for (let day = 1; day <= daysToProcess; day++) {
     const date = new Date(year, month, day);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatYMD(year, month, day);
     const dayOfWeek = date.getDay();
     const isTuesday = dayOfWeek === 2;
 
