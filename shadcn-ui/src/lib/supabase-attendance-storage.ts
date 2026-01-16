@@ -247,10 +247,11 @@ export async function getAllAttendanceFromSupabase(): Promise<AttendanceRecord[]
   try {
     //console.log('🔄 Fetching all attendance from Supabase...');
 
-    // Get attendance records from last 30 days for performance
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const startDate = thirtyDaysAgo.toISOString().split('T')[0];
+    // Get attendance records from last 90 days to ensure we have complete data for past months
+    // This is important for salary calculations that need all days in previous months
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const startDate = ninetyDaysAgo.toISOString().split('T')[0];
 
     const { data, error } = await supabase
       .from(ATTENDANCE_TABLE)
