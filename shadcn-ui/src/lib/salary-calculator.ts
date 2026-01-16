@@ -68,10 +68,14 @@ export function calculateMonthlySalary(
 
   // Filter attendance records for this month up to inactive date
   const monthRecords = attendanceRecords.filter(record => {
+    // Normalize the record date to ensure consistent format
     const recordDateStr = normalizeRecordDate(record.date);
-    return recordDateStr >= startDate &&
-      recordDateStr <= effectiveEndDate &&
-      record.workerId === worker.id;
+    // Ensure we're comparing normalized dates
+    const normalizedStartDate = normalizeRecordDate(startDate);
+    const normalizedEndDate = normalizeRecordDate(effectiveEndDate);
+    return record.workerId === worker.id &&
+      recordDateStr >= normalizedStartDate &&
+      recordDateStr <= normalizedEndDate;
   });
 
   if (worker.gender === Gender.MALE) {
@@ -205,7 +209,10 @@ function calculateMaleSalary(
       continue; // Don't process days after inactive date
     }
 
-    const record = recordsByDate.get(dateStr);
+    // Look up record using normalized date to ensure exact match
+    // dateStr is already in YYYY-MM-DD format from formatYMD, but normalize to be safe
+    const normalizedDateStr = normalizeRecordDate(dateStr);
+    const record = recordsByDate.get(normalizedDateStr);
 
     if (record) {
       // Record exists - use explicit status
@@ -361,7 +368,10 @@ function calculateFemaleSalary(
       continue; // Skip Tuesday completely for women
     }
 
-    const record = recordsByDate.get(dateStr);
+    // Look up record using normalized date to ensure exact match
+    // dateStr is already in YYYY-MM-DD format from formatYMD, but normalize to be safe
+    const normalizedDateStr = normalizeRecordDate(dateStr);
+    const record = recordsByDate.get(normalizedDateStr);
 
     if (record) {
       // Record exists - use explicit status
