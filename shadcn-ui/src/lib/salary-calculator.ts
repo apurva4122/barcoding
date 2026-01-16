@@ -516,13 +516,14 @@ export function generateSalaryEquation(
     
     const monthRecords = attendanceRecords.filter(record => {
       const recordDateStr = record.date.split('T')[0]; // Handle potential timestamp
-      const matches = record.workerId === worker.id &&
-        recordDateStr >= startDate &&
-        recordDateStr <= endDate;
+      // Use inclusive comparison - ensure endDate comparison includes the last day
+      // For string comparison in YYYY-MM-DD format, <= should work, but be explicit
+      const dateInRange = recordDateStr >= startDate && recordDateStr <= endDate;
+      const matches = record.workerId === worker.id && dateInRange;
       
       // Log records for this worker
       if (record.workerId === worker.id) {
-        console.log(`[generateSalaryEquation] Found record for worker: date=${record.date}, normalized=${recordDateStr}, status=${record.status}, inRange=${recordDateStr >= startDate && recordDateStr <= endDate}, matches=${matches}`);
+        console.log(`[generateSalaryEquation] Found record for worker: date=${record.date}, normalized=${recordDateStr}, status=${record.status}, startDate=${startDate}, endDate=${endDate}, inRange=${dateInRange}, matches=${matches}`);
       }
       
       return matches;
