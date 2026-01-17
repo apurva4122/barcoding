@@ -127,7 +127,8 @@ function calculateAttendanceBonus(
  * Calculate salary for male workers
  * - Monthly base salary
  * - 10 hours daily schedule
- * - Paid for Tuesday off
+ * - NOT paid for Tuesday off (similar to women)
+ * - Daily wage = monthly salary / (total days - Tuesdays)
  * - Overtime: double hourly rate, 1 hour extra
  * - Attendance bonus: Rs. 1000 if all present, Rs. 500 if 1 absent, Rs. 0 if 2+ absent
  */
@@ -155,8 +156,8 @@ function calculateMaleSalary(
     }
   }
 
-  // Daily rate = monthly salary / (working days + tuesdays) since men get paid for Tuesday
-  const dailyRate = monthlySalary / (workingDays + tuesdays);
+  // Daily rate = monthly salary / working days (excluding Tuesdays)
+  const dailyRate = monthlySalary / workingDays;
 
   // Hourly rate = daily rate / 10 hours
   const hourlyRate = dailyRate / 10;
@@ -209,6 +210,11 @@ function calculateMaleSalary(
       continue; // Don't process days after inactive date
     }
 
+    // Men don't get paid for Tuesday off (no attendance pay, no OT)
+    if (isTuesday) {
+      continue; // Skip Tuesday completely for men
+    }
+
     // Look up record using normalized date to ensure exact match
     // dateStr is already in YYYY-MM-DD format from formatYMD, but normalize to be safe
     const normalizedDateStr = normalizeRecordDate(dateStr);
@@ -216,14 +222,18 @@ function calculateMaleSalary(
 
     if (record) {
       // Record exists - use explicit status
+      // CRITICAL: Double-check Tuesday for men - should never process Tuesday records
+      if (isTuesday) {
+        continue; // Skip Tuesday records for men - no pay, no OT
+      }
+      
       if (record.status === AttendanceStatus.PRESENT) {
         presentDays++;
-        // Men get paid for Tuesday
         baseSalary += dailyRate;
 
         // Check for overtime (explicit record overwrites default)
-        // Men don't get OT on Tuesday
-        if (record.overtime === 'yes' && !isTuesday) {
+        // Men don't get OT on Tuesday (already checked above)
+        if (record.overtime === 'yes') {
           overtimeHours += 1; // 1 hour extra
           // Deduct late minutes from overtime
           const lateMins = typeof record.lateMinutes === 'number' ? record.lateMinutes : (record.lateMinutes ? parseInt(String(record.lateMinutes)) : 0);
@@ -237,7 +247,7 @@ function calculateMaleSalary(
         baseSalary += dailyRate * 0.5;
 
         // Check for overtime (can still have overtime on half day, but not on Tuesday)
-        if (record.overtime === 'yes' && !isTuesday) {
+        if (record.overtime === 'yes') {
           overtimeHours += 1;
           // Deduct late minutes from overtime
           const lateMins = typeof record.lateMinutes === 'number' ? record.lateMinutes : (record.lateMinutes ? parseInt(String(record.lateMinutes)) : 0);
@@ -260,8 +270,8 @@ function calculateMaleSalary(
       presentDays++;
       baseSalary += dailyRate;
 
-      // If default OT is enabled, count overtime (but not on Tuesday for men)
-      if (defaultOvertime === true && !isTuesday) {
+      // If default OT is enabled, count overtime (but not on Tuesday - already skipped above)
+      if (defaultOvertime === true) {
         overtimeHours += 1;
       }
     }
@@ -547,10 +557,10 @@ export function generateSalaryEquation(
       const dayOfWeek = date.getDay();
       const isTuesday = dayOfWeek === 2;
       
-      // Women don't get paid for Tuesday - skip completely
-      if (worker.gender === Gender.FEMALE && isTuesday) {
-        console.log(`[generateSalaryEquation] Skipping Tuesday record for female worker: ${recordDateStr}`);
-        return; // Skip Tuesday records for women
+      // Both men and women don't get paid for Tuesday - skip completely
+      if (isTuesday) {
+        console.log(`[generateSalaryEquation] Skipping Tuesday record for ${worker.gender} worker: ${recordDateStr}`);
+        return; // Skip Tuesday records for both men and women
       }
       
       const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
@@ -565,10 +575,7 @@ export function generateSalaryEquation(
           halfDayDates.push(dateStr + ' (No-OT)');
         }
       } else if (record.status === AttendanceStatus.PRESENT) {
-        if (worker.gender === Gender.MALE && isTuesday) {
-          // Men get paid for Tuesday but no OT
-          noOTDates.push(dateStr + ' (Tue)');
-        } else if (record.overtime === 'yes') {
+        if (record.overtime === 'yes') {
           otDates.push(dateStr);
         } else {
           noOTDates.push(dateStr);
@@ -585,8 +592,9 @@ export function generateSalaryEquation(
       const dayOfWeek = date.getDay();
       const isTuesday = dayOfWeek === 2;
       
-      if (worker.gender === Gender.FEMALE && isTuesday) {
-        continue; // Skip Tuesdays for women
+      // Both men and women don't get paid for Tuesday - skip completely
+      if (isTuesday) {
+        continue; // Skip Tuesdays for both men and women
       }
       
       const hasRecord = monthRecords.some(r => {
@@ -598,10 +606,7 @@ export function generateSalaryEquation(
       if (!hasRecord) {
         const displayDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
         // Days with no record default to present, OT depends on defaultOvertime setting
-        if (worker.gender === Gender.MALE && isTuesday) {
-          // Men get paid for Tuesday but no OT, even if defaultOvertime is true
-          noOTDates.push(displayDate + ' (Tue-NoRec)');
-        } else if (defaultOvertime === true) {
+        if (defaultOvertime === true) {
           // No record + defaultOvertime = OT
           otDates.push(displayDate + ' (NoRec)');
         } else {
@@ -628,7 +633,8 @@ export function generateSalaryEquation(
       }
     }
     
-    const dailyRate = worker.baseSalary / (workingDays + tuesdays);
+    // Daily rate = monthly salary / working days (excluding Tuesdays)
+    const dailyRate = worker.baseSalary / workingDays;
     const hourlyRate = dailyRate / 10;
     
     // Summary line
