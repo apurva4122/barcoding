@@ -156,9 +156,18 @@ export function Dashboard({ refreshTrigger }: DashboardProps = {}) {
     });
 
     // Count attendance for each active worker in last month only
+    // Exclude Tuesdays for both men and women (no pay for Tuesday)
     lastMonthRecords.forEach(record => {
       const stats = statsMap.get(record.workerId);
       if (stats) {
+        // Check if this date is a Tuesday - skip Tuesdays for both men and women
+        const recordDate = new Date(record.date + 'T00:00:00'); // Parse YYYY-MM-DD format
+        const dayOfWeek = recordDate.getDay();
+        const isTuesday = dayOfWeek === 2;
+        if (isTuesday) {
+          return; // Skip Tuesday records - no pay for Tuesday
+        }
+
         stats.totalDays++;
         if (record.status === AttendanceStatus.ABSENT) {
           stats.absentCount++;
@@ -209,6 +218,7 @@ export function Dashboard({ refreshTrigger }: DashboardProps = {}) {
 
     // Count attendance for all workers
     // For inactive workers, only count up to inactive date
+    // Exclude Tuesdays for both men and women (no pay for Tuesday)
     monthRecords.forEach(record => {
       const stats = statsMap.get(record.workerId);
       if (stats) {
@@ -216,6 +226,14 @@ export function Dashboard({ refreshTrigger }: DashboardProps = {}) {
         // Skip attendance records after inactive date
         if (worker?.isActive === false && worker?.inactiveDate && record.date > worker.inactiveDate) {
           return; // Don't count attendance after inactive date
+        }
+
+        // Check if this date is a Tuesday - skip Tuesdays for both men and women
+        const recordDate = new Date(record.date + 'T00:00:00'); // Parse YYYY-MM-DD format
+        const dayOfWeek = recordDate.getDay();
+        const isTuesday = dayOfWeek === 2;
+        if (isTuesday) {
+          return; // Skip Tuesday records - no pay for Tuesday
         }
 
         stats.totalDays++;

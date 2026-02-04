@@ -222,11 +222,7 @@ function calculateMaleSalary(
 
     if (record) {
       // Record exists - use explicit status
-      // CRITICAL: Double-check Tuesday for men - should never process Tuesday records
-      if (isTuesday) {
-        continue; // Skip Tuesday records for men - no pay, no OT
-      }
-      
+      // Note: Tuesday is already skipped above at line 214-216
       if (record.status === AttendanceStatus.PRESENT) {
         presentDays++;
         baseSalary += dailyRate;
@@ -639,6 +635,11 @@ export function generateSalaryEquation(
     
     // Summary line
     lines.push(`Parameters: ${presentDays} Present, ${absentDays} Absent, ${halfDays} Half Day`);
+    
+    // Show Tuesdays excluded (like for women)
+    if (tuesdays > 0) {
+      lines.push(`Tuesdays: ${tuesdays} (No pay)`);
+    }
     
     // Show dates if available
     if (absentDates.length > 0) {
