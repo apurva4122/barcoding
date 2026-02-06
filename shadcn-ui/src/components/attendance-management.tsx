@@ -244,6 +244,49 @@ export function AttendanceManagement({ onAttendanceUpdate }: AttendanceManagemen
       const success = await saveWorker(newWorker);
 
       if (success) {
+        // Create attendance records for previous days in current month as ABSENT
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
+        const todayDate = today.getDate();
+        
+        // Get first day of current month
+        const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+        
+        // Create ABSENT records for all previous days (from 1st to yesterday)
+        // Skip Tuesdays (both men and women don't get paid for Tuesdays)
+        const attendancePromises: Promise<boolean>[] = [];
+        
+        for (let day = 1; day < todayDate; day++) {
+          const date = new Date(currentYear, currentMonth, day);
+          const dayOfWeek = date.getDay();
+          const isTuesday = dayOfWeek === 2;
+          
+          // Skip Tuesdays - no attendance record needed
+          if (isTuesday) {
+            continue;
+          }
+          
+          // Format date as YYYY-MM-DD
+          const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          
+          // Create ABSENT record for this day
+          const absentRecord: AttendanceRecord = {
+            id: `attendance-${Date.now()}-${newWorker.id}-${day}`,
+            workerId: newWorker.id,
+            workerName: newWorker.name,
+            date: dateStr,
+            status: AttendanceStatus.ABSENT,
+            overtime: 'no',
+            createdAt: new Date().toISOString()
+          };
+          
+          attendancePromises.push(saveAttendance(absentRecord));
+        }
+        
+        // Wait for all attendance records to be saved
+        await Promise.all(attendancePromises);
+        
         await loadData(); // Refresh data
 
         // Reset form
